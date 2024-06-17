@@ -1,41 +1,64 @@
 
-# CPLD code for the MicroPET 1.0
+# FPGA code for the MicroPET 3.x, Ultra-CPU 2.x, and Ulti-PET 1.x
 
-The CPLD is a Xilinx xc95288xl chip, a 5V tolerable CPLD running with 3.3V supply voltage.
-I programmed it in VHDL.
+The three boards from the title use a Spartan 6 FPGA, that is programmed with the 
+VHDL code from this repository.
+
+All three boards use the same basic architecture based on the [Ultra-CPU](), which
+contains the CPU, RAM, FPGA, video output, etc, and uses I/O via the CS/A bus.
+The [Micro-PET]() uses this and integrates the standard PET I/O onto a single PCB.
+The [Ulti-PET]() further integrates additional CS/A boards, and adds more functionality 
+on top. See the linked pages for more information.
+
+In these boards the FPGA sits between the 65816 CPU and the Video (Media) RAM. In addition to 
+the video RAM access it provides the timing and memory mapping and controls select signals
+for RAM directly connected to the CPU, a CS/A bus, and/or specific select signals
+for PET I/O chips. Also, it provides a DMA engine for DAC audio output, and an
+SPI interface for various other devices.
+
+The FPGA uses the video RAM
+to create a VGA video output with 768x576 resolution at 60 Hz. When the CPU 
+tries to access this memory, it is halted by stretching Phi2 until there is no 
+access needed for video output or DAC DMA.
 
 ## Overview
 
-This is an overview on the register set:
-
 The programmable logic implements a number of features that are addressable in the I/O area 
-at $e8xx:
+at $e8xx. In addition, there are standard locations for I/O that is provided by the
+Ulti-PET board, or available as add-on-cards to the Ultra-CPU's CS/A bus.
 
-- $e800-$e807: System control ports (see below)
-- $e808-$e80b: [SPI interface](SPI.md)
-- $e810-$e817: BUS: PET PIA 1
-- $e818-$e81f: BUS: UART for RS232 (note, this halfs the PIA mirrors at $e81x, planned)
-- $e820-$e82f: BUS: PET PIA 2
-- $e830-$e83f: [DAC interface](DAC.md)
-- $e840-$e84f: BUS: PET VIA 
-- $e850-$e85f: BUS: VIA for (Fast) IEC (planned)
-- $e860-$e87f: BUS: DUAL SID Board SID 1
-- $e880-$e8df: [Video interface](VIDEO.md) (note: may be reduced to 16 bytes, with rest on BUS)
+The address ranges marked with "BUS" are routed to the CS/A bus connector and activated
+by using the /IOSEL bus line. Either the boards on the CS/A bus or the Ulti-PET board
+then decode the addresses further. The two PIAs and the VIA get their own select lines from
+the FPGA in the Micro-PET though.
+
+This is an overview on the address ranges and FPGA register set:
+
+- $e800-$e807: System control ports (built-in, see below)
+- $e808-$e80b: [SPI interface](SPI.md), built-in to the FPGA
+- $e80c-$e80f: BUS: I2C interface 
+- $e810-$e813: BUS: PET PIA 1 (directly in the Micro-PET)
+- $e818-$e81f: BUS: UART 1 for RS232
+- $e820-$e823: BUS: PET PIA 2 (directly in the Micro-PET)
+- $e828-$e82f: BUS: UART 2 for TTL serial / UEXT serial
+- $e830-$e83f: [DAC audio interface](DAC.md), built-in to the FPGA
+- $e840-$e84f: BUS: PET VIA  (directly in the Micro-PET)
+- $e850-$e85f: BUS: VIA for (Fast) IEC and 5V SPI
+- $e860-$e87f: BUS: DUAL SID Board SID 1 
+- $e880-$e8df: [Video interface](VIDEO.md) or [below](#crtc-emulation) (built-in to the FPGA; 96 bytes when memory-mapped)
 - $e8e0-$e8ff: BUS: DUAL SID Board SID 2
 
-The address ranges marked with "BUS" are routed to the CS/A bus connector.
-The "planned" entries are not tested or even built yet. The DUAl SID board
-exists and is tested, just not yet published.
 
 The assumed default boards used are 
-- PETIO: provides all the PET I/O with the two PIAs and the VIA
-- DUALSID: provides up to two SID sound devices
+- [PETIO](http://www.6502.org/users/andre/csa/petio/index.html): provides all the PET I/O with the two PIAs and the VIA
+- [DUALSID](http://www.6502.org/users/andre/csa/dualsid/index.html): provides up to two SID sound devices
+- [IEC/UART](http://www.6502.org/users/andre/csa/iecuart/index.html): provides the second VIA for 5V SPI, and (fast) serial IEC bus
 
 In addition, if enabled, the PET 8296 control port is available:
 
 - $fff0 (65520)  [8296 memory control (8296 memory map only)](#8296-control-port)
 
-## Control Ports
+## System Control Ports
 
 This is an overview on the register set:
 
@@ -45,10 +68,6 @@ This is an overview on the register set:
 - $e803 (59395)  [Speed control](#e803-59395-speed-control)
 - $e804 (59396)  [bus window](#e804-59396-bus-window)
 - $e805 (59397)  [video window map](#e805-59397-video-window)
-
-- $e880/e881 (59520/59521) [CRTC emulation](#crtc-emulation)
-  - register 9: pixel rows per char - 1
-  - register 12: start of video memory high
 
 
 ### $e800 (59392) Video Control
@@ -70,6 +89,9 @@ almost twice as much as is available in the reserved space from $8000 to $8800. 
 in this mode, only be managed using long addresses into bank 8 (the video bank), or code running
 in the video bank.
 
+Note that the 40/80 column switch is only there for Micro-PET 2.x compatibility, that is using a CPLD with very 
+restricted video output capabilities. In the newer versions 40/80 columns should be set in the [Viccy](VIDEO.md) registers.
+
 #### Screen mirror in bank 0
 
 The CRTC reads its video data from the video bank in VRAM.
@@ -86,7 +108,7 @@ window at $8xxx.
 
 #### Interlace and 50 row mode
 
-In normal mode (after reset), the VGA video circuit runs in normal mode,
+After reset, the VGA video circuit runs in normal mode,
 i.e. only every second raster line is displayed with video data.
 Writing a "1" into Viccy register 8, bit 1, interlace is switched on, and every
 single line is displayed with video data. 
@@ -98,6 +120,7 @@ So, setting bit 0=1 and bit 1=1 gives double the number of character rows
 (or raster rows in bitmap mode). I.e. with this you can enable 50 character row
 screens.
 
+See the [Viccy registers](VIDEO.md) for more details.
 
 ### $e801 (59393) Memory Map Control
 
@@ -179,66 +202,14 @@ To enable it, bit 3 in the Memory Map Control register must be set.
 
 ## CRTC emulation
 
-The Video code (partially) emulates only a subset of the CRTC registers:
+The *Viccy* Video code (partially) emulates a subset of the CRTC registers - but adds a lot of more registers and functionality on top.
 
-- Register 9: number of pixel rows per character -1
-- Register 12: start of video memory high
-
-All the other registers are not emulated, so any program or demo that
-uses them will fail.
-
-As usual with the CRTC, you have to write the register number to $e880 (59520),
+After reset, as usual with the CRTC, you have to write the register number to index register $e880 (59520),
 the write the value to write to the register to $e881 (59521).
+Viccy provides a way to read the index register, and auto-increment the index register on access to the data registers.
+Also, the 96 Viccy registers can be mapped into I/O memory.
 
-### Video memory mapping
-
-The video memory is defined as follows:
-
-#### Character mode
-
-In character mode (see control port below) two memory areas are used:
-
-1. Character memory and
-2. Character pixel data (usually "character ROM")
-
-Register 12 is used as follows:
-
-- Bit 0: - unused - must be 0
-- Bit 1: - unused - must be 0
-- Bit 2: A10 of start of character memory
-- Bit 3: A11 of start of character memory 
-- Bit 4: A12 of start of character memory
-- Bit 5: A13 of start of character memory
-- Bit 6: A13 of character pixel data (charrom)
-- Bit 7: A14 of character pixel data (charrom)
-
-As you can see, the character memory can be mapped in 1024 byte pages.
-14/15 of character memory address are set to %10, so character memory
-starts at $8000 in the video bank, and reaches up to $bfff
-
-For 40 column mode this means 16 screen pages, or 8 screen pages in 80 column mode.
-Character memory is mapped to bank 0 at boot, but can be unmapped and only be available in bank 8 (VRAM) using the control port
-
-The character set is 8k in size: two character sets of 4k each, switchable with the 
-VIA I/O pin given to the CRTC as in the PET. Register 12 can be used to select
-one of 4 such 8k sets. Note that each character occupies 16 bytes (not 8 as in the typical
-Commodore character set), so the 9th rasterline for a character may be used.
-Character set data is mapped to the lower half of bank 8 (VRAM bank 0, i.e. A15=0).
-
-#### Hires mode
-
-Hires mode is available in 40 as well as 80 "column" mode, i.e. either 320x200 or 640x200 pixels.
-
-Register 12 here is used as follows:
-
-- Bit 0: - unused - must be 0
-- Bit 1: - unused - must be 0
-- Bit 2: A10 of start of hires data
-- Bit 3: A11 of start of hires data
-- Bit 4: A12 of start of hires data
-- Bit 5: A13 of start of hires data
-- Bit 6: A14 of start of hires data
-- Bit 7: A15 of start of hires data
+See the [Viccy](VIDEO.md) description for more details.
 
 ## Memory Map
 
@@ -284,7 +255,7 @@ upper 32k of bank 0 when the 8296 control register at $fff0 is set.
             +----+ $000000
 
 
-![MicroPET Typical memory map](../images/mem-map.png)
+![MicroPET Typical memory map](images/mem-map.png)
 
 ### Init Map
 
@@ -300,7 +271,7 @@ banks 0-7 and Fast RAM to banks 8-15.
 The first thing the boot code does is to copy itself to Fast RAM, and
 switch over the two RAM chips.
 
-![MicroPET Boot memory map](../images/boot-map.png)
+![MicroPET Boot memory map](images/boot-map.png)
 
 ### Video Map
 
@@ -412,18 +383,29 @@ VIA CA2 output pin as on the PET.
 
 The code contains three modules:
 
-- Video.vhd: the video controller part
-- Clock.vhd: clock generation
-- Mapper.vhd: memory mapping
+- VideoColorVGA.vhd: the video controller part
+-- VideoVGACanvas70m.vhd: general VGA timing
+-- VideoBorder.vhd: horizontal border
+-- VideoVBorder.vhd: vertical border
+-- Sprite.vhd: sprite code
+- ClockVGA17M.vhd: clock generation
+- MapperPET.vhd: memory mapping
 - Top.vhd: glue logic and timing
 - Spi.vhd: SPI module
+- DAC.vhd: DAC module
+- ShellUltra.vhd: outermost module for the Ultra-CPU and Ulti-PET
+- ShellUPet.vhd: outermost module for the Micro-PET
 
-- pinout.ucf: Pinout definition
+- pinoutSpartan14a.ucf: Pinout definition for Ultra-CPU and Ulti-PET
+- pinoutUPet30b.ucf: Pinout definition for the Micro-PET
 
 ## Build
 
-The VHDL code is compiled using the latest version of WebISE that still supports the xc95xxx chips, i.e. version 14.7.
+The VHDL code is compiled using the latest version of WebISE that still supports the Spartan 6 chips, i.e. version 14.7.
 It can still be downloaded from the Xilinx website.
+
+Note that you need to create separate builds for the Micro-PET on one side, and the Ultra-CPU and Ulti-PET on the other side
+due to their minimally different pinout definitions and I/O select outputs.
 
 For more information on the setup, see the [build file](Build.md).
 

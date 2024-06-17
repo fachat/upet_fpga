@@ -16,6 +16,8 @@ for RAM directly connected to the CPU, a CS/A bus, and/or specific select signal
 for PET I/O chips. Also, it provides a DMA engine for DAC audio output, and an
 SPI interface for various other devices.
 
+![Micro-PET architecture](images/upet-system-architecture.png)
+
 The FPGA uses the video RAM
 to create a VGA video output with 768x576 resolution at 60 Hz. When the CPU 
 tries to access this memory, it is halted by stretching Phi2 until there is no 

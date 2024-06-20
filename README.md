@@ -1,13 +1,15 @@
 
 # FPGA code for the MicroPET 3.x, Ultra-CPU 2.x, and Ulti-PET 1.x
 
+This is part of a larger project with multiple boards, with [upet_family](https://github.com/fachat/upet_family) as parent repository.
+
 The three boards from the title use a Spartan 6 FPGA, that is programmed with the 
 VHDL code from this repository.
 
-All three boards use the same basic architecture based on the [Ultra-CPU](), which
+All three boards use the same basic architecture based on the [Ultra-CPU](https://github.com/fachat/csa_ultracpu), which
 contains the CPU, RAM, FPGA, video output, etc, and uses I/O via the CS/A bus.
-The [Micro-PET]() uses this and integrates the standard PET I/O onto a single PCB.
-The [Ulti-PET]() further integrates additional CS/A boards, and adds more functionality 
+The [Micro-PET](https://github.com/fachat/cbm_micropet) uses this and integrates the standard PET I/O onto a single PCB.
+The [Ulti-PET](https://github.com/fachat/cbm_ultipet) further integrates additional CS/A boards, and adds more functionality 
 on top. See the linked pages for more information.
 
 In these boards the FPGA sits between the 65816 CPU and the Video (Media) RAM. In addition to 

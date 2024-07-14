@@ -95,8 +95,10 @@ The following are the internal Viccy registers:
 - r31: RLINE_H: read: rasterline counter high (bits 0-1); write: rasterline match value
 
 - r32: CTRL: control register
-  - bit 1-0: -
+  - bit 0: -
+  - bit 1: -
   - bit 2: extended mode (enable full and multicolor text modes)
+  - bit 3: -
   - bit 4: DEN: display enable
   - bit 5: palette select (0 = lower half of palette in R88-R95, 1 = upper half) 
   - bit 6: if set, map registers into memory (see below)

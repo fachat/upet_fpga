@@ -196,6 +196,8 @@ Palette registers:
 
 - r88 - r95: 8 out of 16 palette entries. Which half of the registers is determined by r32.5
 
+Note that r40.0 determines if the actual palette is accessible, or the alternate palette.
+
 ### Memory-mapped registers
 
 If r32.6 is set, then the registers are not only accessible via the standard two bytes interface (and the extended 4 byte interface described above), but also mapped into I/O memory from $E884-$E8DF. The register number directly translates to the address by calculating $E880 + regnumber.

@@ -615,7 +615,8 @@ begin
 	cfgld_in <= '1' when is8296 = '1' and m_ffsel_out ='1' and ca_in(7 downto 0) = x"F0" else '0';
 
 	-- internal selects
-	sel0 		<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"0" else '0';
+	-- $e800-$e80b. Note that $e80c-$e80f is now the I2C controller
+	sel0 		<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"0" and (ca_in(3) = '0' or ca_in(2) = '0') else '0';
 	dac_sel 	<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"3" else '0';
 	vid_sel	<= '1' when m_iosel = '1' and 
 --														ca_in(7 downto 4) = x"8"

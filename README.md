@@ -79,7 +79,7 @@ This is an overview on the register set:
 - Bit 0: unused - must be 0
 - Bit 1: 0= 40 column display, 1= 80 column display
 - Bit 2: 0= screen character memory in bank 0, 1= character memory only in video bank (see memory map)
-- Bit 3: unused - must be 0
+- Bit 3: 0= map char/colour RAM in $8xxx, 1= map only character memory
 - Bit 4: unused - must be 0
 - Bit 5: unused - must be 0
 - Bit 6: unused - must be 0
@@ -88,7 +88,7 @@ This is an overview on the register set:
 Note that if you use 80 columns, AND double pixel rows (+interlace), you get the 80x50 character resolution.
 This mode is, however, not easily manageable by normal code in bank 0. In the $8xxx area the video
 and colour memory can be accessed. The first half accesses the character video memory, the second half
-is reserved for the colour memory. Now, 80x50 character require almost 4k of character video memory,
+is reserved for the colour memory (if b3=0). Now, 80x50 character require almost 4k of character video memory,
 almost twice as much as is available in the reserved space from $8000 to $8800. So, the screen can,
 in this mode, only be managed using long addresses into bank 8 (the video bank), or code running
 in the video bank.
@@ -125,6 +125,19 @@ So, setting bit 0=1 and bit 1=1 gives double the number of character rows
 screens.
 
 See the [Viccy registers](VIDEO.md) for more details.
+
+#### Colour RAM mapping
+
+In normal mode (bit 3 = 0), the memory window at $8xxx is split into 2k of character memory
+and 2k of colour memory. 
+This conflicts with the 8296 video RAM mapping, as that machine has a full 4k of 
+read/write character memory at $8xxx.
+Set bit 3 to 1, to disable the colour memory map in $8800-$8fff.
+
+Note, that the 8296 has another 4k of write only (!) video memory at $9xxx.
+In this area, reads come from an option ROM (when used), while writes go to the
+video memory. Due to timing constraints it is currently not possible to 
+have the write-only map at $9xxx, which thus remains an incompatibility to the 8296.
 
 ### $e801 (59393) Memory Map Control
 
@@ -172,7 +185,7 @@ in bank 0 of the CPU, two windows of the CS/A bus can be mapped into bank 0 of t
 
 ### $e805 (59397) Video window
 
-#### Non-8296 mode
+#### Char/Colour map mode (video control b3=0)
 
 The video window applies to the non-8296 mode as follows:
 
@@ -194,14 +207,12 @@ So, the colour RAM window at $8800-$8fff maps correspondingly to start at
   - ...
   - $f8xx
 
-#### 8296 mode
+#### Char only (8296) mode (video control b3=1)
 
-In the 8296 mode, the colour window is switched off, and normal video memory is mapped instead (i.e. the full 4k of video window
+In this mode, the colour window is switched off, and normal video memory is mapped instead (i.e. the full 4k of video window
 is mapped into the character memory. 
 
-Also, the following 4k of RAM at $9xxx are written to the video memory as well. This implements the 8296's ROM-on-read and write-through-to-video-RAM approach here.
-
-As a result, only bit 2 is valid from the Video window register.
+As a result, only bits 1 and 2 are valid from the Video window register.
 
 ### 8296 control port
 

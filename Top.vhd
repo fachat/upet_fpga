@@ -204,6 +204,7 @@ architecture Behavioral of Top is
 	signal vis_80_in: std_logic;
 	signal vgraphic: std_logic;
 	signal screenb0: std_logic;
+	signal isnocolmap: std_logic;
 	signal v_out: std_logic_vector(5 downto 0);
 	signal vis_regmap: std_logic;		-- when set, Viccy occupies not 4, but 96 addresses due to register-to-memory mapping
 	
@@ -608,7 +609,7 @@ begin
 		bus_win_c_is_io,
 	   forceb0,
 	   screenb0,
-		is8296
+		isnocolmap
 	);
 
 	forceb0 <= '1' when lockb0 = '1' and e = '1' else
@@ -826,6 +827,7 @@ begin
 			vis_enable <= '1';
 			mode <= "00";
 			screenb0 <= '1';
+			isnocolmap <= '0';
 			wp_rom9 <= '0';
 			wp_romA <= '0';
 			wp_romPET <= '0';
@@ -845,6 +847,7 @@ begin
 				-- video controls
 				vis_80_in <= D(1);
 				screenb0 <= not(D(2));
+				isnocolmap <= D(3);
 				vis_enable <= not(D(7));
 			when "001" =>
 				-- memory map controls
@@ -877,7 +880,7 @@ begin
 	end process;
 
 	Ctrl_Rd: process(sel0, phi2_int, rwb, reset, ca_in, D,
-		vis_80_in, screenb0, vis_enable, lockb0, boot, is8296, 
+		vis_80_in, screenb0, isnocolmap, vis_enable, lockb0, boot, is8296, 
 		wp_rom9, wp_roma, wp_romb, wp_rompet, lowbank, mode,
 		bus_window_9, bus_window_c, bus_win_9_is_io, bus_win_c_is_io,
 		vidblock
@@ -893,6 +896,7 @@ begin
 				-- video controls
 				s0_d(1) <= vis_80_in;
 				s0_d(2) <= not(screenb0);
+				s0_d(3) <= isnocolmap;
 				s0_d(7) <= not(vis_enable);
 			when "001" =>
 				-- memory map controls

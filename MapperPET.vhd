@@ -280,8 +280,9 @@ begin
 			else '0';
 	
 	vram9 <= '1' when is8296 = '1'		-- 8296 mode
-			and low64k = '1'					-- low 64k
-			and petrom9 = '1'					-- addresses $9xxx
+--			and low64k = '1'					-- low 64k
+--			and petrom9 = '1'					-- addresses $9xxx
+			and petromA = '1'					-- addresses $Axxx - for testing only, as $9xxx has boot code
 			and cfg_mp(7) = '0'				-- extended RAM off
 			and rwb = '0';						-- writes
 			

@@ -172,7 +172,11 @@ in bank 0 of the CPU, two windows of the CS/A bus can be mapped into bank 0 of t
 
 ### $e805 (59397) Video window
 
-- Bit 0-2: number of 2k character video memory block the $80xx-$87ff window points to; possible addresses in VRAM bank 0 (CPU bank 8) are:
+#### Non-8296 mode
+
+The video window applies to the non-8296 mode as follows:
+
+- Bit 0-2: address of character video memory block the $80xx-$87ff window points to; possible addresses in VRAM bank 0 (CPU bank 8) are:
   - $80xx 
   - $88xx
   - $90xx
@@ -183,11 +187,21 @@ in bank 0 of the CPU, two windows of the CS/A bus can be mapped into bank 0 of t
   - $b8xx
 - Bit 3-7: unused, must be 0
 
-Note that the colour RAM window at $8800-$8fff maps correspondingly to start at 
+The start of the colour window in video RAM is moved according to the bits 0-2 of the video window register.
+So, the colour RAM window at $8800-$8fff maps correspondingly to start at 
   - $c0xx
   - $c8xx
   - ...
   - $f8xx
+
+#### 8296 mode
+
+In the 8296 mode, the colour window is switched off, and normal video memory is mapped instead (i.e. the full 4k of video window
+is mapped into the character memory. 
+
+Also, the following 4k of RAM at $9xxx are written to the video memory as well. This implements the 8296's ROM-on-read and write-through-to-video-RAM approach here.
+
+As a result, only bit 2 is valid from the Video window register.
 
 ### 8296 control port
 

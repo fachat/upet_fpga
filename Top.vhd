@@ -325,7 +325,8 @@ architecture Behavioral of Top is
 
 	   forceb0: in std_logic;
 	   screenb0: in std_logic;
-	   
+	   is8296: in std_logic;
+		
 	   dbgout: out std_logic
 	  );
 	end component;
@@ -606,7 +607,8 @@ begin
 		bus_win_9_is_io,
 		bus_win_c_is_io,
 	   forceb0,
-	   screenb0
+	   screenb0,
+		is8296
 	);
 
 	forceb0 <= '1' when lockb0 = '1' and e = '1' else
@@ -1011,7 +1013,6 @@ begin
 		
 	end process;
 
---	nvramsel <= nvramsel_int;
 	
 	v_out_p2: process(q50m, memclk, VA_select, reset,
 			rwb, ipl_cnt, ca_in, ma_out, dac_dma_addr, va_out)

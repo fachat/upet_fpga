@@ -74,6 +74,8 @@ entity Mapper is
 	   forceb0: in std_logic;
 	   -- is screen in bank0?
 	   screenb0: in std_logic;
+		-- are we in 8296 mode?
+		is8296: in std_logic;
 	   
 	   dbgout: out std_logic
 	);
@@ -102,6 +104,7 @@ architecture Behavioral of Mapper is
 	signal screenwin: std_logic;
 	signal buswin: std_logic;
 	signal iowin_int: std_logic;
+	signal vram9: std_logic;		-- write only to vram under ROM at $9xxx
 	
 	signal vramsel_int: std_logic;
 	signal framsel_int: std_logic;
@@ -245,8 +248,10 @@ begin
 	-- upper half of 4k screenwin is mapped into color memory $Cxxx-$Fxxx
 	-- Note: vidblock maps in 2k steps; 8 positions are possible, so we
 	-- get 16k char RAM at $8000-$BFFF and 16k color RAM at $C000-FFFF
+	-- BUT: in 8296 mode, we directly map to video RAM, as the 8296 CRTC
+	-- has 8k video RAM
 	RA_int(14) <= 
-			A(14) when screenwin = '0' else
+			A(14) when screenwin = '0' or is8296 = '1' else
 			A(11);
 	RA_int(13) <= 
 			A(13) when screenwin = '0' else
@@ -255,7 +260,7 @@ begin
 			A(12) when screenwin = '0' else
 			vidblock(1);
 	RA_int(11) <= 
-			A(11) when screenwin = '0' else
+			A(11) when screenwin = '0' or is8296 = '1' else
 			vidblock(0); 
 			
 	-- map 1:1, in 2k blocks
@@ -274,6 +279,12 @@ begin
 				and (cfg_mp(7) = '0' or cfg_mp(5) = '1')
 			else '0';
 	
+	vram9 <= '1' when is8296 = '1'		-- 8296 mode
+			and low64k = '1'					-- low 64k
+			and petrom9 = '1'					-- addresses $9xxx
+			and cfg_mp(7) = '0'				-- extended RAM off
+			and rwb = '0';						-- writes
+			
 	buswin <= '0' when low64k = '0'
 			else '1' when
 				(A(15 downto 12) = "1100"
@@ -287,16 +298,17 @@ begin
 
 	iowin_int <= '0' when low64k = '0'
 			else '1' when
---				(A(15 downto 12) = "1100"
+--				(A(15 downto 12) = "1100"	-- addresses $cxxx
 --				and bus_window_c = '1'
 --				and bus_win_c_is_io = '1')
 --			or
-				(A(15 downto 12) = "1001"
+				(A(15 downto 12) = "1001"	-- addresses $9xxx
 				and bus_window_9 = '1'
 				and bus_win_9_is_io = '1')
 			else '0';
 			
 	vramsel_int <= '0' when avalid = '0' else
+--			'1' when screenwin = '1' or vram9 = '1' else
 			'1' when screenwin = '1' else
 			boota19;			-- second 512k (or 1st 512k on boot)
 

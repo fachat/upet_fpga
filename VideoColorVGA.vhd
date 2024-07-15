@@ -101,6 +101,7 @@ architecture Behavioral of Video is
 	signal mode_attrib_reg: std_logic;	
 	signal mode_regmap_int: std_logic;
 	signal alt_match_modes : std_logic;
+	signal alt_match_hsync : std_logic;
 	signal alt_match_palette : std_logic;
 	signal alt_match_vaddr : std_logic;
 	signal alt_match_attr : std_logic;
@@ -108,6 +109,7 @@ architecture Behavioral of Video is
 	signal alt_set_rc: std_logic;
 	signal alt_do_set_rc: std_logic;
 	signal mode_set_flag: std_logic;
+	signal mode_set_hsync: std_logic;
 	
 	--- colours
 	signal col_fg: std_logic_vector(3 downto 0);
@@ -179,6 +181,9 @@ architecture Behavioral of Video is
 	
 	signal vid_base_alt : std_logic_vector(15 downto 0);
 	signal attr_base_alt : std_logic_vector(15 downto 0);
+
+	signal h_shift_reg: std_logic_vector(2 downto 0);
+	signal h_shift_alt: std_logic_vector(2 downto 0);
 
 	-- count "slots", i.e. 8pixels
 	-- 
@@ -1750,6 +1755,13 @@ begin
 					mode_bitmap <= mode_bitmap_alt;
 				end if;
 			end if;
+			if (v_zero = '1' or mode_set_hsync = '1') then
+				h_shift <= h_shift_reg;
+			elsif (is_raster_match = '1') then
+				if (alt_match_hsync = '1') then
+					h_shift <= h_shift_alt;
+				end if;
+			end if;
 			if (v_zero = '1') then
 				pal_alt <= '0';
 			elsif (is_raster_match = '1') then
@@ -1764,11 +1776,17 @@ begin
 	begin
 		if (h_zero = '1') then
 			mode_set_flag <= '0';
+			mode_set_hsync <= '0';
 		elsif (falling_edge(phi2)) then
-			if (crtc_sel = '1' and crtc_is_data = '1' and (regsel = x"19" or regsel = x"20")
-					and crtc_rwb = '0'	-- note this seems to break display...???
+			if (crtc_sel = '1' and crtc_is_data = '1' and (regsel = x"20")
+					and crtc_rwb = '0'	
 					) then
 				mode_set_flag <= '1';
+			end if;
+			if (crtc_sel = '1' and crtc_is_data = '1' and (regsel = x"19")
+					and crtc_rwb = '0'	-- note this seems to break display...???
+					) then
+				mode_set_hsync <= '1';
 			end if;
 		end if;
 	end process;
@@ -1836,6 +1854,7 @@ begin
 			mode_altreg <= '0';
 			mode_regmap_int <= '0';
 			alt_match_modes <= '0';
+			alt_match_hsync <= '0';
 			alt_match_vaddr <= '0';
 			alt_match_attr <= '0';
 			alt_match_palette <= '0';
@@ -1864,7 +1883,8 @@ begin
 			uline_scan <= (others => '0');
 			h_extborder <= '0';
 			v_extborder <= '0';
-			h_shift <= (others => '0');
+			h_shift_reg <= (others => '0');
+			h_shift_alt <= (others => '0');
 			v_shift <= (others => '0');
 			va_offset <= (others => '0');
 			raster_match <= (others => '0');
@@ -2001,7 +2021,11 @@ begin
 				cblink_mode <= CPU_D(5);
 				mode_rev <= CPU_D(6);
 			when x"19" =>	-- R25
-				h_shift <= CPU_D(2 downto 0);
+				if (mode_altreg = '1') then
+					h_shift_alt <= CPU_D(2 downto 0);
+				else
+					h_shift_reg <= CPU_D(2 downto 0);
+				end if;
 				h_extborder <= CPU_D(4);
 			when x"1a" => 	-- R26
 				col_fg <= CPU_D(7 downto 4);
@@ -2054,6 +2078,7 @@ begin
 				alt_match_vaddr <= CPU_D(7);				
 			when x"29" =>	-- R41 (was R47) (alternate control II)
 				alt_rc_cnt <= CPU_D(3 downto 0);
+				alt_match_hsync <= CPU_D(6);
 				alt_set_rc <= CPU_D(7);
 			when x"2a" =>	-- R42 (was R88)
 				sprite_base <= CPU_D;
@@ -2214,7 +2239,11 @@ begin
 						vd_out(5) <= cblink_mode;
 						vd_out(6) <= mode_rev;
 					when x"19" =>	-- R25
-						vd_out(2 downto 0) <= h_shift;
+						if (mode_altreg = '1') then
+							vd_out(2 downto 0) <= h_shift_alt;
+						else
+							vd_out(2 downto 0) <= h_shift_reg;
+						end if;
 						vd_out(4) <= h_extborder;
 					when x"1a" => 	-- R26
 						vd_out(7 downto 4) <= col_fg;
@@ -2272,6 +2301,7 @@ begin
 						vd_out(7) <= alt_match_vaddr;
 					when x"29" =>	-- R41 (was R47) (alternate control II)
 						vd_out(3 downto 0) <= alt_rc_cnt;
+						vd_out(6) <= alt_match_hsync;
 						vd_out(7) <= alt_set_rc;
 					when x"2a" =>	-- R42 (was R88)
 						vd_out <= sprite_base;

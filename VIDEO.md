@@ -140,6 +140,7 @@ The following are the internal Viccy registers:
   - bit 7: if set, set video memory address counter to alternate address on raster match (r38/39) - reset to orig values at start of screen
 - r41: ALT2: alternate register control II
   - bit 0-3: alternate raster row counter for a character cell
+  - bit 6: if set, set set horizontal sync (R25.0-3) to alternate value on raster match
   - bit 7: if set, set the raster row counter to alternate value on raster match
 
 Sprite registers (subject to change):

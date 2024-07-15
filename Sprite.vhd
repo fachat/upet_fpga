@@ -64,7 +64,7 @@ entity Sprite is
 		ison: out std_logic;			-- if sprite pixel is not background (for collision / prio)
 		overraster: out std_logic;		-- if sprite should appear over the raster
 		overborder: out std_logic;		-- if sprite should appear over the border
-		outbits: out std_logic_vector(3 downto 0); 	-- double bit output
+		outbits: out std_logic_vector(4 downto 0); 	-- double bit output, plus alt palette bit
 		
 		reset: in std_logic
 	);
@@ -80,6 +80,7 @@ architecture Behavioral of Sprite is
 	signal x_expand: std_logic;
 	signal y_expand: std_logic;
 	signal s_fine: std_logic;
+	signal s_palette: std_logic;
 
 	signal x_pos: std_logic_vector(9 downto 0);
 	signal y_pos: std_logic_vector(9 downto 0);
@@ -221,28 +222,29 @@ begin
 			elsif (dotclk(0) = '1' and (is80 = '1' or dotclk(1) = '1')) then
 			
 				if (active_int = '1') then
-		
+					outbits(4) <= s_palette;
+					
 					if (s_multi = '0') then
 						if (cur(0) = '1') then
 							ison_int <= '1';
-							outbits <= fgcol;
+							outbits(3 downto 0) <= fgcol;
 						else
 							ison_int <= '0';
-							outbits <= bgcol;
+							outbits(3 downto 0) <= bgcol;
 						end if;
 					elsif (x_cnt(0) = '0' and (x_expand = '0' or x_cnt(1) = '0')) then -- multicolour
 						case (cur) is
 						when "00" =>
-							outbits <= bgcol;
+							outbits(3 downto 0) <= bgcol;
 							ison_int <= '0';
 						when "01" => 
-							outbits <= mcol1;
+							outbits(3 downto 0) <= mcol1;
 							ison_int <= '1';
 						when "10" => 
-							outbits <= mcol2;
+							outbits(3 downto 0) <= mcol2;
 							ison_int <= '1';
 						when "11" => 
-							outbits <= fgcol;
+							outbits(3 downto 0) <= fgcol;
 							ison_int <= '1';
 						when others =>
 							ison_int <= '0';
@@ -266,6 +268,7 @@ begin
 			s_overborder <= '0';
 			s_multi <= '0';
 			s_fine <= '0';
+			s_palette <= '0';
 			x_pos <= "0000000000";	-- (others => '0');
 			y_pos <= "0000000000";	-- (others => '0');
 		elsif (falling_edge(phi2)
@@ -306,6 +309,7 @@ begin
 				s_overraster <= not(din(4));
 				s_overborder <= din(5);
 				s_fine <= din(6);
+				s_palette <= din(7);
 			when others =>
 				null;
 			end case;
@@ -351,6 +355,7 @@ begin
 				dout(4) <= not(s_overraster);
 				dout(5) <= s_overborder;
 				dout(6) <= s_fine;
+				dout(7) <= s_palette;
 			when others =>
 				null;
 			end case;

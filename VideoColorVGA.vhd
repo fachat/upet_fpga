@@ -77,6 +77,7 @@ architecture Behavioral of Video is
 
 	type AOA2 is array(natural range<>) of std_logic_vector(1 downto 0);
 	type AOA4 is array(natural range<>) of std_logic_vector(3 downto 0);
+	type AOA5 is array(natural range<>) of std_logic_vector(4 downto 0);
 	type AOA6 is array(natural range<>) of std_logic_vector(5 downto 0);
 	type AOA8 is array(natural range<>) of std_logic_vector(7 downto 0);
 	
@@ -327,7 +328,7 @@ architecture Behavioral of Video is
 	signal sprite_ison: std_logic_vector(7 downto 0);
 	signal sprite_overraster: std_logic_vector(7 downto 0);
 	signal sprite_overborder: std_logic_vector(7 downto 0);
-	signal sprite_outbits: AOA4(0 to 7);
+	signal sprite_outbits: AOA5(0 to 7);
 	signal sprite_fgcol: AOA4(0 to 7);
 	signal sprite_mcol1: std_logic_vector(3 downto 0);
 	signal sprite_mcol2: std_logic_vector(3 downto 0);
@@ -340,7 +341,7 @@ architecture Behavioral of Video is
 	
 	-- output to mixer
 	signal sprite_on: std_logic;
-	signal sprite_outcol: std_logic_vector(3 downto 0);
+	signal sprite_outcol: std_logic_vector(4 downto 0);
 	signal sprite_onborder: std_logic;
 	signal sprite_onraster: std_logic;
 	signal sprite_no: integer range 0 to 7;
@@ -484,20 +485,22 @@ architecture Behavioral of Video is
 		ison: out std_logic;			-- if sprite pixel is not background (for collision / prio)
 		overraster: out std_logic;		-- if sprite should appear over the raster
 		overborder: out std_logic;		-- if sprite should appear over the border
-		outbits: out std_logic_vector(3 downto 0); 	-- double bit output
+		outbits: out std_logic_vector(4 downto 0); 	-- double bit output, plus alt palette bit
 		
 		reset: in std_logic
 	);
 	end component;
 	
 	impure function col_2_pxl (
-		col : std_logic_vector(3 downto 0)
+		col : std_logic_vector(3 downto 0);
+		pal_sel : std_logic
 		) return std_logic_vector is
 
 		variable palcol: std_logic_vector(7 downto 0);
 		variable rgb: std_logic_vector(5 downto 0);
 	begin
-		if (pal_alt = '0') then
+		--if (pal_alt = '0') then
+		if (pal_sel = '0') then
 			palcol := palette(to_integer(unsigned(col)));
 		else
 			palcol := palette(to_integer(unsigned(col)) + 16);
@@ -508,6 +511,8 @@ architecture Behavioral of Video is
 		
 		return rgb;
 	end function;
+	
+
 begin
 	
 	windows_p: process(dotclk)
@@ -872,7 +877,7 @@ begin
 				sprite_no <= 7;
 			else
 				sprite_on <= '0';
-				sprite_outcol <= "0000";
+				sprite_outcol <= "00000";
 				sprite_onborder <= '0';
 				sprite_onraster <= '0';
 				sprite_no <= 0;
@@ -1533,7 +1538,7 @@ begin
 		end loop;
 	end process;
 	
-	vid_mixer_p: process (qclk, dotclk, dena_int, reset)
+	vid_mixer_p: process (qclk, dotclk, dena_int, pal_alt, reset)
 	begin
 		if (dena_int = '0' or reset = '1') then
 			vid_out <= (others => '0');
@@ -1546,22 +1551,22 @@ begin
 			if (x_border = '1' or y_border = '1' or dispen = '0') then
 				if (sprite_on = '1' and sprite_onborder = '1') then
 					-- sprite on top of border
-					vid_out <= col_2_pxl(sprite_outcol);
+					vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
 					collision_trigger_sprite_border(sprite_no) <= '1';
 				else
 					-- BORDER
-					vid_out <= col_2_pxl(col_border);
+					vid_out <= col_2_pxl(col_border, pal_alt);
 				end if;
 			elsif (sprite_on = '1' and (raster_bg(0) = '1' or sprite_onraster = '1')) then
 				-- sprite on top of raster
-				vid_out <= col_2_pxl(sprite_outcol);
+				vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
 				if (raster_bg(0) = '0') then
 					collision_trigger_sprite_raster(sprite_no) <= '1';
 				end if;
 				
 			elsif (is_80 = '1' or dotclk(1) = '1') then
 				-- raster
-				vid_out <= col_2_pxl(raster_out(0));
+				vid_out <= col_2_pxl(raster_out(0), pal_alt);
 			end if;			
 		end if;
 	end process;

@@ -1904,8 +1904,8 @@ begin
 			palette(3) <= "01001011";	-- "0011" - "01/01/11" light blue
 			--palette(4) <= "00010000";	-- "0100" - "00/10/00" dark green
 			palette(4) <= "00001000";	-- "0100" - "00/10/00" dark green
-			--palette(5) <= "01011001";	-- "0101" - "01/11/01" light green
-			palette(5) <= "00011000";	-- "0101" - "01/11/01" light green
+			palette(5) <= "01011001";	-- "0101" - "01/11/01" light green
+			--palette(5) <= "00011000";	-- "0101" - "01/11/01" light green
 			--palette(6) <= "00010010";	-- "0110" - "00/10/10" dark cyan
 			palette(6) <= "00001001";	-- "0110" - "00/10/10" dark cyan
 			palette(7) <= "01011011";	-- "0111" - "01/11/11" light cyan

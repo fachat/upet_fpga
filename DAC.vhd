@@ -77,6 +77,8 @@ architecture Behavioral of DAC is
 	signal dma_load: std_logic;
 	signal dma_last: std_logic;	-- last byte has been loaded
 	signal dma_irqen: std_logic;
+
+	signal data_avail: std_logic;
 	
 	signal dac_buf: AOA8(0 to 15);
 	signal dac_wp: std_logic_vector(3 downto 0);
@@ -158,6 +160,9 @@ begin
 		end if;
 	end process;
 	
+	data_avail <= '0' when dac_wp = dac_rp
+			else '1';
+	
 	dma_addr <= dma_addr_int;
 
 	rate_p: process(qclk, reset,rate_ce, spi_ce, mosi_ce)
@@ -189,13 +194,8 @@ begin
 			dac_rp <= (others => '0');
 			spi_done <= '0';
 		elsif (falling_edge(qclk) and spi_ce = '1') then
-						
---			if (spi_phase = "00" and dma_active = '0') then
---				dac_rp <= (others => '0');
---				spi_done <= '0';
---			end if;
-			
-			if (spi_start = '1') then
+
+			if (spi_start = '1' and data_avail = '1') then
 				-- start work
 				spi_phase <= "01";
 				spi_cnt <= (others => '0');
@@ -227,7 +227,7 @@ begin
 					spi_buf(0) <= din;
 				end if;
 				spi_chan <= regsel(0);
-				spi_done <= '0';
+				spi_done <= '1';
 			elsif (spi_phase = "01" and spi_cnt = "000010") then
 				-- after waiting spi_cnt=2 cycles to keep chip setup time, select chip
 				spi_naudio <= '0';
@@ -254,18 +254,20 @@ begin
 				else
 					nldac <= '0';
 					spi_cnt <= spi_cnt + 1;
-					if (dma_last = '1' and dac_rp = dac_wp) then
-						spi_done <= '1';
-						dac_rp <= (others => '0');
-					end if;
+				end if;
+				if (data_avail = '0') then
+					spi_done <= '1';
+					dac_rp <= (others => '0');
 				end if;
 			elsif (spi_phase = "11" and spi_cnt = "00100") then
 				spi_phase <= "00";
 				nldac <= '1';
 				spi_cnt <= spi_cnt + 1;
-				spi_done <= '0';
 			else
 				spi_cnt <= spi_cnt + 1;
+			end if;
+			if (dma_active = '0') then
+				spi_done <= '0';
 			end if;
 		end if;
 	end process;

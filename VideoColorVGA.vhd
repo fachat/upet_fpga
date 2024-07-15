@@ -2003,8 +2003,6 @@ begin
 			when x"19" =>	-- R25
 				h_shift <= CPU_D(2 downto 0);
 				h_extborder <= CPU_D(4);
-				mode_attrib_reg <= CPU_D(6);
-				mode_bitmap_reg <= CPU_D(7);
 			when x"1a" => 	-- R26
 				col_fg <= CPU_D(7 downto 4);
 				col_bg0 <= CPU_D(3 downto 0);
@@ -2019,6 +2017,8 @@ begin
 			when x"1f" =>	-- R31
 				raster_match(9 downto 8) <= CPU_D(1 downto 0);
 			when x"20" =>	-- R32 (was: R39)
+				mode_attrib_reg <= CPU_D(0);
+				mode_bitmap_reg <= CPU_D(1);
 				mode_extended_reg <= CPU_D(2);
 				dispen <= CPU_D(4);
 				pal_sel <= CPU_D(5);
@@ -2216,8 +2216,6 @@ begin
 					when x"19" =>	-- R25
 						vd_out(2 downto 0) <= h_shift;
 						vd_out(4) <= h_extborder;
-						vd_out(6) <= mode_attrib;
-						vd_out(7) <= mode_bitmap;
 					when x"1a" => 	-- R26
 						vd_out(7 downto 4) <= col_fg;
 						vd_out(3 downto 0) <= col_bg0;
@@ -2233,6 +2231,8 @@ begin
 					when x"1f" =>	-- R31
 						vd_out(1 downto 0) <= y_addr_latch(9 downto 8);
 					when x"20" =>	-- R32 (was R39)
+						vd_out(0) <= mode_attrib;
+						vd_out(1) <= mode_bitmap;
 						vd_out(2) <= mode_extended;
 						vd_out(4) <= dispen;
 						vd_out(5) <= pal_sel;

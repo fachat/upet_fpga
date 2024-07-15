@@ -80,9 +80,8 @@ The following are the internal Viccy registers:
   - bit 4: CSEL: if set, extend left border by 8 pixels and right border by 8 pixels
     - TODO: according to https://www.c64-wiki.de/wiki/VDC bit4=1 is 40 col mode
   - bit 5: unused (semigraphic mode (display the last pixel of a char in the intercharacter spacing, instead of background))
-    - TODO: implement together with parts of R22
-  - bit 6: attribute enable (VDC)
-  - bit 7: bitmap mode (hires)
+  - bit 6: -
+  - bit 7: -
 - r26: FGBG_COLS: default colours (VDC, not in full colour modes, other restrictions see video modes below))
   - bits 3-0: background color
   - bits 7-4: foreground color
@@ -95,8 +94,8 @@ The following are the internal Viccy registers:
 - r31: RLINE_H: read: rasterline counter high (bits 0-1); write: rasterline match value
 
 - r32: CTRL: control register
-  - bit 0: -
-  - bit 1: -
+  - bit 0: attribute enable (VDC)
+  - bit 1: bitmap mode (hires)
   - bit 2: extended mode (enable full and multicolor text modes)
   - bit 3: -
   - bit 4: DEN: display enable

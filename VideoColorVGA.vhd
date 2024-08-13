@@ -117,6 +117,8 @@ architecture Behavioral of Video is
 	signal col_bg1: std_logic_vector(3 downto 0);
 	signal col_bg2: std_logic_vector(3 downto 0);
 	signal col_border: std_logic_vector(3 downto 0);
+	signal vid_out_idx: std_logic_vector(4 downto 0);
+	signal vid_out_blank: std_logic;
 	
 	--- blink
 	signal blink_cnt: std_logic_vector(5 downto 0);
@@ -372,6 +374,21 @@ architecture Behavioral of Video is
 	signal collision_trigger_sprite_sprite: std_logic_vector(7 downto 0);
 	signal collision_accum_sprite_sprite: std_logic_vector(7 downto 0);
 	
+	-- palette as block ram
+	signal pbr_clkA :  std_logic;
+	signal pbr_enA :  std_logic;
+	signal pbr_weA :  std_logic;
+	signal pbr_addrA :  std_logic_vector(4 downto 0);
+	signal pbr_diA :  std_logic_vector(7 downto 0);
+	signal pbr_doA :  std_logic_vector(7 downto 0);
+		
+	signal pbr_clkB :  std_logic;
+	signal pbr_enB :  std_logic;
+	signal pbr_weB :  std_logic;
+	signal pbr_addrB :  std_logic_vector(4 downto 0);
+	signal pbr_diB :  std_logic_vector(7 downto 0);
+	signal pbr_doB :  std_logic_vector(7 downto 0);
+
 	-- helpers
 	
 	function To_Std_Logic(L: BOOLEAN) return std_ulogic is
@@ -494,6 +511,36 @@ architecture Behavioral of Video is
 		
 		reset: in std_logic
 	);
+	end component;
+	
+	component palette_bram is 
+
+	generic (
+		WIDTHA : integer := 8;
+		SIZEA : integer := 32;
+		ADDRWIDTHA : integer := 5;
+
+		WIDTHB : integer := 8;
+		SIZEB : integer := 32;
+		ADDRWIDTHB : integer := 5
+	);
+
+	port (
+		clkA : in std_logic;
+		enA : in std_logic;
+		weA : in std_logic;
+		addrA : in std_logic_vector(ADDRWIDTHA-1 downto 0);
+		diA : in std_logic_vector(WIDTHA-1 downto 0);
+		doA : out std_logic_vector(WIDTHA-1 downto 0);
+		
+		clkB : in std_logic;
+		enB : in std_logic;
+		weB : in std_logic;
+		addrB : in std_logic_vector(ADDRWIDTHB-1 downto 0);
+		diB : in std_logic_vector(WIDTHB-1 downto 0);
+		doB : out std_logic_vector(WIDTHB-1 downto 0)
+	);
+
 	end component;
 	
 	impure function col_2_pxl (
@@ -1546,32 +1593,41 @@ begin
 	vid_mixer_p: process (qclk, dotclk, dena_int, pal_alt, reset)
 	begin
 		if (dena_int = '0' or reset = '1') then
-			vid_out <= (others => '0');
+			vid_out_idx <= (others => '0');
+			vid_out_blank <= '1';
 			
 		elsif (falling_edge(qclk) and dotclk(0) = '1') then -- and (is_80 = '1' or dotclk(1) = '1')) then
 
 			collision_trigger_sprite_border <= (others => '0');
 			collision_trigger_sprite_raster <= (others => '0');
 			
+			vid_out_blank <= '0';
+			
 			if (x_border = '1' or y_border = '1' or dispen = '0') then
 				if (sprite_on = '1' and sprite_onborder = '1') then
 					-- sprite on top of border
-					vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
+					--vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
+					vid_out_idx <= sprite_outcol;
 					collision_trigger_sprite_border(sprite_no) <= '1';
 				else
 					-- BORDER
-					vid_out <= col_2_pxl(col_border, pal_alt);
+					--vid_out <= col_2_pxl(col_border, pal_alt);
+					vid_out_idx(3 downto 0) <= col_border;
+					vid_out_idx(4) <= pal_alt;
 				end if;
 			elsif (sprite_on = '1' and (raster_bg(0) = '1' or sprite_onraster = '1')) then
 				-- sprite on top of raster
-				vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
+				--vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
+				vid_out_idx <= sprite_outcol;
 				if (raster_bg(0) = '0') then
 					collision_trigger_sprite_raster(sprite_no) <= '1';
 				end if;
 				
 			elsif (is_80 = '1' or dotclk(1) = '1') then
 				-- raster
-				vid_out <= col_2_pxl(raster_out(0), pal_alt);
+				--vid_out <= col_2_pxl(raster_out(0), pal_alt);
+				vid_out_idx(3 downto 0) <= raster_out(0);
+				vid_out_idx(4) <= pal_alt;
 			end if;			
 		end if;
 	end process;
@@ -1790,6 +1846,47 @@ begin
 			end if;
 		end if;
 	end process;
+
+	--------------------------------------------
+	-- palette handling as block RAM
+
+	palette_p: palette_bram
+	port map (
+		pbr_clkA,
+		pbr_enA,
+		pbr_weA,
+		pbr_addrA,
+		pbr_diA,
+		pbr_doA,
+		
+		pbr_clkB,
+		pbr_enB,
+		pbr_weB,
+		pbr_addrB,
+		pbr_diB,
+		pbr_doB
+	);
+	
+	pbr_clkA <= dotclk(1);
+	pbr_enA <= '1' when crtc_sel = '1' and crtc_is_data = '1' and regsel(7 downto 3) = "01011"
+					else '0';
+	pbr_weA <= not(crtc_rwb);
+	
+	pbr_addrA(2 downto 0) <= regsel(2 downto 0);
+	pbr_addrA(3) <= pal_sel;
+	pbr_addrA(4) <= mode_altreg;
+	
+	pbr_diA <= CPU_D;
+	
+	pbr_clkB <= qclk;
+	pbr_enB <= '1';
+	pbr_weB <= '0';
+	pbr_addrB <= vid_out_idx;
+	
+	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
+	vid_out(3 downto 2) <= "00" when vid_out_blank = '1' else pbr_doB(4 downto 3);  -- GREEN
+	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
+
 	
 	--------------------------------------------
 	-- crtc register emulation
@@ -2333,21 +2430,29 @@ begin
 					when x"57" =>	-- R87
 						vd_out(3 downto 0) <= sprite_fgcol(7);
 					when x"58" =>   -- R88
-						vd_out <= palette(0 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(0 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"59" =>   -- R89
-						vd_out <= palette(1 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(1 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5a" =>   -- R90
-						vd_out <= palette(2 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(2 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5b" =>   -- R91
-						vd_out <= palette(3 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(3 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5c" =>   -- R92
-						vd_out <= palette(4 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(4 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5d" =>   -- R93
-						vd_out <= palette(5 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(5 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5e" =>   -- R94
-						vd_out <= palette(6 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(6 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5f" =>   -- R95
-						vd_out <= palette(7 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
+						vd_out <= pbr_doA;
+--						vd_out <= palette(7 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when others =>
 						vd_out <= sprite_d;
 					end case;

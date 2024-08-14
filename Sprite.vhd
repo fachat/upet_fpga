@@ -317,7 +317,7 @@ begin
 	end process;
 	
 	reqr_p: process(phi2, sel, rwb, regsel, x_pos, y_pos, s_enabled, x_expand, y_expand, s_multi, s_overraster, s_overborder,
-			is80, s_fine, is_interlace, is_double)
+			is80, s_fine, is_interlace, is_double, s_palette)
 	begin
 		dout <= (others => '0');
 		

@@ -978,6 +978,7 @@ begin
 				-- vram select goes inactive here
 				nvramsel_int <= '1';
 				nframsel_int <= '1';
+				ramrwb_int <= '1';
 				
 			elsif (cp01 = '1') then
 				-- at the middle of the cycle we enable vram access if needed
@@ -985,15 +986,19 @@ begin
 				when VRA_IPL =>
 					nvramsel_int <= '0';
 					wait_ram <= m_vramsel_out;
+					ramrwb_int <= '0';
 				when VRA_NONE =>
 					nvramsel_int <= '1';
 					wait_ram <= m_vramsel_out;
+					ramrwb_int <= '1';
 				when VRA_CPU =>
 					nvramsel_int <= not(m_vramsel_out);
 					wait_ram <= '0';
+					ramrwb_int <= rwb;
 				when others =>
 					nvramsel_int <= '0';
 					wait_ram <= m_vramsel_out;
+					ramrwb_int <= '1';
 				end case;
 				
 				case (FA_select) is
@@ -1054,19 +1059,20 @@ begin
 				VA 	<= (others => '0');
 			end case;
 			
-			if (VA_select = VRA_IPL) then
-				ramrwb_int <= '0'; -- write only
-			elsif (VA_select = VRA_CPU) then
-				ramrwb_int <= rwb;
-			else
-				ramrwb_int <= '1'; -- read only
-			end if;
-		if (rising_edge(q50m)) then
-		end if;
+--			if (VA_select = VRA_IPL) then
+--				ramrwb_int <= '0'; -- write only
+--			elsif (VA_select = VRA_CPU) then
+--				ramrwb_int <= rwb;
+--			else
+--				ramrwb_int <= '1'; -- read only
+--			end if;
+--		if (rising_edge(q50m)) then
+--		end if;
 			
 	end process;
 
 	ramrwb <= ramrwb_int; 
+
 
 	
 	FA(19 downto 16) <= 	ma_out(19 downto 16);

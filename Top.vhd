@@ -149,6 +149,7 @@ architecture Behavioral of Top is
 	signal dotclk: std_logic_vector(3 downto 0);
 	signal vid_fetch: std_logic;
 	signal VA_select: T_VADDR_SRC;
+	signal VA_select_d: T_VADDR_SRC;
 	signal va_is_cpu_d: std_logic;
 	signal FA_select: T_FADDR_SRC;
 	
@@ -575,7 +576,7 @@ begin
 	cd_in <= D;
 	ca_in <= A;
 	vd_in <= VD;
-	
+
 	mappy: Mapper
 	port map (
 	   ca_in(15 downto 8),
@@ -622,7 +623,6 @@ begin
 	sel0 		<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"0" and (ca_in(3) = '0' or ca_in(2) = '0') else '0';
 	dac_sel 	<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"3" else '0';
 	vid_sel	<= '1' when m_iosel = '1' and 
---														ca_in(7 downto 4) = x"8"
 							((vis_regmap = '0' and ca_in(7 downto 4) = x"8")
 							or (vis_regmap = '1' and ca_in(7) = '1' and not(ca_in(6 downto 5) = "11")))
 						else '0';
@@ -759,13 +759,6 @@ begin
 	);
 	
 	nldac <= nldac_int;
-	--nldac <= '1' when m_vramsel_out = '1' and is_cpu = '1' and (VA_select = VRA_CPU) else '0';
-	--nldac <= is_cpu;
---	nldac <= '0'	when ipl = '1' 		else	-- IPL
---				'1' 	when va_is_cpu_d = '1' and ramrwb_int = '0'	else	-- CPU write
---				'0';
---	nldac <= vreq_cpu;
-	--nldac <= '1' when va_is_cpu_d = '1' and rwb = '0' and phi2_int = '1' and m_vramsel_out = '1' else '0'; -- CPU write to vram
 	
 	------------------------------------------------------
 	-- SPI interface
@@ -952,6 +945,7 @@ begin
 		
 		if (reset = '1') then
 			VA_select <= VRA_NONE;
+			FA_select <= FRA_NONE;
 		elsif (falling_edge(q50m)) then 
 			if (cp10 = '1') then
 				-- at end of previous cycle we determine whichh type we have
@@ -994,7 +988,7 @@ begin
 				when VRA_CPU =>
 					nvramsel_int <= not(m_vramsel_out);
 					wait_ram <= '0';
-					ramrwb_int <= rwb;
+					ramrwb_int <= rwb or not( m_vramsel_out );
 				when others =>
 					nvramsel_int <= '0';
 					wait_ram <= m_vramsel_out;
@@ -1018,6 +1012,8 @@ begin
 			else
 				va_is_cpu_d <= '0';
 			end if;
+			
+			VA_select_d <= VA_select;
 		end if;
 		
 	end process;
@@ -1043,7 +1039,7 @@ begin
 		end if;
 
 		-- delay A, R/-W a bit to implement hold times
-			case (VA_select) is
+			case (VA_select_d) is
 			when VRA_IPL =>
 				VA(7 downto 0) <= ipl_cnt(11 downto 4);
 				VA(18 downto 8) <= ipl_addr(18 downto 8);
@@ -1058,17 +1054,7 @@ begin
 			when others =>
 				VA 	<= (others => '0');
 			end case;
-			
---			if (VA_select = VRA_IPL) then
---				ramrwb_int <= '0'; -- write only
---			elsif (VA_select = VRA_CPU) then
---				ramrwb_int <= rwb;
---			else
---				ramrwb_int <= '1'; -- read only
---			end if;
---		if (rising_edge(q50m)) then
---		end if;
-			
+						
 	end process;
 
 	ramrwb <= ramrwb_int; 
@@ -1078,33 +1064,41 @@ begin
 	FA(19 downto 16) <= 	ma_out(19 downto 16);
 	FA(15) <=		ma_out(15);
 			
-	-- data transfer between CPU data bus and video/memory data bus
-	VD <= 	spi_dout	when ipl = '1' 		else	-- IPL
-		D 		when va_is_cpu_d = '1' and ramrwb_int = '0'	else	-- CPU write
-		(others => 'Z');
-		
-	D <= 	VD when va_is_cpu_d = '1'
-		--x"EA" when is_vid_out='0'	-- NOP sled
-				and rwb='1' 
+--	-- data transfer between CPU data bus and video/memory data bus
+--	VD <= 	spi_dout	when ipl = '1' 		else	-- IPL
+--		D 		when va_is_cpu_d = '1' and ramrwb_int = '0' else	-- CPU write
+--		(others => 'Z');
+	vd_out_p: process(spi_dout, D, VA_select_d)
+	begin
+		case (VA_select_d) is
+		when VRA_IPL =>	
+			VD <= spi_dout;
+		when VRA_CPU =>
+			if (ramrwb_int = '0') then
+				VD <= D;
+			else
+				VD <= (others => 'Z');
+			end if;
+		when others =>
+				VD <= (others => 'Z');
+		end case;
+	end process;
+	
+	D <= 	
+		(others => 'Z') when
+			rwb = '0' 
+			or phi2_int = '0'
+		else
+			VD when VA_select_d = VRA_CPU
 				and m_vramsel_out ='1' 
-				and phi2_int='1' 
-				--and is_cpu='1' 	-- do not bleed video access into system bus when waiting but breaks timing
 		else
 			spi_dout when spi_cs = '1'
-				and rwb = '1'
-			   and phi2_int = '1'
 		else
 			vd_out when vid_sel = '1'
-				and rwb = '1'
-				and phi2_int = '1'
 		else
 			dac_dout when dac_sel = '1'
-				and rwb = '1'
-				and phi2_int = '1'
 		else
 			s0_d when sel0 = '1'
-				and rwb = '1'
-				and phi2_int = '1'
 		else
 			(others => 'Z');
 		

@@ -1867,9 +1867,14 @@ begin
 		pbr_doB
 	);
 	
-	pbr_clkA <= dotclk(1);
-	pbr_enA <= '1' when crtc_sel = '1' and crtc_is_data = '1' and regsel(7 downto 3) = "01011"
+	-- block ram uses rising edge on clk signal
+	pbr_clkA <= not(dotclk(1));
+	
+	pbr_enA <= '1' when crtc_sel = '1' 
+							and crtc_is_data = '1' 
+							and regsel(7 downto 3) = "01011"
 					else '0';
+					
 	pbr_weA <= not(crtc_rwb);
 	
 	pbr_addrA(2 downto 0) <= regsel(2 downto 0);
@@ -1883,10 +1888,10 @@ begin
 	pbr_weB <= '0';
 	pbr_addrB <= vid_out_idx;
 	
+	
 	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
 	vid_out(3 downto 2) <= "00" when vid_out_blank = '1' else pbr_doB(4 downto 3);  -- GREEN
 	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
-
 	
 	--------------------------------------------
 	-- crtc register emulation
@@ -1993,31 +1998,6 @@ begin
 			sprite_mcol1 <= "0000";
 			sprite_base <= "10010111";
 			pal_sel <= '0';
---			-- with a 6 bit colour palette the relevant bits 
---			-- are RRxGGxBB 
---			palette(0) <= "00000000";	-- "0000" - "00/00/00" black
---			palette(1) <= "01001001";	-- "0001" - "01/01/01" dark grey
---			palette(2) <= "00000010";	-- "0010" - "00/00/10" dark blue
---			palette(3) <= "01001011";	-- "0011" - "01/01/11" light blue
---			--palette(4) <= "00010000";	-- "0100" - "00/10/00" dark green
---			palette(4) <= "00001000";	-- "0100" - "00/10/00" dark green
---			palette(5) <= "01011001";	-- "0101" - "01/11/01" light green
---			--palette(5) <= "00011000";	-- "0101" - "01/11/01" light green
---			--palette(6) <= "00010010";	-- "0110" - "00/10/10" dark cyan
---			palette(6) <= "00001001";	-- "0110" - "00/10/10" dark cyan
---			palette(7) <= "01011011";	-- "0111" - "01/11/11" light cyan
---			--palette(8) <= "10000000";	-- "1000" - "10/00/00" dark red
---			palette(8) <= "01000000";	-- "1000" - "10/00/00" dark red
---			--palette(9) <= "11001001";	-- "1001" - "11/01/01" light red
---			palette(9) <= "11000000";	-- "1001" - "11/01/01" light red
---			--palette(10) <= "10000010";	-- "1010" - "10/00/10" dark purple
---			palette(10) <= "01000001";	-- "1010" - "10/00/10" dark purple
---			palette(11) <= "11001011";	-- "1011" - "11/01/11" light purple
---			--palette(12) <= "10010000";	-- "1100" - "10/10/00" brown? dark yellow?
---			palette(12) <= "01001000";	-- "1100" - "10/10/00" brown? dark yellow?
---			palette(13) <= "11011001";	-- "1101" - "11/11/01" light yellow
---			palette(14) <= "10010010";	-- "1110" - "10/10/10" light grey
---			palette(15) <= "11111111";	-- "1111" - "11/11/11" white		
 		elsif (falling_edge(phi2) 
 				and crtc_sel = '1'
 				and crtc_is_data = '1' 
@@ -2209,25 +2189,8 @@ begin
 			when x"57" =>	-- R87
 				sprite_fgcol(7) <= CPU_D(3 downto 0);
 			--
-			-- R88 - R95 are reserved for palette extensions, see palette_bram and related signals
-			--
---			when x"58" =>   -- R88
---				palette(0 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
---			when x"59" =>   -- R89
---				palette(1 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
---			when x"5a" =>   -- R90
---				palette(2 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
---			when x"5b" =>   -- R91
---				palette(3 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
---			when x"5c" =>   -- R92
---				palette(4 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
---			when x"5d" =>   -- R93
---				palette(5 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
---			when x"5e" =>   -- R94
---				palette(6 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
---			when x"5f" =>   -- R95
---				palette(7 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16) <= CPU_D;
-	
+			-- R88 - R95 are reserved for palette access, see palette_bram and related signals
+			--	
 			when others =>
 				null;
 			end case;
@@ -2412,7 +2375,8 @@ begin
 						vd_out(3 downto 0) <= sprite_mcol1;
 					when x"2f" =>	-- R47 (was R93)
 						vd_out(3 downto 0) <= sprite_mcol2;
-						
+					-- registers 0x30-0x4f are for sprites
+					-- registers 0x50-0x57 are sprite foreground colours
 					when x"50" =>	-- R80
 						vd_out(3 downto 0) <= sprite_fgcol(0);
 					when x"51" =>	-- R81
@@ -2429,30 +2393,23 @@ begin
 						vd_out(3 downto 0) <= sprite_fgcol(6);
 					when x"57" =>	-- R87
 						vd_out(3 downto 0) <= sprite_fgcol(7);
+					-- registers 0x58-0x5f are palette access
 					when x"58" =>   -- R88
 						vd_out <= pbr_doA;
---						vd_out <= palette(0 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"59" =>   -- R89
 						vd_out <= pbr_doA;
---						vd_out <= palette(1 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5a" =>   -- R90
 						vd_out <= pbr_doA;
---						vd_out <= palette(2 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5b" =>   -- R91
 						vd_out <= pbr_doA;
---						vd_out <= palette(3 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5c" =>   -- R92
 						vd_out <= pbr_doA;
---						vd_out <= palette(4 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5d" =>   -- R93
 						vd_out <= pbr_doA;
---						vd_out <= palette(5 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5e" =>   -- R94
 						vd_out <= pbr_doA;
---						vd_out <= palette(6 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when x"5f" =>   -- R95
 						vd_out <= pbr_doA;
---						vd_out <= palette(7 + to_integer(unsigned'('0' & pal_sel)) * 8 + to_integer(unsigned'('0' & mode_altreg)) * 16);
 					when others =>
 						vd_out <= sprite_d;
 					end case;

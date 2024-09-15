@@ -19,7 +19,7 @@ The SPI interface has four addresses, of which 3 are currently used:
 
 - $e808 (59400): control register (read/write)
   - Bit 0-2: SPI device selection (write only)
-  - Bit 3: - unused, must be 0
+  - Bit 3: 1: use slow clock (550 kHz), 0: use fast clock (8.75 MHz)
   - Bit 4: CPHA (write only)
   - Bit 5: CPOL (write only)
   - Bit 6: 1: tx data register is occupied; 0: tx data register is free, you can reload it (read only)
@@ -36,12 +36,15 @@ The SPI interface has four addresses, of which 3 are currently used:
 
 These devices are currently attached:
 
-- 0: n/a
+- 0: (SPI-10 3.3V on the Ulti-PET)
 - 1: Flash ROM (CPU boot code and ROM)
 - 2: USB (MAX3421E)
 - 3: SD-Card
-- 4: Ethernet (ENC28J60H)
+- 4: Network breakout: Ethernet (ENC28J60H) / Wifi (SPI UART to ESP32 WROOM)
 - 5: RTC / battery buffered RAM
 - 6: FPGA config flash ROM
 - 7: none (inactive)
+
+Note that the unused value is 7 - this is an all-high and is required by the 
+boot process.
 

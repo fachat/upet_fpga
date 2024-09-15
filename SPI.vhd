@@ -61,6 +61,7 @@ architecture Behavioral of SPI is
 	
 	signal cpol: std_logic;				-- clock polarity
 	signal cpha: std_logic;				-- clock phase
+	signal slow: std_logic;
 	
 	signal start_rx: std_logic;
 	signal run_sr_d: std_logic;
@@ -86,7 +87,9 @@ begin
 	-- interestingly spislowclk does not work with the Flash boot ROM... it needs to be spiclk ...
 	-- (probably because the boot code does not wait for the shift to finish :-(
 	spiclk_int <= --'0' when reset = '1' else 
-			spiclk when sel(2) = '0' else
+			--spiclk when slow = '0' or (sel(1) = '0' and sel(2) = '0') else
+			--spiclk when slow = '0' or (sel(0) = '1' and sel(1) = '0' and sel(2) = '0') else
+			spiclk when slow = '0' else
 			spislowclk;
 		
 	-- read registers
@@ -109,7 +112,7 @@ begin
 				DOUT(6) <= txd_valid;
 				DOUT(5) <= cpol;
 				DOUT(4) <= cpha;
-				DOUT(3) <= '0';
+				DOUT(3) <= slow;
 				DOUT(2 downto 0) <= sel(2 downto 0);
 			when "01" =>
 				DOUT <= sr;
@@ -138,10 +141,11 @@ begin
 		end if;
 		
 		if (reset = '1') then
-			sel <= (others => '0');
+			sel <= (others => '1');
 			txd <= (others => '0');
 			cpol <= '0';
 			cpha <= '0';
+			slow <= '0';
 		elsif (falling_edge(phi2)
 			and cs = '1'
 			and rwb = '0') then
@@ -150,6 +154,7 @@ begin
 			when "00" =>
 				cpol <= DIN(5);
 				cpha <= DIN(4);
+				slow <= DIN(3);
 				sel <= DIN(2 downto 0);
 			when "01" =>
 				txd <= DIN;

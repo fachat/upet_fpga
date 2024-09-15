@@ -145,6 +145,8 @@ architecture Behavioral of Top is
 	signal ipl_out: std_logic;	-- SPI output from IPL to flash
 	signal ipl_next: std_logic;	-- start next phase
 	
+	signal spi_slowclk: std_logic;
+	
 	-- clock
 	signal dotclk: std_logic_vector(3 downto 0);
 	signal vid_fetch: std_logic;
@@ -776,12 +778,15 @@ begin
 	   spi_clkx,
 	   spi_sel,
 	   memclk,		-- dotclk(1)
-		dotclk(2),	-- slow clock
+		spi_slowclk,	-- slow clock
 		
 	   ipl_is_load,
 	   reset
 	);
 
+	--spi_slowclk <= dotclk(2);
+	spi_slowclk <= clk1m;
+	
 	-- CPU access to SPI registers
 	spi_cs <= To_Std_Logic(sel0 = '1' and ca_in(3) = '1' and ca_in(2) = '0');
 	

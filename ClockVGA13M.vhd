@@ -11,9 +11,9 @@
 -- Description: 
 --
 -- 	This implements the clock management for 
---		- 70 MHz input clock
---		- 35 MHz pixel clock output (VGA)
---		- 17.5 MHz memory access /CPU clock
+--		- 54 MHz input clock
+--		- 27 MHz pixel clock output (VGA 720x576p50/720x480p60)
+--		- 13.5 MHz memory access /CPU clock
 -- Dependencies: 
 --
 -- Revision: 

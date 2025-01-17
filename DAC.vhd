@@ -286,7 +286,7 @@ begin
 	--  0: --
 	spi_msg(15) <= spi_chan;
 	spi_msg(14) <= '0';	-- n/a bit
-	spi_msg(13) <= '0';	-- gain TODO
+	spi_msg(13) <= '1';	-- gain TODO
 	spi_msg(12) <= '1';	-- active
 	spi_msg(11 downto 4) <= spi_buf(0) when spi_chan = '0' else spi_buf(1);
 	spi_msg(3 downto 0) <= (others => '0');

@@ -438,5 +438,8 @@ due to their minimally different pinout definitions and I/O select outputs.
 
 For more information on the setup, see the [build file](Build.md).
 
+## Theory of Operation
+
+Some notes on how the timing is generated etc can be found in the [theory file](Theory.md).
 
 

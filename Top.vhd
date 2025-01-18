@@ -220,6 +220,7 @@ architecture Behavioral of Top is
 	signal wait_bus: std_logic;	-- when CPU waits for end of CS/A bus cycle
 	signal wait_setup: std_logic;	-- when CPU needs to wait for setup time
 	signal is_bus: std_logic;
+	signal is_bus_a: std_logic;	-- bus access where memclk is on wrong phase with phi2 going down
 	signal wait_int: std_logic;
 	signal ramrwb_int: std_logic;
 	signal do_cpu : std_logic;
@@ -470,7 +471,6 @@ begin
 			clk4m	when mode = "10" else
 			clk2m	when mode = "01" else
 			clk1m;
---	is_cpu_trigger <= '1';
 	
 	-- depending on mode, goes high when we have a CPU access pending,
 	-- and else low when a CPU access is done
@@ -530,23 +530,37 @@ begin
 			if (is_bus = '0') then
 				bus_state <= BUS_NONE;
 			elsif (csetup = '1') then
-				bus_state <= BUS_SETUP;
+				if (is_bus_a = '0') then
+					bus_state <= BUS_SETUP;
+				else
+					bus_state <= BUS_NONE;
+				end if;
 			elsif (bus_state_d = BUS_SETUP) then
 				if (chold = '0') then
+					-- get away from BUS_SETUP, so CPU clock goes low for actual access at hi/lo transition
 					bus_state <= BUS_CPU;
 				end if;
 			else
 				bus_state <= BUS_WAIT;
 			end if;
 		end if;
+			
+		if (reset = '1') then
+			is_bus_a <= '0';
+		elsif (falling_edge(q50m) and cp00 = '1') then
+			if (bus_state_d = BUS_SETUP
+					and chold = '0') then
+				is_bus_a <= '1';
+			else
+				is_bus_a <= '0';
+			end if;
+		end if;
 		
 		if (falling_edge(q50m) and cp11 = '1') then
 			bus_state_d <= bus_state;
 		end if;
+		
 	end process;
-	
-	
-	
 
 	wait_setup <= '1' when bus_state = BUS_SETUP else '0';
 	wait_bus <= '1' when bus_state = BUS_WAIT else '0';
@@ -554,22 +568,11 @@ begin
 
 	-- Note if we use phi2 without setting it high on waits (and would use RDY instead), 
 	-- the I/O timers will always count on 8MHz - which is not what we want (at 1MHz at least)
-	phi2_int <= (memclk or not(do_cpu)) and not(ipl);
+	phi2_int <= (memclk or not(do_cpu)) and not(ipl) when is_bus_a = '0'
+					else not(csetup);
 	
-	-- split phi2, stretched phi2 for the CPU to accomodate for waits.
-	-- for full speed, don't delay VIA timers
-	phi2_p: process(phi2_int, q50m)
-	begin
-		if (rising_edge(q50m)) then
-		end if;
-	end process;
 	phi2_out <= phi2_int; -- or wait_bus or wait_setup;
 	
-	-- use a pullup and this mechanism to drive a 5V signal from a 3.3V CPLD
-	-- According to UG445 Figure 7: push up until detected high, then let pull up resistor do the rest.
-	-- data_to_pin<= data  when ((data and data_to_pin) ='0') else 'Z';	
-	--	phi2 <= phi2_out when ((phi2_out and phi2) = '0') else 'Z';
-	-- no need for that on 3.3V CPU, so just output phi2
 	phi2 <= phi2_out;
 		
 	------------------------------------------------------

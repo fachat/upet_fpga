@@ -46,7 +46,7 @@ entity Clock is
 	   c8phi2: out std_logic;
 	   c2phi2: out std_logic;
 	   cphi2	: out std_logic;
-	   chold	: out std_logic;	-- high for duration of Addr hold time
+	   chold	: out std_logic;
 	   csetup: out std_logic;
 	   
 	   dotclk: out std_logic_vector(3 downto 0) -- 1x, 1/2, 1/4, 1/8 pixel clock for video
@@ -64,10 +64,13 @@ end Clock;
 
 architecture Behavioral of Clock is
 
-	signal clk_cnt : std_logic_vector(5 downto 0);
-	signal dotclk_int: std_logic_vector(3 downto 0);
+	signal clk_cnt : std_logic_vector(5 downto 0);		-- count for 1 MHz clock
+	signal dotclk_cnt: std_logic_vector(3 downto 0); 	-- count for CPU and video access
+
+	signal dotclk_int: std_logic_vector(3 downto 0); 	-- delayed dotclk_cnt
 	
-	 attribute clock_signal of clk_cnt: signal is "yes";
+	attribute clock_signal of clk_cnt: signal is "yes";
+	--attribute clock_signal of dotclk_int: signal is "yes";
 	 
 	function To_Std_Logic(L: BOOLEAN) return std_ulogic is
 	begin
@@ -85,14 +88,16 @@ begin
 	begin
 		if (reset = '1') then 
 			clk_cnt <= (others => '0');
+			dotclk_cnt <= (others => '0');
 		elsif rising_edge(qclk) then
-			-- this counts down to achieve a 1 MHz clock for a full count
-			-- at 70 MHz this would be 70, but as we have take care of other logic,
-			-- we can only do this in multiple of 16 (one char)
-			-- So, we use 64 cycles (0-67)
-			-- implementation is by simple binary counter overrun
 			
-			clk_cnt <= clk_cnt + 1;
+			if (clk_cnt = 53) then
+				clk_cnt <= (others => '0');
+			else
+				clk_cnt <= clk_cnt + 1;
+			end if;
+			
+			dotclk_cnt <= dotclk_cnt + 1;
 			
 			cp00 <= '0';
 			cp01 <= '0';
@@ -118,90 +123,79 @@ begin
 		end if;
 	end process;
 	
-	-- We have 16 pixels with 40ns each (at 80 cols). 
-	-- We run the CPU with 80ns clock cycle, i.e. 12.5 MHz
 	out_p: process(qclk, reset, clk_cnt, dotclk_int)
 	begin
 		if (falling_edge(qclk)) then
-
-			-- memory clock (12.5MHz)
-			--memclk <= clk_cnt(1);
 						
 			-- CS/A bus clocks (phi2, 2phi2, 8phi2)
-			-- which are 1.04MHz, 2.1MHz and 8MHz 
+			-- which are 1.0MHz, 2.0MHz and 8MHz 
 			-- in a phase locked setup
-			-- clk_cnt(1) = memclk, clk1/2/4m sampled at falling edge of memclk, for one memclk
+			
 			case (clk_cnt) is
+			-- 0
 			when "000000" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0'; 
 			when "000001" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			when "000010" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "000011" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "000011" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			when "000100" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			when "000101" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			when "000110" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "000111" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "001000" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "001001" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "001010" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "001011" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
-			when "001100" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
-			when "001101" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "001110" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "001111" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-
+			when "000111" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			-- 8
+			when "001000" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
+			when "001001" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
+			when "001010" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
+			when "001011" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
+			when "001100" =>  cphi2 <= '0';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "001101" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "001110" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "001111" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			-- 16
 			when "010000" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "010001" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "010010" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "010011" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "010001" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "010010" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "010011" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			when "010100" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "010101" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "010110" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "010111" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "011000" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "011001" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "011010" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "011011" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '1'; clk4m <= '1';
-			when "011100" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '1'; clk4m <= '1';
-			when "011101" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "011110" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "011111" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-
-			when "100000" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "100001" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "100010" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "100011" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "100100" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "100101" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "010101" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "010110" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '1'; clk4m <= '1';
+			when "010111" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '1'; clk4m <= '1';
+			-- 24
+			when "011000" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '1'; clk4m <= '1';
+			when "011001" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '1'; clk4m <= '1';
+			when "011010" =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "011011" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "011100" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "011101" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "011110" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "011111" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			-- 32
+			when "100000" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "100001" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "100010" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
+			when "100011" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
+			when "100100" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
+			when "100101" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
 			when "100110" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			when "100111" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "101000" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "101001" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "101010" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "101011" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
-			when "101100" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '1';
-			when "101101" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "101110" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "101111" =>  cphi2 <= '1';	c2phi2 <= '1';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-
-			when "110000" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "110001" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "110010" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "110011" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			-- 40
+			when "101000" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "101001" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "101010" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "101011" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "101100" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "101101" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "101110" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			when "101111" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			-- 48
+			when "110000" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '1'; clk2m <= '1'; clk4m <= '1';
+			when "110001" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '1'; clk2m <= '1'; clk4m <= '1';
+			when "110010" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '1'; clk2m <= '1'; clk4m <= '1';
+			when "110011" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '1'; clk2m <= '1'; clk4m <= '1';
 			when "110100" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			when "110101" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "110110" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "110111" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "111000" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "111001" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "111010" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "111011" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '1'; clk2m <= '1'; clk4m <= '1';
-			when "111100" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '1'; clk2m <= '1'; clk4m <= '1';
-			when "111101" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "111110" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
-			when "111111" =>  cphi2 <= '1';	c2phi2 <= '0';	c8phi2 <= '1'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
+			-- 54
 
-
-			when others =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0';
+			when others =>  cphi2 <= '0';	c2phi2 <= '0';	c8phi2 <= '0'; clk1m <= '0'; clk2m <= '0'; clk4m <= '0';
 			end case;
 			
 			-- only when a CS/A bus transfer is allowed
@@ -212,7 +206,7 @@ begin
 			-- chold must be zero before rising edge of memclk_d before
 			-- next phi2 end
 			chold <= '1';
-			if (	(clk_cnt(5 downto 1) = "11111")
+			if (	(clk_cnt(5 downto 1) = "11010")
 				) then
 				chold <= '0';
 			end if;
@@ -227,7 +221,7 @@ begin
 			end if;
 			
 			----------------- 
-			dotclk_int <= clk_cnt (3 downto 0);
+			dotclk_int <= dotclk_cnt;
 		end if;
 		memclk <= dotclk_int(1);
 		dotclk <= dotclk_int;

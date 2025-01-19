@@ -44,6 +44,8 @@ The following are the internal Viccy registers:
     - 0x= normal display
     - 10= interlace (show every scanline twice, i.e. r9 is effectivly twice its value)
     - 11= double vertical resolution
+  - bit 6: if set, use TV timing, i.e. 720x480i60 resp. 720x576i50
+  - bit 7: if set, use 720x480p60 instead of 720x576p50
 - r9: CHEIGHT: (bits 3-0) scan lines per character - 1 (CRTC)
   - note: in upet compat mode, also sets vertical position (r45)
 - r10: CRSR_STRT: cursor start scan line:  (CRTC)

@@ -90,13 +90,13 @@ architecture Behavioral of Canvas is
 	--
 	-- all values in pixels
 	-- note: cummulative, starting with back porch
-	constant h_back_porch_50: std_logic_vector(9 downto 0) 	:= std_logic_vector(to_unsigned(68				-1, 10));
-	constant h_width_50: std_logic_vector(9 downto 0)			:= std_logic_vector(to_unsigned(68 + 720		-9, 10));
-	constant h_front_porch_50: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(68 + 732		-9, 10));
-	constant h_sync_width_50: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(68 + 796 		-1, 10));
+	constant h_back_porch_50: std_logic_vector(10 downto 0) 	:= std_logic_vector(to_unsigned(68				-1, 11));
+	constant h_width_50: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(68 + 720		-9, 11));
+	constant h_front_porch_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(68 + 732		-9, 11));
+	constant h_sync_width_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(68 + 796 		-1, 11));
 	-- zero for pixel coordinates is 120 pixels = 15 chars left of default borders
 	-- note: during hsync. may be relevant for raster match - must be divisble by 8
-	constant h_zero_pos_50: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(24		-1, 10));
+	constant h_zero_pos_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(24		-1, 11));
 	-- in characters
 	constant x_default_offset_50: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(8,7));
 	
@@ -119,12 +119,12 @@ architecture Behavioral of Canvas is
 	--
 	-- all values in pixels
 	-- note: cummulative, starting with back porch
-	constant h_back_porch_60: std_logic_vector(9 downto 0) 	:= std_logic_vector(to_unsigned(60			-1, 10));
-	constant h_width_60: std_logic_vector(9 downto 0)			:= std_logic_vector(to_unsigned(60 + 720	-9, 10));
-	constant h_front_porch_60: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(60 + 736	-9, 10));
-	constant h_sync_width_60: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(60 + 798	-1, 10));
+	constant h_back_porch_60: std_logic_vector(10 downto 0) 	:= std_logic_vector(to_unsigned(60			-1, 11));
+	constant h_width_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(60 + 720	-9, 11));
+	constant h_front_porch_60: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(60 + 736	-9, 11));
+	constant h_sync_width_60: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(60 + 798	-1, 11));
 	-- zero for pixel coordinates is 2x24 pixels left of default borders must be divisible by 8
-	constant h_zero_pos_60: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(16	-1, 10));
+	constant h_zero_pos_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(16	-1, 11));
 	-- in characters
 	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(8,7));
 	--
@@ -141,11 +141,11 @@ architecture Behavioral of Canvas is
 	----------------------------------------------------------------------------------------------------------------
 	-- all values in pixels
 	-- note: cummulative, starting with back porch
-	signal h_back_porch: std_logic_vector(9 downto 0);
-	signal h_width: std_logic_vector(9 downto 0);
-	signal h_front_porch: std_logic_vector(9 downto 0);
-	signal h_sync_width: std_logic_vector(9 downto 0);
-	signal h_zero_pos: std_logic_vector(9 downto 0);
+	signal h_back_porch: std_logic_vector(10 downto 0);
+	signal h_width: std_logic_vector(10 downto 0);
+	signal h_front_porch: std_logic_vector(10 downto 0);
+	signal h_sync_width: std_logic_vector(10 downto 0);
+	signal h_zero_pos: std_logic_vector(10 downto 0);
 
 	signal v_back_porch: std_logic_vector(9 downto 0);
 	signal v_width: std_logic_vector(9 downto 0);
@@ -167,7 +167,7 @@ architecture Behavioral of Canvas is
 	signal v_limit: std_logic;
 
 	-- adresses counters
-	signal h_cnt: std_logic_vector(9 downto 0);
+	signal h_cnt: std_logic_vector(10 downto 0);
 	signal v_cnt: std_logic_vector(9 downto 0);
 
 	signal h_enable_int: std_logic;
@@ -204,11 +204,24 @@ begin
 			v_front_porch		<= v_front_porch_60;
 			v_sync_width		<= v_sync_width_60;
 			v_zero_pos			<= v_zero_pos_60;
-			h_back_porch 		<= h_back_porch_60;
-			h_width				<= h_width_60;
-			h_front_porch		<= h_front_porch_60;
-			h_sync_width		<= h_sync_width_60;
-			h_zero_pos			<= h_zero_pos_60;
+			if (mode_tv = '1') then
+				h_back_porch(10 downto 1) 		<= h_back_porch_60(9 downto 0);
+				h_back_porch(0) <= '0';
+				h_width(10 downto 1)				<= h_width_60(9 downto 0);
+				h_width(0) <= '0';
+				h_front_porch(10 downto 1)		<= h_front_porch_60(9 downto 0);
+				h_front_porch(0) <= '0';
+				h_sync_width(10 downto 1)		<= h_sync_width_60(9 downto 0);
+				h_sync_width(0) <= '0';
+				h_zero_pos(6 downto 1)			<= h_zero_pos_60(5 downto 0);
+				h_zero_pos(0) <= '0';
+			else
+				h_back_porch 		<= h_back_porch_60;
+				h_width				<= h_width_60;
+				h_front_porch		<= h_front_porch_60;
+				h_sync_width		<= h_sync_width_60;
+				h_zero_pos			<= h_zero_pos_60;
+			end if;
 			x_default_offset_val<= x_default_offset_60;
 			y_default_offset_val<= y_default_offset_60;
 		else
@@ -217,11 +230,24 @@ begin
 			v_front_porch		<= v_front_porch_50;
 			v_sync_width		<= v_sync_width_50;
 			v_zero_pos			<= v_zero_pos_50;
-			h_back_porch 		<= h_back_porch_50;
-			h_width				<= h_width_50;
-			h_front_porch		<= h_front_porch_50;
-			h_sync_width		<= h_sync_width_50;
-			h_zero_pos			<= h_zero_pos_50;
+			if (mode_tv = '1') then
+				h_back_porch(10 downto 1) 		<= h_back_porch_50(9 downto 0);
+				h_back_porch(0) <= '0';
+				h_width(10 downto 1)				<= h_width_50(9 downto 0);
+				h_width(0) <= '0';
+				h_front_porch(10 downto 1)		<= h_front_porch_50(9 downto 0);
+				h_front_porch(0) <= '0';
+				h_sync_width(10 downto 1)		<= h_sync_width_50(9 downto 0);
+				h_sync_width(0) <= '0';
+				h_zero_pos(6 downto 1)			<= h_zero_pos_50(5 downto 0);
+				h_zero_pos(0) <= '0';
+			else
+				h_back_porch 		<= h_back_porch_50;
+				h_width				<= h_width_50;
+				h_front_porch		<= h_front_porch_50;
+				h_sync_width		<= h_sync_width_50;
+				h_zero_pos			<= h_zero_pos_50;
+			end if;
 			x_default_offset_val<= x_default_offset_50;
 			y_default_offset_val<= y_default_offset_50;
 		end if;

@@ -95,8 +95,8 @@ architecture Behavioral of Canvas is
 	constant h_front_porch_50: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(68 + 732		-9, 10));
 	constant h_sync_width_50: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(68 + 796 		-1, 10));
 	-- zero for pixel coordinates is 120 pixels = 15 chars left of default borders
-	-- note: during hsync. may be relevant for raster match
-	constant h_zero_pos_50: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(744		-1, 10));
+	-- note: during hsync. may be relevant for raster match - must be divisble by 8
+	constant h_zero_pos_50: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(24		-1, 10));
 	-- in characters
 	constant x_default_offset_50: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(25,7));
 	
@@ -123,8 +123,8 @@ architecture Behavioral of Canvas is
 	constant h_width_60: std_logic_vector(9 downto 0)			:= std_logic_vector(to_unsigned(60 + 720	-9, 10));
 	constant h_front_porch_60: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(60 + 736	-9, 10));
 	constant h_sync_width_60: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(60 + 798	-1, 10));
-	-- zero for pixel coordinates is 120 pixels = 15 chars left of default borders
-	constant h_zero_pos_60: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(858 - 120	-1, 10));
+	-- zero for pixel coordinates is 2x24 pixels left of default borders must be divisible by 8
+	constant h_zero_pos_60: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(16	-1, 10));
 	-- in characters
 	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(25,7));
 	--

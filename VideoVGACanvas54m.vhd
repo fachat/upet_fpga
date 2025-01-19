@@ -39,6 +39,9 @@ entity Canvas is
 	   qclk: in std_logic;		-- Q clock (50MHz)
 	   dotclk: in std_logic_vector(3 downto 0);	-- 25Mhz, 1/2, 1/4, 1/8, 1/16
 
+		mode_60hz: in std_logic;
+		mode_tv: in std_logic;
+		
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 
@@ -78,26 +81,80 @@ architecture Behavioral of Canvas is
 	-- 15.7343 kHz 	ModeLine "720x480" 13.50 720 739 801 858 480 488 494 524 -HSync -VSync Interlace 
 	-- 31.4685 kHz 	ModeLine "720x480" 27.00 720 736 798 858 480 489 495 525 -HSync -VSync 
 	
+	----------------------------------------------------------------------------------------------------------------
+	-- 720x576p50
+	--
+	-- 720x576@50 Hz
+	-- 15.625 kHz 	ModeLine "720x576" 13.50 720 732 795 864 576 580 586 624 -HSync -VSync Interlace 
+	-- 31.25 kHz 	ModeLine "720x576" 27.00 720 732 796 864 576 581 586 625 -HSync -VSync 
+	--
 	-- all values in pixels
 	-- note: cummulative, starting with back porch
-	constant h_back_porch: std_logic_vector(9 downto 0) 	:= std_logic_vector(to_unsigned((72  						-8)/8	-1, 10));
-	constant h_width: std_logic_vector(9 downto 0)			:= std_logic_vector(to_unsigned((72 + 720					-8)/8	-1, 10));
-	constant h_front_porch: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned((72 + 720 + 16			)/8		-1, 10));
-	constant h_sync_width: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned((72 + 720 + 16 + 56 	)/8		-1, 10));
+	constant h_back_porch_50: std_logic_vector(9 downto 0) 	:= std_logic_vector(to_unsigned(68				-1, 10));
+	constant h_width_50: std_logic_vector(9 downto 0)			:= std_logic_vector(to_unsigned(68 + 720		-9, 10));
+	constant h_front_porch_50: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(68 + 732		-9, 10));
+	constant h_sync_width_50: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(68 + 796 		-1, 10));
 	-- zero for pixel coordinates is 120 pixels = 15 chars left of default borders
 	-- note: during hsync. may be relevant for raster match
-	--constant h_zero_pos: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned((104 + 768 + 24 + 80 - (120-104))-2, 10));
-	constant h_zero_pos: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned((72 + 720 + 16 + 56 - (128-72))-2, 10));
-
+	constant h_zero_pos_50: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(744		-1, 10));
+	-- in characters
+	constant x_default_offset_50: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(25,7));
+	
 	-- all values in rasterlines
-	constant v_back_porch: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39							-1, 10));
-	constant v_width: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(39 + 576					-1, 10));
-	constant v_front_porch: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39 + 576 + 5				-1, 10));
-	constant v_sync_width: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39 + 576 + 5 + 3			-1, 10));
-	-- zero for pixel coordinates is 21 rasterlines up of default borders
-	-- this is one sprite height and the max we have with 768x576, as all the off-screen is 21 rasterlines only!
-	--constant v_zero_pos: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(17 + 576 + 1 + 3 - (42 - 17), 10));
-	constant v_zero_pos: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(39 + 576 + 1 + 3 - (39 - 25), 10));
+	constant v_back_porch_50: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39				-1, 10));
+	constant v_width_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(39 + 576		-1, 10));
+	constant v_front_porch_50: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39 + 581		-1, 10));
+	constant v_sync_width_50: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39 + 586		-1, 10));
+	-- zero for pixel coordinates is 2x21 rasterlines up of default borders (1 sprite, either double height or interlace)
+	constant v_zero_pos_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(625 - (42 - 39) -1, 10));
+	-- in rasterlines
+	constant y_default_offset_50: natural := 42 + (576-400)/2;
+
+	----------------------------------------------------------------------------------------------------------------
+	-- 720x480p60
+	--
+	-- 720x480@60 Hz
+	-- 15.7343 kHz 	ModeLine "720x480" 13.50 720 739 801 858 480 488 494 524 -HSync -VSync Interlace 
+	-- 31.4685 kHz 	ModeLine "720x480" 27.00 720 736 798 858 480 489 495 525 -HSync -VSync 
+	--
+	-- all values in pixels
+	-- note: cummulative, starting with back porch
+	constant h_back_porch_60: std_logic_vector(9 downto 0) 	:= std_logic_vector(to_unsigned(60			-1, 10));
+	constant h_width_60: std_logic_vector(9 downto 0)			:= std_logic_vector(to_unsigned(60 + 720	-9, 10));
+	constant h_front_porch_60: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(60 + 736	-9, 10));
+	constant h_sync_width_60: std_logic_vector(9 downto 0)	:= std_logic_vector(to_unsigned(60 + 798	-1, 10));
+	-- zero for pixel coordinates is 120 pixels = 15 chars left of default borders
+	constant h_zero_pos_60: std_logic_vector(9 downto 0)		:= std_logic_vector(to_unsigned(858 - 120	-1, 10));
+	-- in characters
+	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(25,7));
+	--
+	-- all values in rasterlines
+	constant v_back_porch_60: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(30			-1, 10));
+	constant v_width_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(30 + 480	-1, 10));
+	constant v_front_porch_60: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(30 + 489	-1, 10));
+	constant v_sync_width_60: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(30 + 495	-1, 10));
+	-- zero for pixel coordinates is 2x21 rasterlines up of default borders (1 sprite, either double height or interlace)
+	constant v_zero_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(525 - (42 - 30) -1, 10));
+	-- in rasterlines
+	constant y_default_offset_60: natural:= 42 + (480-400)/2;
+
+	----------------------------------------------------------------------------------------------------------------
+	-- all values in pixels
+	-- note: cummulative, starting with back porch
+	signal h_back_porch: std_logic_vector(9 downto 0);
+	signal h_width: std_logic_vector(9 downto 0);
+	signal h_front_porch: std_logic_vector(9 downto 0);
+	signal h_sync_width: std_logic_vector(9 downto 0);
+	signal h_zero_pos: std_logic_vector(9 downto 0);
+
+	signal v_back_porch: std_logic_vector(9 downto 0);
+	signal v_width: std_logic_vector(9 downto 0);
+	signal v_front_porch: std_logic_vector(9 downto 0);
+	signal v_sync_width: std_logic_vector(9 downto 0);
+	signal v_zero_pos: std_logic_vector(9 downto 0);
+
+	signal x_default_offset_val: std_logic_vector(6 downto 0);
+	signal y_default_offset_val: natural;
 
 	-- runtime counters
 
@@ -132,15 +189,48 @@ begin
 	v_sync_ext <= v_sync_int;
 
 	-- in characters
-	x_default_offset <= std_logic_vector(to_unsigned(21,7));
+	x_default_offset <= x_default_offset_val;
 	-- in rasterlines
-	y_default_offset <= 110;
+	y_default_offset <= y_default_offset_val;
 
+	-- geometry
+
+	geo_p: process(mode_60hz) 
+	begin
+	
+		if (mode_60hz = '1') then
+			v_back_porch 		<= v_back_porch_60;
+			v_width				<= v_width_60;
+			v_front_porch		<= v_front_porch_60;
+			v_sync_width		<= v_sync_width_60;
+			v_zero_pos			<= v_zero_pos_60;
+			h_back_porch 		<= h_back_porch_60;
+			h_width				<= h_width_60;
+			h_front_porch		<= h_front_porch_60;
+			h_sync_width		<= h_sync_width_60;
+			h_zero_pos			<= h_zero_pos_60;
+			x_default_offset_val<= x_default_offset_60;
+			y_default_offset_val<= y_default_offset_60;
+		else
+			v_back_porch 		<= v_back_porch_50;
+			v_width				<= v_width_50;
+			v_front_porch		<= v_front_porch_50;
+			v_sync_width		<= v_sync_width_50;
+			v_zero_pos			<= v_zero_pos_50;
+			h_back_porch 		<= h_back_porch_50;
+			h_width				<= h_width_50;
+			h_front_porch		<= h_front_porch_50;
+			h_sync_width		<= h_sync_width_50;
+			h_zero_pos			<= h_zero_pos_50;
+			x_default_offset_val<= x_default_offset_50;
+			y_default_offset_val<= y_default_offset_50;
+		end if;
+	end process;
 
 	-----------------------------------------------------------------------------
 	-- horizontal geometry calculation
 
-	h_cnt(2 downto 0) <= dotclk(2 downto 0);
+	--h_cnt(2 downto 0) <= dotclk(2 downto 0);
 	
 	pxl: process(qclk, dotclk, h_cnt, h_limit, reset)
 	begin 
@@ -149,17 +239,21 @@ begin
 			h_state <= "00";
 			h_sync_int <= '0';
 			h_enable_int <= '0';
-		elsif (falling_edge(qclk) and dotclk(3 downto 0) = "1111") then
-
-			if (h_limit = '1' and h_state = "11") then
-				-- sync with slotcnt / memclk by setting to zero on dotclk="1110"
-				h_cnt(9 downto 3) <= (others => '0');
-			else
-				h_cnt(9 downto 3) <= h_cnt(9 downto 3) + 1;
-			end if;
+		elsif (falling_edge(qclk) and dotclk(0) = '1') then
 
 			if (h_limit = '1') then
-				h_state <= h_state + 1;
+				if (h_state = "11") then
+					if (dotclk(3 downto 0) = "1111") then
+						-- sync with slotcnt / memclk by setting to zero on dotclk="1110"
+						h_cnt <= (others => '0');
+						h_state <= "00";
+					end if;
+				else
+					h_state <= h_state + 1;
+					h_cnt <= h_cnt + 1;
+				end if; 
+			else
+				h_cnt <= h_cnt + 1;
 			end if;
 
 			h_enable_int <= '0';
@@ -180,25 +274,25 @@ begin
 	begin 
 		if (reset = '1') then
 			h_limit <= '0';
-		elsif (falling_edge(qclk) and dotclk(3 downto 0) = "0111") then
+		elsif (rising_edge(qclk)) then -- and dotclk(3 downto 0) = "0111") then
 
 			h_limit <= '0';
 
 			case h_state is
 				when "00" =>	-- back porch
-					if (h_cnt(9 downto 3) = h_back_porch) then
+					if (h_cnt = h_back_porch) then
 						h_limit <= '1';
 					end if;
 				when "01" =>	-- data
-					if (h_cnt(9 downto 3) = h_width) then
+					if (h_cnt = h_width) then
 						h_limit <= '1';
 					end if;
 				when "10" =>	-- front porch
-					if (h_cnt(9 downto 3) = h_front_porch) then
+					if (h_cnt = h_front_porch) then
 						h_limit <= '1';
 					end if;
 				when "11" =>	-- sync
-					if (h_cnt(9 downto 3) = h_sync_width) then
+					if (h_cnt = h_sync_width) then
 						h_limit <= '1';
 					end if;
 				when others =>

@@ -90,7 +90,7 @@ architecture Behavioral of Video is
 	signal dispen: std_logic;
 	signal mode_double: std_logic;
 	signal mode_interlace: std_logic;
-	signal mode_80: std_logic;
+	signal mode_80col: std_logic;
 	
 	signal mode_altreg: std_logic;		-- enable access to alternate vid_base and attr_base
 	signal mode_bitmap_alt: std_logic;	
@@ -100,6 +100,8 @@ architecture Behavioral of Video is
 	signal mode_extended_reg: std_logic;	
 	signal mode_attrib_reg: std_logic;	
 	signal mode_regmap_int: std_logic;
+	signal mode_tv: std_logic;				-- used to enable "i" instead of "p" video modes, allowing for PAL/NTSC compatible timing
+	signal mode_60hz: std_logic;				-- used to set 720x480p60 instead of the default 720x576p50
 	signal alt_match_modes : std_logic;
 	signal alt_match_hsync : std_logic;
 	signal alt_match_palette : std_logic;
@@ -406,6 +408,9 @@ architecture Behavioral of Video is
            qclk: in std_logic;          -- Q clock (50MHz)
            dotclk: in std_logic_vector(3 downto 0);     -- 25Mhz, 1/2, 1/4, 1/8, 1/16
 
+			  mode_60hz: in std_logic;
+			  mode_tv: in std_logic;
+			  
            v_sync : out  STD_LOGIC;
            h_sync : out  STD_LOGIC;
 
@@ -543,26 +548,6 @@ architecture Behavioral of Video is
 
 	end component;
 	
---	impure function col_2_pxl (
---		col : std_logic_vector(3 downto 0);
---		pal_sel : std_logic
---		) return std_logic_vector is
---
---		variable palcol: std_logic_vector(7 downto 0);
---		variable rgb: std_logic_vector(5 downto 0);
---	begin
---		--if (pal_alt = '0') then
---		if (pal_sel = '0') then
---			palcol := palette(to_integer(unsigned(col)));
---		else
---			palcol := palette(to_integer(unsigned(col)) + 16);
---		end if;
---		rgb(1 downto 0) := palcol(1 downto 0);	-- BLUE
---		rgb(3 downto 2) := palcol(4 downto 3);  -- GREEN
---		rgb(5 downto 4) := palcol(7 downto 6); 	-- RED
---		
---		return rgb;
---	end function;
 	
 
 begin
@@ -726,6 +711,8 @@ begin
 	port map (
 		qclk,
 		dotclk,
+		mode_60hz,
+		mode_tv,
 		v_sync_int,
 		h_sync_int,
 		v_sync_ext,
@@ -786,7 +773,7 @@ begin
 	
 	h_sync <= h_sync_ext;
 	
-	is_80 <= mode_80 or is_80_in;
+	is_80 <= mode_80col or is_80_in;
 	
 	v_sync <= v_sync_ext;
 	
@@ -1941,6 +1928,8 @@ begin
 	reg9: process(phi2, CPU_D, crtc_sel, crtc_rs, crtc_rwb, crtc_is_data, regsel, reset) 
 	begin
 		if (reset = '1') then
+			mode_tv <= '0';
+			mode_60hz <= '0';
 			mode_rev <= '0';
 			cblink_mode <= '0';
 			mode_attrib_reg <= '0';
@@ -1952,7 +1941,7 @@ begin
 			mode_upet <= '1';
 			mode_double <= '0';
 			mode_interlace <= '0';
-			mode_80 <= '0';
+			mode_80col <= '0';
 			mode_altreg <= '0';
 			mode_regmap_int <= '0';
 			alt_match_modes <= '0';
@@ -2029,7 +2018,9 @@ begin
 				-- b1: interlace, b0: double (if b1=1)
 				mode_interlace <= CPU_D(1);
 				mode_double <= CPU_D(0) and CPU_D(1);
-				mode_80 <= CPU_D(7);
+				mode_tv <= CPU_D(5);
+				mode_60hz <= CPU_D(6);
+				mode_80col <= CPU_D(7);
 			when x"09" =>
 				rows_per_char <= CPU_D(3 downto 0);
 				if (mode_upet = '1') then
@@ -2238,7 +2229,9 @@ begin
 					when x"08" =>
 						vd_out(0) <= mode_double;
 						vd_out(1) <= mode_interlace;
-						vd_out(7) <= mode_80;
+						vd_out(5) <= mode_tv;
+						vd_out(6) <= mode_60hz;
+						vd_out(7) <= mode_80col;
 					when x"09" =>
 						vd_out(3 downto 0) <= rows_per_char;
 					when x"0a" =>

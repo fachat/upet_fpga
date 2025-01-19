@@ -186,7 +186,7 @@ begin
 	-- 640x480 has h negative v negative
 	-- 768x576 has h negative v positive
 	h_sync_ext <= not( h_sync_int );
-	v_sync_ext <= v_sync_int;
+	v_sync_ext <= not( v_sync_int );
 
 	-- in characters
 	x_default_offset <= x_default_offset_val;
@@ -199,11 +199,6 @@ begin
 	begin
 	
 		if (mode_60hz = '1') then
-			v_back_porch 		<= v_back_porch_60;
-			v_width				<= v_width_60;
-			v_front_porch		<= v_front_porch_60;
-			v_sync_width		<= v_sync_width_60;
-			v_zero_pos			<= v_zero_pos_60;
 			if (mode_tv = '1') then
 				h_back_porch(10 downto 1) 		<= h_back_porch_60(9 downto 0);
 				h_back_porch(0) <= '0';
@@ -214,7 +209,6 @@ begin
 				h_sync_width(10 downto 1)		<= h_sync_width_60(9 downto 0);
 				h_sync_width(0) <= '0';
 				h_zero_pos(6 downto 1)			<= h_zero_pos_60(5 downto 0);
-				h_zero_pos(0) <= '0';
 			else
 				h_back_porch 		<= h_back_porch_60;
 				h_width				<= h_width_60;
@@ -222,14 +216,14 @@ begin
 				h_sync_width		<= h_sync_width_60;
 				h_zero_pos			<= h_zero_pos_60;
 			end if;
+			v_back_porch 		<= v_back_porch_60;
+			v_width				<= v_width_60;
+			v_front_porch		<= v_front_porch_60;
+			v_sync_width		<= v_sync_width_60;
+			v_zero_pos			<= v_zero_pos_60;
 			x_default_offset_val<= x_default_offset_60;
 			y_default_offset_val<= y_default_offset_60;
 		else
-			v_back_porch 		<= v_back_porch_50;
-			v_width				<= v_width_50;
-			v_front_porch		<= v_front_porch_50;
-			v_sync_width		<= v_sync_width_50;
-			v_zero_pos			<= v_zero_pos_50;
 			if (mode_tv = '1') then
 				h_back_porch(10 downto 1) 		<= h_back_porch_50(9 downto 0);
 				h_back_porch(0) <= '0';
@@ -248,6 +242,11 @@ begin
 				h_sync_width		<= h_sync_width_50;
 				h_zero_pos			<= h_zero_pos_50;
 			end if;
+			v_back_porch 		<= v_back_porch_50;
+			v_width				<= v_width_50;
+			v_front_porch		<= v_front_porch_50;
+			v_sync_width		<= v_sync_width_50;
+			v_zero_pos			<= v_zero_pos_50;
 			x_default_offset_val<= x_default_offset_50;
 			y_default_offset_val<= y_default_offset_50;
 		end if;
@@ -371,7 +370,11 @@ begin
 			if (v_limit = '1' and v_state = "11") then
 				v_cnt <= (others => '0');
 			else
-				v_cnt <= v_cnt + 1;
+				if (mode_tv = '1') then
+					v_cnt <= v_cnt + 2;
+				else
+					v_cnt <= v_cnt + 1;
+				end if;
 			end if;
 
 			if (v_limit = '1') then
@@ -407,19 +410,23 @@ begin
 
 			case v_state is
 				when "00" =>	-- back porch
-					if (v_cnt = v_back_porch) then
+					if ((v_cnt(9 downto 1) = v_back_porch(9 downto 1))
+						and (mode_tv = '1' or v_cnt(0) = v_back_porch(0))) then
 						v_limit <= '1';
 					end if;
 				when "01" =>	-- data
-					if (v_cnt = v_width) then
+					if ((v_cnt(9 downto 1) = v_width(9 downto 1)) 
+						and (mode_tv = '1' or v_cnt(0) = v_width(0))) then
 						v_limit <= '1';
 					end if;
 				when "10" =>	-- front porch
-					if (v_cnt = v_front_porch) then
+					if ((v_cnt(9 downto 1) = v_front_porch(9 downto 1)) 
+						and (mode_tv = '1' or v_cnt(0) = v_front_porch(0))) then
 						v_limit <= '1';
 					end if;
 				when "11" =>	-- sync
-					if (v_cnt = v_sync_width) then
+					if ((v_cnt(9 downto 1) = v_sync_width(9 downto 1)) 
+						and (mode_tv = '1' or v_cnt(0) = v_sync_width(0))) then
 						v_limit <= '1';
 					end if;
 				when others =>

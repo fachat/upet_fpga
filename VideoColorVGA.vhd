@@ -1886,8 +1886,8 @@ begin
 
 	dbg_out <= '0';
 
-	is_double_int <= mode_double;
-	interlace_int <= mode_interlace;
+	is_double_int <= mode_double or mode_tv;
+	interlace_int <= mode_interlace or mode_tv;
 
 	crtc_rs_int(1 downto 0) <= crtc_rs(1 downto 0);
 	crtc_rs_int(6 downto 2) <= crtc_rs(6 downto 2) when mode_regmap_int = '1' 

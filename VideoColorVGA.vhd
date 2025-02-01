@@ -158,8 +158,9 @@ architecture Behavioral of Video is
 	signal raster_isbg: std_logic;
 	signal do_shift: std_logic;
 	
-	-- 1 bit slot counter to enable 40 column
-	signal in_slot: std_logic;
+	-- 1 bit slot counter to enable 40 column or tv mode
+	signal new_slot: std_logic;
+	signal fetch_slot: std_logic;
 	
 	-- mode
 	signal is_80: std_logic;
@@ -323,6 +324,10 @@ architecture Behavioral of Video is
 	signal sprite_ptr_fetch: std_logic;
 	signal sprite_data_fetch: std_logic;
 	
+	-- true when shift should be done
+	signal is_shift: std_logic;
+	signal is_shift2: std_logic;
+	
 	-- temporary
 	signal is_double_int: std_logic;
 	signal interlace_int: std_logic;
@@ -441,13 +446,15 @@ architecture Behavioral of Video is
 			h_zero: in std_logic;
 			hsync_pos: in std_logic_vector(6 downto 0);
 			slots_per_line: in std_logic_vector(6 downto 0);
+			mode_tv: in std_logic;
 			h_extborder: in std_logic;
 			is_80: in std_logic;
 			
 			is_preload: out std_logic;		-- one slot before end of border
 			is_border: out std_logic;			
 			is_last_vis: out std_logic;
-			in_slot: out std_logic;
+			new_slot: out std_logic;
+			fetch_slot: out std_logic;
 			
 			reset : in std_logic
 		);
@@ -661,7 +668,7 @@ begin
 	
 
 	--fetch_int <= is_enable and (not(in_slot) or is_80) and (interlace_int or not(rline_cnt0));
-	fetch_int <= is_enable and (not(in_slot) or is_80) and (interlace_int or not(rline_cnt0));
+	fetch_int <= is_enable and fetch_slot and (interlace_int or not(rline_cnt0));
 	
 	
 	-- do we fetch character index?
@@ -738,15 +745,17 @@ begin
 			h_zero,
 			hsync_pos,
 			slots_per_line,
+			mode_tv,
 			h_extborder,			
 			is_80,
 			x_start,
 			x_border,
 			last_vis_slot_of_line,
-			in_slot,
+			new_slot,
+			fetch_slot,
 			reset
 	);
-
+	
 	v_border: VBorder
 	port map (
 			h_zero,	--h_sync_int,	
@@ -818,14 +827,14 @@ begin
 		end if;
 	end process;
 	
-	AddrCnt: process(x_start, vid_addr, vid_addr_hold, is_80, in_slot, qclk, reset, dotclk)
+	AddrCnt: process(x_start, vid_addr, vid_addr_hold, is_80, new_slot, qclk, reset, dotclk)
 	begin
 		if (reset = '1') then
 			vid_addr <= (others => '0');
 			attr_addr <= (others => '0');
 		elsif (falling_edge(qclk) and dotclk = "1111") then
 				if (x_start = '0') then
-					if (is_80 = '1' or in_slot = '1') then
+					if (new_slot = '1') then
 						vid_addr <= vid_addr + 1;
 						attr_addr <= attr_addr + 1;
 					end if;
@@ -1314,6 +1323,24 @@ begin
 	-----------------------------------------------------------------------------
 	-- replace discrete color circuitry of ultracpu 1.2b
 
+	is_shift_p: process(is_80, mode_tv, dotclk)
+	begin
+		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
+		if (mode_tv = '0') then
+			if (is_80 = '0') then
+				is_shift2 <= dotclk(1);
+			else
+				is_shift2 <= '1';
+			end if;
+		else
+			if (is_80 = '0') then
+				is_shift2 <= dotclk(1) and dotclk(2);
+			else
+				is_shift2 <= dotclk(1);
+			end if;
+		end if;
+		is_shift <= not(dotclk(0)) and is_shift2;
+	end process;
 	
 	char_buf_p: process(qclk, memclk, chr_fetch_int, attr_fetch_int, pxl_fetch_int, VRAM_D, qclk, 
 		mode_rev, sr_crsr, sr_blink, mode_attrib, mode_extended, attr_buf, cblink_active, uline_active)
@@ -1390,7 +1417,7 @@ begin
 		end if;
 		
 		if (falling_edge(qclk)) then
-			if (pxle_ce = '1' and (is_80 = '1' or in_slot = '0')) then
+			if (pxle_ce = '1' and (fetch_slot = '1')) then
 				sr_attr <= attr_buf;
 				sr(6 downto 0) <= sr_buf (6 downto 0);
 				sr_odd <= '0';
@@ -1427,7 +1454,8 @@ begin
 				when others =>
 				end case;
 				
-			elsif (dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')) then
+			--elsif (dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')) then
+			elsif (is_shift = '1') then
 				sr(6 downto 1) <= sr(5 downto 0);
 				sr(0) <= '1';
 				sr_odd <= not(sr_odd);
@@ -1503,7 +1531,8 @@ begin
 				if (h_shift = i) then
 					raster_out(i) <= raster_outbit;
 					raster_bg(i) <= raster_isbg;
-				elsif (dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '0')) then
+				elsif (is_shift = '1') then
+				--elsif (dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '0')) then
 					raster_out(i) <= raster_out(i+1);
 					raster_bg(i) <= raster_bg(i+1);
 				end if;
@@ -1610,7 +1639,8 @@ begin
 					collision_trigger_sprite_raster(sprite_no) <= '1';
 				end if;
 				
-			elsif (is_80 = '1' or dotclk(1) = '1') then
+			--elsif (is_80 = '1' or dotclk(1) = '1') then
+			elsif (is_shift2 = '1') then
 				-- raster
 				--vid_out <= col_2_pxl(raster_out(0), pal_alt);
 				vid_out_idx(3 downto 0) <= raster_out(0);
@@ -1675,19 +1705,8 @@ begin
 
 	en_p: process(nsrload, qclk, enable, h_enable, interlace_int)
 	begin
-		-- sr_load changes on falling edge of qclk
-		-- sr_load_d changes on rising edge of qclk
-		-- in_slot changes at falling edge of slotclk, which itself changes on falling edge of qclk
---		if (rising_edge(nsrload)
---			--and (in_slot = '1')
---			) then
-			enable <= h_enable and v_enable
+		enable <= h_enable and v_enable
 				and (interlace_int or not(rline_cnt0));
---		end if;
---		if (falling_edge(qclk) and sr_fetch_int = '1') then
---			enable <= h_enable and v_enable
---				and (interlace_int or not(rline_cnt0));
---		end if;
 
 		dena_int <= enable;
 	end process;
@@ -2021,6 +2040,14 @@ begin
 				mode_tv <= CPU_D(5);
 				mode_60hz <= CPU_D(6);
 				mode_80col <= CPU_D(7);
+				if (mode_upet = '1') then
+					if (CPU_D(6) = '0') then
+						-- setup 
+						vsync_pos <= std_logic_vector(to_unsigned(y_default_offset,8));
+					else
+						vsync_pos <= std_logic_vector(to_unsigned(33,8));
+					end if;
+				end if;
 			when x"09" =>
 				rows_per_char <= CPU_D(3 downto 0);
 				if (mode_upet = '1') then

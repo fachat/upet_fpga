@@ -45,13 +45,16 @@ entity HBorder is
 			
 			hsync_pos: in std_logic_vector(6 downto 0);
 			slots_per_line: in std_logic_vector(6 downto 0);
+			mode_tv: in std_logic;
 			h_extborder: in std_logic;
 			is_80: in std_logic;
 			
 			is_preload: out std_logic;		-- one slot before end of border
 			is_border: out std_logic;			
 			is_last_vis: out std_logic;
-			in_slot: out std_logic;
+			
+			new_slot: out std_logic;		-- active when new slot starts
+			fetch_slot: out std_logic;		-- active on last cycle of previour slot
 			
 			reset : in std_logic
 		);
@@ -69,6 +72,8 @@ architecture Behavioral of HBorder is
 
 	signal is_border_int: std_logic;
 	
+	signal is_odd: std_logic;
+	
 	-- up to 127 slots/line
 	signal vh_cnt : std_logic_vector (6 downto 0) := (others => '0');
 
@@ -79,15 +84,29 @@ begin
 		if (reset = '1') then
 			vh_cnt <= (others => '0');
 			h_state <= '0';
+			is_odd <= '0';
 		elsif (falling_edge(qclk) and dotclk = "1111") then
 			if (h_zero = '1') then
 				vh_cnt <= (others => '0');
 				h_state <= '0';
-			elsif (is_preload_int = '1') then
+				-- fix jitter
+				is_odd <= mode_tv;
+			elsif (is_preload_int = '1' and mode_tv = '0') then
 				vh_cnt <= "0000001";
 				h_state <= '1';
+				is_odd <= '0';
+			elsif (is_preload_int = '1' and mode_tv = '1') then
+				vh_cnt <= "0000001";
+				h_state <= '1';
+				is_odd <= '0';
 			else
-				vh_cnt <= vh_cnt + 1;
+				-- this change doubles the width, but introduces jitter at start of line for now
+				if (is_odd = '0' and mode_tv = '1') then
+					is_odd <= '1';
+				else
+					vh_cnt <= vh_cnt + 1;
+					is_odd <= '0';
+				end if;
 			end if;
 		end if;
 	end process;
@@ -95,7 +114,7 @@ begin
 	Preload: process (qclk, vh_cnt, h_state, hsync_pos, dotclk)
 	begin		
 		if (falling_edge(qclk) and dotclk = "0000") then
-			if (h_state = '0' and vh_cnt = hsync_pos) then
+			if (h_state = '0' and vh_cnt = hsync_pos) then -- and (mode_tv = '0' or is_odd = '0')) then
 				is_preload_int <= '1';
 			else
 				is_preload_int <= '0';
@@ -126,14 +145,14 @@ begin
 					) then
 					is_border_int <= '0';
 			elsif (h_state = '1') then
-					if (vh_cnt = slots_per_line) then
+					if (vh_cnt = slots_per_line) then -- and (mode_tv = '0' or is_odd = '1')) then
 							is_last_vis <= '1';
 							is_border_int <= '1';
 							if (h_extborder = '1') then
 									is_border <= '1';
 							end if;
 					end if;
-					if (is_80 = '0' and h_extborder = '1' and vh_cnt = slots_per_line -1) then
+					if (is_80 = '0' and h_extborder = '1' and vh_cnt = slots_per_line -1) then -- and (mode_tv = '0' or is_odd = '1')) then
 							is_border <= '1';
 					end if;
 			end if;
@@ -145,9 +164,26 @@ begin
 	in_slot_cnt_p: process(qclk, vh_cnt, reset)
 	begin
 		if (reset = '1') then
-			in_slot <= '0';
+			new_slot <= '0';
+			fetch_slot <= '0';
 		elsif (falling_edge(qclk)) then
-			in_slot <= not(vh_cnt(0));
+			if (mode_tv = '0') then
+				if (is_80 = '1') then
+					new_slot <= '1';
+					fetch_slot <= '1';
+				else
+					new_slot <= not(vh_cnt(0));
+					fetch_slot <= vh_cnt(0);
+				end if;
+			else
+				if (is_80 = '1') then
+					new_slot <= not(vh_cnt(0));
+					fetch_slot <= vh_cnt(0);
+				else
+					new_slot <= vh_cnt(0) and not(vh_cnt(1));
+					fetch_slot <= not(vh_cnt(0)) and not(vh_cnt(1));
+				end if;
+			end if;
 		end if;
 	end process;
 

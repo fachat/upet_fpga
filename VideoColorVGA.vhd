@@ -1328,14 +1328,18 @@ begin
 		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
 		if (mode_tv = '0') then
 			if (is_80 = '0') then
+				-- VGA 40 col
 				is_shift2 <= dotclk(1);
 			else
+				-- VGA 80 col
 				is_shift2 <= '1';
 			end if;
 		else
 			if (is_80 = '0') then
+				-- TV 40 col
 				is_shift2 <= dotclk(1) and dotclk(2);
 			else
+				-- TV 80 col
 				is_shift2 <= dotclk(1);
 			end if;
 		end if;

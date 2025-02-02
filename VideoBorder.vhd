@@ -177,11 +177,11 @@ begin
 				end if;
 			else
 				if (is_80 = '1') then
-					new_slot <= not(vh_cnt(0));
-					fetch_slot <= vh_cnt(0);
+					new_slot <= not(is_odd);
+					fetch_slot <= is_odd;
 				else
-					new_slot <= vh_cnt(0) and not(vh_cnt(1));
-					fetch_slot <= not(vh_cnt(0)) and not(vh_cnt(1));
+					new_slot <= vh_cnt(0) and not(is_odd);
+					fetch_slot <= not(vh_cnt(0)) and not(is_odd);
 				end if;
 			end if;
 		end if;

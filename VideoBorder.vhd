@@ -55,6 +55,7 @@ entity HBorder is
 			
 			new_slot: out std_logic;		-- active when new slot starts
 			fetch_slot: out std_logic;		-- active on last cycle of previour slot
+			is_shift2: out std_logic;
 			
 			reset : in std_logic
 		);
@@ -69,6 +70,8 @@ architecture Behavioral of HBorder is
 	signal is_preload_int: std_logic;
 	signal is_preload_int_d: std_logic;
 	signal is_preload_int_dd: std_logic;
+	signal is_preload_int_ddd: std_logic;
+	signal is_preload_int_dddd: std_logic;
 
 	signal is_border_int: std_logic;
 	
@@ -91,11 +94,7 @@ begin
 				h_state <= '0';
 				-- fix jitter
 				is_odd <= mode_tv;
-			elsif (is_preload_int = '1' and mode_tv = '0') then
-				vh_cnt <= "0000001";
-				h_state <= '1';
-				is_odd <= '0';
-			elsif (is_preload_int = '1' and mode_tv = '1') then
+			elsif (is_preload_int = '1') then
 				vh_cnt <= "0000001";
 				h_state <= '1';
 				is_odd <= '0';
@@ -124,6 +123,8 @@ begin
 		if (falling_edge(qclk) and dotclk = "1111") then
 			is_preload_int_d <= is_preload_int;
 			is_preload_int_dd <= is_preload_int_d;
+			is_preload_int_ddd <= is_preload_int_dd;
+			is_preload_int_dddd <= is_preload_int_ddd;
 		end if;
 	end process;
 
@@ -139,21 +140,28 @@ begin
 			is_last_vis <= '0';
 			is_border <= is_border_int;
 			if ((h_extborder = '0' and is_preload_int = '1') 
-					or (is_preload_int_d = '1' and is_80 = '1') 
-					or (is_preload_int_dd = '1') 
---					or (is_80 = '0' and is_preload_int_d = '1')
+					or (is_preload_int_d = '1' and is_80 = '1' and mode_tv = '0')
+					or (is_preload_int_dd = '1' and (is_80 = '1' or mode_tv = '0'))
+					or (is_preload_int_dddd = '1')
 					) then
 					is_border_int <= '0';
 			elsif (h_state = '1') then
-					if (vh_cnt = slots_per_line) then -- and (mode_tv = '0' or is_odd = '1')) then
+					if (vh_cnt = slots_per_line - 1
+							and (mode_tv = '0' or is_odd = '0')
+							and h_extborder = '1' 
+							and is_80 = '0'
+						) then
+							is_border_int <= '1';
+							is_border <= '1';
+					end if;
+					if (vh_cnt = slots_per_line
+							and (mode_tv = '0' or is_odd = '1' or h_extborder = '1')
+						) then -- and (mode_tv = '0' or is_odd = '1')) then
 							is_last_vis <= '1';
 							is_border_int <= '1';
 							if (h_extborder = '1') then
 									is_border <= '1';
 							end if;
-					end if;
-					if (is_80 = '0' and h_extborder = '1' and vh_cnt = slots_per_line -1) then -- and (mode_tv = '0' or is_odd = '1')) then
-							is_border <= '1';
 					end if;
 			end if;
 			
@@ -167,26 +175,52 @@ begin
 			new_slot <= '0';
 			fetch_slot <= '0';
 		elsif (falling_edge(qclk)) then
-			if (mode_tv = '0') then
-				if (is_80 = '1') then
-					new_slot <= '1';
-					fetch_slot <= '1';
+			if (is_preload_int = '1' or h_state = '1') then
+				if (mode_tv = '0') then
+					if (is_80 = '1') then
+						new_slot <= '1';
+						fetch_slot <= '1';
+					else
+						new_slot <= not(vh_cnt(0));
+						fetch_slot <= vh_cnt(0);
+					end if;
 				else
-					new_slot <= not(vh_cnt(0));
-					fetch_slot <= vh_cnt(0);
+					if (is_80 = '1') then
+						new_slot <= is_odd;
+						fetch_slot <= not(is_odd);
+					else
+						new_slot <= vh_cnt(0) and is_odd;
+						fetch_slot <= vh_cnt(0) and not(is_odd);
+					end if;
 				end if;
 			else
-				if (is_80 = '1') then
-					new_slot <= not(is_odd);
-					fetch_slot <= is_odd;
-				else
-					new_slot <= vh_cnt(0) and not(is_odd);
-					fetch_slot <= not(vh_cnt(0)) and not(is_odd);
-				end if;
+				new_slot <= '0';
+				fetch_slot <= '0';
 			end if;
 		end if;
 	end process;
 
+	is_shift_p: process(is_80, mode_tv, dotclk)
+	begin
+		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
+		if (mode_tv = '0') then
+			if (is_80 = '0') then
+				-- VGA 40 col
+				is_shift2 <= dotclk(1);
+			else
+				-- VGA 80 col
+				is_shift2 <= '1';
+			end if;
+		else
+			if (is_80 = '0') then
+				-- TV 40 col
+				is_shift2 <= dotclk(1) and dotclk(2);
+			else
+				-- TV 80 col
+				is_shift2 <= dotclk(1);
+			end if;
+		end if;
+	end process;
 
 end Behavioral;
 

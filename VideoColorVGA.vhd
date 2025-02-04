@@ -455,6 +455,7 @@ architecture Behavioral of Video is
 			is_last_vis: out std_logic;
 			new_slot: out std_logic;
 			fetch_slot: out std_logic;
+			is_shift2: out std_logic;
 			
 			reset : in std_logic
 		);
@@ -753,6 +754,7 @@ begin
 			last_vis_slot_of_line,
 			new_slot,
 			fetch_slot,
+			is_shift2,
 			reset
 	);
 	
@@ -1325,24 +1327,6 @@ begin
 
 	is_shift_p: process(is_80, mode_tv, dotclk)
 	begin
-		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
-		if (mode_tv = '0') then
-			if (is_80 = '0') then
-				-- VGA 40 col
-				is_shift2 <= dotclk(1);
-			else
-				-- VGA 80 col
-				is_shift2 <= '1';
-			end if;
-		else
-			if (is_80 = '0') then
-				-- TV 40 col
-				is_shift2 <= dotclk(1) and dotclk(2);
-			else
-				-- TV 80 col
-				is_shift2 <= dotclk(1);
-			end if;
-		end if;
 		is_shift <= not(dotclk(0)) and is_shift2;
 	end process;
 	

@@ -1520,7 +1520,6 @@ begin
 					raster_out(i) <= raster_outbit;
 					raster_bg(i) <= raster_isbg;
 				elsif (is_shift = '1') then
-				--elsif (dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '0')) then
 					raster_out(i) <= raster_out(i+1);
 					raster_bg(i) <= raster_bg(i+1);
 				end if;
@@ -1574,7 +1573,7 @@ begin
 			elsif (falling_edge(phi2)) then
 				if (crtc_sel = '1' and crtc_rwb = '1' and crtc_is_data = '1') then
 					if (regsel = x"2c") then
-						-- reading the sprite-border collision register
+						-- reading the sprite-sprite collision register
 						collision_accum_sprite_sprite(i) <= '0';
 					end if;
 				end if;
@@ -1585,7 +1584,7 @@ begin
 			elsif (falling_edge(phi2)) then
 				if (crtc_sel = '1' and crtc_rwb = '1' and crtc_is_data = '1') then
 					if (regsel = x"2d") then
-						-- reading the sprite-border collision register
+						-- reading the sprite-raste collision register
 						collision_accum_sprite_raster(i) <= '0';
 					end if;
 				end if;
@@ -1627,8 +1626,10 @@ begin
 					collision_trigger_sprite_raster(sprite_no) <= '1';
 				end if;
 				
-			--elsif (is_80 = '1' or dotclk(1) = '1') then
-			elsif (is_shift2 = '1') then
+--			elsif (is_80 = '1' or dotclk(1) = '1') then
+--			elsif (is_shift2 = '1') then
+--			else
+			elsif (is_80 = '1' or dotclk(0) = '1') then
 				-- raster
 				--vid_out <= col_2_pxl(raster_out(0), pal_alt);
 				vid_out_idx(3 downto 0) <= raster_out(0);

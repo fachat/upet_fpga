@@ -178,6 +178,10 @@ begin
 			v_next <= '0';
 
 			is_last_row_of_char_ext <= '0';
+
+			if (v_zero = '1') then
+				is_border_int <= '1';
+			end if;
 			
 			if (v_state = '0' and vh_cnt = vsync_pos) then -- vsync_pos) then
 				v_next <= '1';				

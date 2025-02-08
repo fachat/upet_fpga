@@ -105,10 +105,11 @@ architecture Behavioral of Canvas is
 	constant v_width_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(39 + 576		-1, 10));
 	constant v_front_porch_50: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39 + 581		-1, 10));
 	constant v_sync_width_50: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39 + 586		-1, 10));
-	-- zero for pixel coordinates is 2x21 rasterlines up of default borders (1 sprite, either double height or interlace)
-	constant v_zero_pos_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(625 - (42 - 39) -1, 10));
+	-- zero for pixel coordinates is 88 rasterlines up of default borders
+	constant v_zero_pos_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(39, 10));
 	-- in rasterlines
-	constant y_default_offset_50: natural := 42 + (576-400)/2; -- 130
+	--constant y_default_offset_50: natural := 42 + (576-400)/2; -- 130
+	constant y_default_offset_50: natural := 88; -- 130
 
 	----------------------------------------------------------------------------------------------------------------
 	-- 720x480p60
@@ -133,8 +134,8 @@ architecture Behavioral of Canvas is
 	constant v_width_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(30 + 480	-1, 10));
 	constant v_front_porch_60: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(30 + 489	-1, 10));
 	constant v_sync_width_60: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(30 + 495	-1, 10));
-	-- zero for pixel coordinates is 2x21 rasterlines up of default borders (1 sprite, either double height or interlace)
-	constant v_zero_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(525 - (42 - 30) -1, 10));
+	-- zero for pixel coordinates is 85 rasterlines up of default borders
+	constant v_zero_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(30+489, 10));
 	-- in rasterlines
 	constant y_default_offset_60: natural:= 42 + (480-400)/2;
 

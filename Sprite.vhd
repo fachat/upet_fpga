@@ -58,6 +58,7 @@ entity Sprite is
 		is_double: in std_logic;
 		is_interlace: in std_logic;
 		is80: in std_logic;
+		is_tv: in std_logic;
 		
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -140,7 +141,10 @@ begin
 	enable_p: process (h_zero)
 	begin
 		if (rising_edge(h_zero)) then
-			if (y_addr = y_pos and s_enabled = '1') then
+			if (s_enabled = '1' and (
+					(is_tv = '0' and y_addr = y_pos)
+					or (is_tv = '1' and y_addr(9) = '0' and y_addr(8 downto 0) = y_pos(9 downto 1))
+					)) then
 				enabled_int <= '1';
 			end if;
 			if ((y_expand = '0' and is_double = '1') and y_cnt = "0010101") then	-- 21
@@ -164,7 +168,10 @@ begin
 	active_p: process (qclk)
 	begin
 		if (falling_edge(qclk)) then
-			if (x_addr = x_pos and enabled_int = '1') then
+			if (enabled_int = '1' and (
+				(is_tv = '0' and x_addr = x_pos) 
+				or (is_tv = '1' and x_addr(9 downto 1) = x_pos(8 downto 0))
+				)) then
 				active_int <= '1';
 			elsif (x_expand = '0' and x_cnt = "011000") then	-- 24
 				active_int <= '0';

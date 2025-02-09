@@ -473,6 +473,7 @@ architecture Behavioral of Video is
 			clines_per_screen: in std_logic_vector(7 downto 0);
 			v_extborder: in std_logic;			
 			is_double: in std_logic;
+			mode_tv: in std_logic;
 			v_shift: in std_logic_vector(3 downto 0);
 			alt_rc_cnt: in std_logic_vector(3 downto 0);
 			alt_set_rc: in std_logic;
@@ -515,6 +516,7 @@ architecture Behavioral of Video is
 		is_double: in std_logic;
 		is_interlace: in std_logic;
 		is80: in std_logic;
+		is_tv: in std_logic;
 
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -770,6 +772,7 @@ begin
 			clines_per_screen,
 			v_extborder,
 			is_double_int,
+			mode_tv,
 			v_shift,
 			alt_rc_cnt,
 			alt_do_set_rc,
@@ -1084,6 +1087,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(0),
 		--sprite_active(0),
 		sprite_ison(0),
@@ -1117,6 +1121,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(1),
 		--sprite_active(1),
 		sprite_ison(1),
@@ -1150,6 +1155,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(2),
 		--sprite_active(2),
 		sprite_ison(2),
@@ -1183,6 +1189,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(3),
 		--sprite_active(3),
 		sprite_ison(3),
@@ -1216,6 +1223,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(4),
 		--sprite_active(4),
 		sprite_ison(4),
@@ -1249,6 +1257,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(5),
 		--sprite_active(5),
 		sprite_ison(5),
@@ -1282,6 +1291,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(6),
 		--sprite_active(6),
 		sprite_ison(6),
@@ -1315,6 +1325,7 @@ begin
 		is_double_int,
 		interlace_int,
 		is_80,
+		mode_tv,
 		sprite_enabled(7),
 		--sprite_active(7),
 		sprite_ison(7),

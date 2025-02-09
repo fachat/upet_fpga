@@ -108,8 +108,7 @@ architecture Behavioral of Canvas is
 	-- zero for pixel coordinates is 88 rasterlines up of default borders
 	constant v_zero_pos_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(39, 10));
 	-- in rasterlines
-	--constant y_default_offset_50: natural := 42 + (576-400)/2; -- 130
-	constant y_default_offset_50: natural := 88; -- 130
+	constant y_default_offset_50: natural := 80; -- 130
 
 	----------------------------------------------------------------------------------------------------------------
 	-- 720x480p60
@@ -137,7 +136,7 @@ architecture Behavioral of Canvas is
 	-- zero for pixel coordinates is 85 rasterlines up of default borders
 	constant v_zero_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(30+490, 10));
 	-- in rasterlines
-	constant y_default_offset_60: natural:= 42 + (480-400)/2;
+	constant y_default_offset_60: natural:= 80;
 
 	----------------------------------------------------------------------------------------------------------------
 	-- all values in pixels
@@ -210,6 +209,7 @@ begin
 				h_sync_width(10 downto 1)		<= h_sync_width_60(9 downto 0);
 				h_sync_width(0) <= '0';
 				h_zero_pos(6 downto 1)			<= h_zero_pos_60(5 downto 0);
+				h_zero_pos(0) <= '1';
 			else
 				h_back_porch 		<= h_back_porch_60;
 				h_width				<= h_width_60;
@@ -217,11 +217,11 @@ begin
 				h_sync_width		<= h_sync_width_60;
 				h_zero_pos			<= h_zero_pos_60;
 			end if;
+			v_zero_pos			<= v_zero_pos_60;
 			v_back_porch 		<= v_back_porch_60;
 			v_width				<= v_width_60;
 			v_front_porch		<= v_front_porch_60;
 			v_sync_width		<= v_sync_width_60;
-			v_zero_pos			<= v_zero_pos_60;
 			x_default_offset_val<= x_default_offset_60;
 			y_default_offset_val<= y_default_offset_60;
 		else
@@ -235,7 +235,7 @@ begin
 				h_sync_width(10 downto 1)		<= h_sync_width_50(9 downto 0);
 				h_sync_width(0) <= '0';
 				h_zero_pos(6 downto 1)			<= h_zero_pos_50(5 downto 0);
-				h_zero_pos(0) <= '0';
+				h_zero_pos(0) <= '1';
 			else
 				h_back_porch 		<= h_back_porch_50;
 				h_width				<= h_width_50;
@@ -243,11 +243,11 @@ begin
 				h_sync_width		<= h_sync_width_50;
 				h_zero_pos			<= h_zero_pos_50;
 			end if;
+			v_zero_pos			<= v_zero_pos_50;
 			v_back_porch 		<= v_back_porch_50;
 			v_width				<= v_width_50;
 			v_front_porch		<= v_front_porch_50;
 			v_sync_width		<= v_sync_width_50;
-			v_zero_pos			<= v_zero_pos_50;
 			x_default_offset_val<= x_default_offset_50;
 			y_default_offset_val<= y_default_offset_50;
 		end if;

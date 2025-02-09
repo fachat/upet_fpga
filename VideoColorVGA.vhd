@@ -466,6 +466,7 @@ architecture Behavioral of Video is
 			h_zero: in std_logic;
 			
 			v_zero: in std_logic;
+			y_addr: in std_logic_vector(9 downto 0);
 			vsync_pos: in std_logic_vector(7 downto 0);
 			rows_per_char: in std_logic_vector(3 downto 0);
 			vis_rows_per_char: in std_logic_vector(3 downto 0);
@@ -762,6 +763,7 @@ begin
 	port map (
 			h_zero,	--h_sync_int,	
 			v_zero,
+			y_addr,
 			vsync_pos,
 			rows_per_char,
 			vis_rows_per_char,

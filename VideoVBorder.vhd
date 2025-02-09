@@ -40,6 +40,7 @@ entity VBorder is
 			h_zero: in std_logic;
 			
 			v_zero: in std_logic;
+			y_addr: in std_logic_vector(9 downto 0);
 			vsync_pos: in std_logic_vector(7 downto 0);
 			rows_per_char: in std_logic_vector(3 downto 0);
 			vis_rows_per_char: in std_logic_vector(3 downto 0);
@@ -183,7 +184,7 @@ begin
 				is_border_int <= '1';
 			end if;
 			
-			if (v_state = '0' and vh_cnt = vsync_pos) then -- vsync_pos) then
+			if (v_state = '0' and y_addr = vsync_pos) then -- vsync_pos) then
 				v_next <= '1';				
 			end if;
 			

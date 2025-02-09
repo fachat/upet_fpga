@@ -54,7 +54,7 @@ entity Canvas is
     	h_enable : out std_logic;
     	v_enable : out std_logic;
 
-	   x_addr: out std_logic_vector(9 downto 0);	-- x coordinate in pixels
+	   x_addr: out std_logic_vector(10 downto 0);	-- x coordinate in pixels
       y_addr: out std_logic_vector(9 downto 0);	-- y coordinate in rasterlines
 
 		x_default_offset: out std_logic_vector(6 downto 0);
@@ -177,7 +177,7 @@ architecture Behavioral of Canvas is
 	signal v_sync_int: std_logic;
 	signal h_sync_int: std_logic;
 	
-	signal x_addr_int: std_logic_vector(9 downto 0);
+	signal x_addr_int: std_logic_vector(10 downto 0);
 	signal y_addr_int: std_logic_vector(9 downto 0);
 	
 begin

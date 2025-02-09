@@ -53,12 +53,13 @@ entity Sprite is
 		vdin: in std_logic_vector(7 downto 0);
 		h_zero: in std_logic;
 		v_zero: in std_logic;
-		x_addr: in std_logic_vector(9 downto 0);
+		x_addr: in std_logic_vector(10 downto 0);
 		y_addr: in std_logic_vector(9 downto 0);
 		is_double: in std_logic;
 		is_interlace: in std_logic;
 		is80: in std_logic;
 		is_tv: in std_logic;
+		is_shift2: in std_logic;
 		
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -114,12 +115,13 @@ architecture Behavioral of Sprite is
 
 begin
 
-	xcnt_p: process(qclk, h_zero, dotclk, is80)
+	xcnt_p: process(qclk, h_zero, dotclk, is80, is_shift2)
 	begin
 		if (h_zero = '1') then
 			x_cnt <= (others => '0');
 		elsif (falling_edge(qclk) and dotclk(0) = '1' 
-				and (is80 = '1' or dotclk(1) = '1')
+				--and (is80 = '1' or dotclk(1) = '1')
+				and is_shift2 = '1'
 				) then
 			if (active_int = '1') then
 				x_cnt <= x_cnt + 1;
@@ -169,8 +171,8 @@ begin
 	begin
 		if (falling_edge(qclk)) then
 			if (enabled_int = '1' and (
-				(is_tv = '0' and x_addr = x_pos) 
-				or (is_tv = '1' and x_addr(9 downto 1) = x_pos(8 downto 0))
+				(is_tv = '0' and x_addr(9 downto 0) = x_pos) 
+				or (is_tv = '1' and x_addr(10 downto 1) = x_pos)
 				)) then
 				active_int <= '1';
 			elsif (x_expand = '0' and x_cnt = "011000") then	-- 24
@@ -226,7 +228,8 @@ begin
 					end case;
 				end if;
 				
-			elsif (dotclk(0) = '1' and (is80 = '1' or dotclk(1) = '1')) then
+			--elsif (dotclk(0) = '1' and (is80 = '1' or dotclk(1) = '1')) then
+			elsif (dotclk(0) = '1' and is_shift2 = '1') then
 			
 				if (active_int = '1') then
 					outbits(4) <= s_palette;

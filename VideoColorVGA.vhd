@@ -229,7 +229,7 @@ architecture Behavioral of Video is
 
 	-- geo signals
 	--
-   signal x_addr: std_logic_vector(9 downto 0);    -- x coordinate in pixels
+   signal x_addr: std_logic_vector(10 downto 0);    -- x coordinate in pixels
    signal y_addr: std_logic_vector(9 downto 0);    -- y coordinate in rasterlines
 	signal y_addr_latch: std_logic_vector(9 downto 8); 	-- latch upper two bits when reading lower bits from r38
 	
@@ -428,7 +428,7 @@ architecture Behavioral of Video is
            h_enable : out std_logic;
            v_enable : out std_logic;
 
-           x_addr: out std_logic_vector(9 downto 0);    -- x coordinate in pixels
+           x_addr: out std_logic_vector(10 downto 0);    -- x coordinate in pixels
            y_addr: out std_logic_vector(9 downto 0);    -- y coordinate in rasterlines
 
 			  x_default_offset: out std_logic_vector(6 downto 0);
@@ -511,12 +511,13 @@ architecture Behavioral of Video is
 		vdin: in std_logic_vector(7 downto 0);
 		h_zero: in std_logic;
 		v_zero: in std_logic;
-		x_addr: in std_logic_vector(9 downto 0);
+		x_addr: in std_logic_vector(10 downto 0);
 		y_addr: in std_logic_vector(9 downto 0);
 		is_double: in std_logic;
 		is_interlace: in std_logic;
 		is80: in std_logic;
 		is_tv: in std_logic;
+		is_shift2: in std_logic;
 
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -1088,6 +1089,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(0),
 		--sprite_active(0),
 		sprite_ison(0),
@@ -1122,6 +1124,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(1),
 		--sprite_active(1),
 		sprite_ison(1),
@@ -1156,6 +1159,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(2),
 		--sprite_active(2),
 		sprite_ison(2),
@@ -1190,6 +1194,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(3),
 		--sprite_active(3),
 		sprite_ison(3),
@@ -1224,6 +1229,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(4),
 		--sprite_active(4),
 		sprite_ison(4),
@@ -1258,6 +1264,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(5),
 		--sprite_active(5),
 		sprite_ison(5),
@@ -1292,6 +1299,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(6),
 		--sprite_active(6),
 		sprite_ison(6),
@@ -1326,6 +1334,7 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
+		is_shift2,
 		sprite_enabled(7),
 		--sprite_active(7),
 		sprite_ison(7),

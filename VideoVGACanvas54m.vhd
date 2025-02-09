@@ -135,7 +135,7 @@ architecture Behavioral of Canvas is
 	constant v_front_porch_60: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(30 + 489	-1, 10));
 	constant v_sync_width_60: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(30 + 495	-1, 10));
 	-- zero for pixel coordinates is 85 rasterlines up of default borders
-	constant v_zero_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(30+489, 10));
+	constant v_zero_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(30+490, 10));
 	-- in rasterlines
 	constant y_default_offset_60: natural:= 42 + (480-400)/2;
 

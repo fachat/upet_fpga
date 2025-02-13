@@ -172,7 +172,7 @@ begin
 		if (falling_edge(qclk)) then
 			if (enabled_int = '1' and (
 				(is_tv = '0' and x_addr(9 downto 0) = x_pos) 
-				or (is_tv = '1' and x_addr(10 downto 1) = x_pos)
+				or (is_tv = '1' and x_addr(10 downto 1) = x_pos and x_addr(0) = '0')
 				)) then
 				active_int <= '1';
 			elsif (x_expand = '0' and x_cnt = "011000") then	-- 24

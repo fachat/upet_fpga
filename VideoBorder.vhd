@@ -113,7 +113,10 @@ begin
 	Preload: process (qclk, vh_cnt, h_state, hsync_pos, dotclk)
 	begin		
 		if (falling_edge(qclk) and dotclk = "0000") then
-			if (h_state = '0' and vh_cnt = hsync_pos) then -- and (mode_tv = '0' or is_odd = '0')) then
+			if (h_state = '0' and (
+					(mode_tv = '0' and vh_cnt = hsync_pos)
+					or (mode_tv = '1' and vh_cnt = hsync_pos + 1 and is_odd = '0')
+					)) then
 				is_preload_int <= '1';
 			else
 				is_preload_int <= '0';
@@ -128,7 +131,8 @@ begin
 		end if;
 	end process;
 
-	is_preload <= is_preload_int;
+	is_preload <= is_preload_int when mode_tv = '0'
+					else is_preload_int;
 	
 	Enable: process (qclk, dotclk, vh_cnt, is_preload_int_d, is_preload_int_dd, h_extborder, h_zero)
 	begin
@@ -136,13 +140,17 @@ begin
 		if (h_zero = '1') then
 			is_border_int <= '1';
 			is_border <= '1';
-		elsif (falling_edge(qclk) and dotclk = "1111") then
+		elsif (falling_edge(qclk) and dotclk="1111") then
 			is_last_vis <= '0';
 			is_border <= is_border_int;
-			if ((h_extborder = '0' and is_preload_int = '1') 
-					or (is_preload_int_d = '1' and is_80 = '1' and mode_tv = '0')
-					or (is_preload_int_dd = '1' and (is_80 = '1' or mode_tv = '0'))
-					or (is_preload_int_dddd = '1')
+			if ((mode_tv = '0' and (
+						(h_extborder = '0' and is_preload_int = '1')
+						or (is_preload_int_d = '1' and is_80 = '1')
+						or (is_preload_int_dd = '1')))
+					or (mode_tv = '1' and (
+						(h_extborder = '0' and is_preload_int = '1')
+						or (is_preload_int_ddd = '1' and is_80 = '1')
+						or (is_preload_int_dddd = '1')))
 					) then
 					is_border_int <= '0';
 			elsif (h_state = '1') then

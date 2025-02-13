@@ -1427,7 +1427,7 @@ begin
 		end if;
 		
 		if (falling_edge(qclk)) then
-			if (pxle_ce = '1' and (fetch_slot = '1')) then
+			if (pxle_ce = '1' and (fetch_int = '1')) then
 				sr_attr <= attr_buf;
 				sr(6 downto 0) <= sr_buf (6 downto 0);
 				sr_odd <= '0';

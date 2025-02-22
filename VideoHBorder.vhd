@@ -64,9 +64,34 @@ end HBorder;
 
 architecture Behavioral of HBorder is
 
+	-- state
+	signal slot_state: std_logic_vector(1 downto 0);
+	signal slot_cnt: std_logic_vector(8 downto 0);
+	
+	-- five phases for fetching a slot, i.e.:
+	signal phase0: std_logic;	-- last memclk before first fetch, to request memory fetch
+	signal phase1: std_logic;	-- first memclk char
+	signal phase2: std_logic;	-- second memclk attrib
+	signal phase3: std_logic;	-- third memclk pxl
+	signal phase4: std_logic;	-- fourth (depends)
+	
+	-- how many mem-cycle are in a char on screen (-1)
+	-- VGA 80: 4 cycles
+	-- VGA 40: 8 cycles
+	-- TV  80: 8 cycles
+	-- TV  40: 16cycles
+	signal slot_len: std_logic_vector(3 downto 0);
+	-- count mem-cycles
+	signal slot_len_cnt: std_logic_vector(3 downto 0);
+	
+	signal is_hsync: std_logic;
+	signal is_slots: std_logic;
+	signal is_slot_len: std_logic;
+	
+	--
+	
 	-- signal defs
 	signal h_state: std_logic;
-	
 	signal is_preload_int: std_logic;
 	signal is_preload_int_d: std_logic;
 	signal is_preload_int_dd: std_logic;
@@ -82,6 +107,171 @@ architecture Behavioral of HBorder is
 
 begin
 
+	slot_len_p: process(mode_tv, is_80)
+	begin
+		if (mode_tv = '0') then
+			if (is_80 = '1') then
+				-- 80 cols VGA mode is fastest
+				slot_len <= "0011";
+			else
+				-- 40 col VGA mode
+				slot_len <= "0111";
+			end if;
+		else
+			if (is_80 = '1') then
+				-- 80 col TV mode
+				slot_len <= "0111";
+			else
+				-- 40 col TV mode
+				slot_len <= "1111";
+			end if;
+		end if;
+	end process;
+	
+	slot_p: process(qclk, dotclk, slot_len, slot_cnt)
+	begin
+		if (reset = '1') then
+			slot_state <= "00";
+			slot_cnt <= (others => '0');
+		else
+			-- every memclk
+			if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
+				phase0 <= '0';
+--				is_preload <= '0';
+--				is_last_vis <= '0';
+				if (h_zero = '1') then
+					if (is_80 = '1') then
+						slot_cnt <= "000000011";
+					else
+						slot_cnt <= "000000111";
+					end if;
+					--slot_cnt <= "000000111"; 
+					slot_state <= "00";
+					is_border <= '1';
+				else
+					-- counts memclks per char / slot
+					slot_len_cnt <= slot_len_cnt + 1;
+					
+					case (slot_state) is
+					when "00" =>
+						-- counts number of chars / slots
+						slot_cnt <= slot_cnt + 1;
+						if (is_hsync = '1') then
+							slot_len_cnt <= "0000";
+							slot_state <= "01";
+							slot_cnt <= "000000000";
+							slot_len_cnt <= "0000";
+--								is_preload <= '1';
+						end if;
+					when "01" =>
+						if (phase4 = '1') then
+							if (is_slots = '1') then
+								-- end display after slots to display are reached
+								slot_state <= "10";
+--								is_border <= '1';
+--								is_last_vis <= '1';
+							else
+								-- start display after first full phase set
+								is_border <= '0';
+							end if;
+						end if;							
+							
+						if (is_slot_len = '1') then
+							phase0 <= '1';
+							slot_len_cnt <= "0000";
+							-- counts number of chars / slots
+							slot_cnt <= slot_cnt + 1;
+						end if;
+						
+					when "10" =>
+						if (phase4 = '1') then
+							-- end display after slots to display are reached
+							is_border <= '1';
+						end if;
+					when others =>
+						null;
+					end case;
+				end if;
+				
+				phase4 <= phase3;
+				phase3 <= phase2;
+				phase2 <= phase1;
+				phase1 <= phase0;
+				
+--				if (phase4 = '1') then
+--					is_border <= '0';
+--				end if;
+--				if (slot_state = "01") then
+--					is_border <= '0';
+--				else
+--					is_border <= '1';
+--				end if;
+			end if;
+		end if;
+		
+	end process;
+
+	slot_px: process(qclk, dotclk, slot_len, slot_cnt)
+	begin
+		if (reset = '1') then
+			is_hsync <= '0';
+			is_slots <= '0';
+			is_slot_len <= '0';
+		else
+			if (falling_edge(qclk) and dotclk(1 downto 0) = "01") then
+			
+				is_slots <= '0';
+				if (slot_cnt = slots_per_line) then
+					is_slots <= '1';
+				end if;
+				
+				is_hsync <= '0';
+				if (mode_tv = '0') then
+					if (is_80 = '0') then
+						-- VGA40
+						if ((slot_cnt(8 downto 2) = hsync_pos(6 downto 0))
+							and slot_cnt(1 downto 0) = "00")
+							then is_hsync <= '1';
+						end if;
+					else
+						-- VGA80
+						if ((slot_cnt(8 downto 2) = hsync_pos(6 downto 0))
+							and slot_cnt(1 downto 0) = "00")
+							then is_hsync <= '1';
+						end if;
+					end if;
+				else
+					if (is_80 = '0') then
+						-- TV40
+						if ((slot_cnt(8 downto 3) = hsync_pos(5 downto 0))
+							and slot_cnt(2 downto 0) = "000")
+							then is_hsync <= '1';
+						end if;
+					else
+						-- TV80
+						if ((slot_cnt(8 downto 3) = hsync_pos(5 downto 0))
+							and slot_cnt(2 downto 0) = "000")
+							then is_hsync <= '1';
+						end if;
+					end if;
+				end if;
+
+				is_slot_len <= '0';
+				if (slot_len_cnt = slot_len) then
+					is_slot_len <= '1';
+				end if;
+				
+			end if;
+		end if;
+		
+	end process;
+
+--	fetch_slot <= phase0;
+--	new_slot <= phase4;
+	
+	---------------------------------------------------------------------------
+	-- old
+	
 	CharCnt: process(qclk, dotclk, h_zero, is_preload_int, vh_cnt, reset)
 	begin
 		if (reset = '1') then
@@ -139,10 +329,10 @@ begin
 		
 		if (h_zero = '1') then
 			is_border_int <= '1';
-			is_border <= '1';
+			--is_border <= '1';
 		elsif (falling_edge(qclk) and dotclk="1111") then
 			is_last_vis <= '0';
-			is_border <= is_border_int;
+			--is_border <= is_border_int;
 			if ((mode_tv = '0' and (
 						(h_extborder = '0' and is_preload_int = '1')
 						or (is_preload_int_d = '1' and is_80 = '1')
@@ -160,7 +350,7 @@ begin
 							and is_80 = '0'
 						) then
 							is_border_int <= '1';
-							is_border <= '1';
+							--is_border <= '1';
 					end if;
 					if (vh_cnt = slots_per_line
 							and (mode_tv = '0' or is_odd = '1' or h_extborder = '1')
@@ -168,7 +358,7 @@ begin
 							is_last_vis <= '1';
 							is_border_int <= '1';
 							if (h_extborder = '1') then
-									is_border <= '1';
+									--is_border <= '1';
 							end if;
 					end if;
 			end if;
@@ -207,6 +397,8 @@ begin
 			end if;
 		end if;
 	end process;
+
+	---------------------------------------------------------------------------
 
 	is_shift_p: process(is_80, mode_tv, dotclk)
 	begin

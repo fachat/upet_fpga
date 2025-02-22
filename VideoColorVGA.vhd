@@ -840,7 +840,7 @@ begin
 		if (reset = '1') then
 			vid_addr <= (others => '0');
 			attr_addr <= (others => '0');
-		elsif (falling_edge(qclk) and dotclk = "1111") then
+		elsif (falling_edge(qclk) and dotclk = "1111") then --dotclk(1 downto 0) = "11") then
 				if (x_start = '0') then
 					if (new_slot = '1') then
 						vid_addr <= vid_addr + 1;
@@ -1631,29 +1631,22 @@ begin
 			if (x_border = '1' or y_border = '1' or dispen = '0') then
 				if (sprite_on = '1' and sprite_onborder = '1') then
 					-- sprite on top of border
-					--vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
 					vid_out_idx <= sprite_outcol;
 					collision_trigger_sprite_border(sprite_no) <= '1';
 				else
 					-- BORDER
-					--vid_out <= col_2_pxl(col_border, pal_alt);
 					vid_out_idx(3 downto 0) <= col_border;
 					vid_out_idx(4) <= pal_alt;
 				end if;
 			elsif (sprite_on = '1' and (raster_bg(0) = '1' or sprite_onraster = '1')) then
 				-- sprite on top of raster
-				--vid_out <= col_2_pxl(sprite_outcol(3 downto 0), sprite_outcol(4));
 				vid_out_idx <= sprite_outcol;
 				if (raster_bg(0) = '0') then
 					collision_trigger_sprite_raster(sprite_no) <= '1';
 				end if;
 				
---			elsif (is_80 = '1' or dotclk(1) = '1') then
---			elsif (is_shift2 = '1') then
---			else
 			elsif (is_80 = '1' or dotclk(0) = '1') then
 				-- raster
-				--vid_out <= col_2_pxl(raster_out(0), pal_alt);
 				vid_out_idx(3 downto 0) <= raster_out(0);
 				vid_out_idx(4) <= pal_alt;
 			end if;			

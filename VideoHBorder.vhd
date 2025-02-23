@@ -107,6 +107,7 @@ architecture Behavioral of HBorder is
 
 begin
 
+	-- length of slot (=8 pixel) in memory accesses -1
 	slot_len_p: process(mode_tv, is_80)
 	begin
 		if (mode_tv = '0') then
@@ -145,44 +146,50 @@ begin
 					else
 						slot_cnt <= "000000111";
 					end if;
-					--slot_cnt <= "000000111"; 
 					slot_state <= "00";
 					is_border <= '1';
 				else
-					-- counts memclks per char / slot
-					slot_len_cnt <= slot_len_cnt + 1;
 					
 					case (slot_state) is
 					when "00" =>
 						-- counts number of chars / slots
+						slot_len_cnt <= "0000";
 						slot_cnt <= slot_cnt + 1;
 						if (is_hsync = '1') then
-							slot_len_cnt <= "0000";
 							slot_state <= "01";
-							slot_cnt <= "000000000";
+							slot_cnt <= "111111111";
 							slot_len_cnt <= "0000";
 --								is_preload <= '1';
 						end if;
 					when "01" =>
+						
 						if (phase4 = '1') then
+							if (is_slots = '1') then
+							else
+								-- start display after first full phase set
+								is_border <= '0';
+							end if;
+						end if;
+
+						if (phase0 = '1') then
 							if (is_slots = '1') then
 								-- end display after slots to display are reached
 								slot_state <= "10";
 --								is_border <= '1';
 --								is_last_vis <= '1';
-							else
-								-- start display after first full phase set
-								is_border <= '0';
 							end if;
-						end if;							
-							
+						end if;
+
 						if (is_slot_len = '1') then
 							phase0 <= '1';
 							slot_len_cnt <= "0000";
 							-- counts number of chars / slots
 							slot_cnt <= slot_cnt + 1;
+						else
+							-- counts memclks per char / slot
+							slot_len_cnt <= slot_len_cnt + 1;
 						end if;
-						
+
 					when "10" =>
 						if (phase4 = '1') then
 							-- end display after slots to display are reached
@@ -220,40 +227,32 @@ begin
 		else
 			if (falling_edge(qclk) and dotclk(1 downto 0) = "01") then
 			
+				-- count characters
+				-- slots_per_line, however, is always in 80col char cells, even in 40 col mode
 				is_slots <= '0';
-				if (slot_cnt = slots_per_line) then
-					is_slots <= '1';
+				if (is_80 = '0') then
+					if (slot_cnt(5 downto 0) = slots_per_line(6 downto 1)) then
+						is_slots <= '1';
+					end if;
+				else
+					if (slot_cnt(6 downto 0) = slots_per_line) then
+						is_slots <= '1';
+					end if;
 				end if;
 				
 				is_hsync <= '0';
 				if (mode_tv = '0') then
-					if (is_80 = '0') then
-						-- VGA40
+						-- VGA40/80
 						if ((slot_cnt(8 downto 2) = hsync_pos(6 downto 0))
 							and slot_cnt(1 downto 0) = "00")
 							then is_hsync <= '1';
 						end if;
-					else
-						-- VGA80
-						if ((slot_cnt(8 downto 2) = hsync_pos(6 downto 0))
-							and slot_cnt(1 downto 0) = "00")
-							then is_hsync <= '1';
-						end if;
-					end if;
 				else
-					if (is_80 = '0') then
-						-- TV40
+						-- TV40/80
 						if ((slot_cnt(8 downto 3) = hsync_pos(5 downto 0))
 							and slot_cnt(2 downto 0) = "000")
 							then is_hsync <= '1';
 						end if;
-					else
-						-- TV80
-						if ((slot_cnt(8 downto 3) = hsync_pos(5 downto 0))
-							and slot_cnt(2 downto 0) = "000")
-							then is_hsync <= '1';
-						end if;
-					end if;
 				end if;
 
 				is_slot_len <= '0';

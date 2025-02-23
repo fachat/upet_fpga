@@ -88,6 +88,11 @@ architecture Behavioral of HBorder is
 	signal is_slots: std_logic;
 	signal is_slot_len: std_logic;
 	
+	-- two shifted border signals
+	signal is_border_1: std_logic;
+	signal is_border_2: std_logic;
+	signal is_border_3: std_logic;
+	
 	--
 	
 	-- signal defs
@@ -147,9 +152,22 @@ begin
 						slot_cnt <= "000000111";
 					end if;
 					slot_state <= "00";
-					is_border <= '1';
+					is_border_1 <= '1';
+					is_border_2 <= '1';
+					is_border_3 <= '1';
 				else
-					
+				
+					if (is_slot_len = '1') then
+						slot_len_cnt <= "0000";
+						-- counts number of chars / slots
+						slot_cnt <= slot_cnt + 1;
+						-- shifted border
+						is_border_2 <= is_border_1;
+					else
+						-- counts memclks per char / slot
+						slot_len_cnt <= slot_len_cnt + 1;
+					end if;
+				
 					case (slot_state) is
 					when "00" =>
 						-- counts number of chars / slots
@@ -157,7 +175,7 @@ begin
 						slot_cnt <= slot_cnt + 1;
 						if (is_hsync = '1') then
 							slot_state <= "01";
-							slot_cnt <= "111111111";
+							slot_cnt <= "000000000";
 							slot_len_cnt <= "0000";
 --								is_preload <= '1';
 						end if;
@@ -165,36 +183,29 @@ begin
 						
 						if (phase4 = '1') then
 							if (is_slots = '1') then
-							else
-								-- start display after first full phase set
-								is_border <= '0';
-							end if;
-						end if;
-
-						if (phase0 = '1') then
-							if (is_slots = '1') then
 								-- end display after slots to display are reached
 								slot_state <= "10";
+								-- last char starts shifting out
+								is_border_1 <= '1';
+								-- reset slot len cnt
+								slot_len_cnt <= "0000";
 --								is_border <= '1';
 --								is_last_vis <= '1';
+							else
+								-- start display after first full phase set
+								is_border_3 <= is_border_1;
+								is_border_1 <= '0';
 							end if;
 						end if;
 
 						if (is_slot_len = '1') then
-							phase0 <= '1';
-							slot_len_cnt <= "0000";
-							-- counts number of chars / slots
-							slot_cnt <= slot_cnt + 1;
-						else
-							-- counts memclks per char / slot
-							slot_len_cnt <= slot_len_cnt + 1;
+							if (not(phase4 = '1' and is_slots = '1')) then
+								phase0 <= '1';
+							end if;
 						end if;
 
 					when "10" =>
-						if (phase4 = '1') then
-							-- end display after slots to display are reached
-							is_border <= '1';
-						end if;
+
 					when others =>
 						null;
 					end case;
@@ -205,19 +216,15 @@ begin
 				phase2 <= phase1;
 				phase1 <= phase0;
 				
---				if (phase4 = '1') then
---					is_border <= '0';
---				end if;
---				if (slot_state = "01") then
---					is_border <= '0';
---				else
---					is_border <= '1';
---				end if;
 			end if;
 		end if;
 		
 	end process;
-
+	
+	is_border <= is_border_1 and is_border_2 when h_extborder = '0'
+					else is_border_1 or is_border_2 or is_border_3;
+	
+	
 	slot_px: process(qclk, dotclk, slot_len, slot_cnt)
 	begin
 		if (reset = '1') then

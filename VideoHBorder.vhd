@@ -186,7 +186,10 @@ begin
 								-- end display after slots to display are reached
 								slot_state <= "10";
 								-- last char starts shifting out
-								is_border_1 <= '1';
+								if (is_80 = '0' or mode_tv = '1') then
+									-- if VGA80, then is_slots is set already on the phase4 of the prev char/slot
+									is_border_1 <= '1';
+								end if;
 								-- reset slot len cnt
 								slot_len_cnt <= "0000";
 --								is_border <= '1';
@@ -205,7 +208,10 @@ begin
 						end if;
 
 					when "10" =>
-
+						if (is_slot_len = '1') then
+							is_border_1 <= '1';
+						end if;
+						
 					when others =>
 						null;
 					end case;

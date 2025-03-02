@@ -141,15 +141,22 @@ begin
 			slot_cnt <= (others => '0');
 		else
 			-- every memclk
+			-- output (is_border) is evaluated at falling qclk and dotclk(0)=1
+			-- should this be phase shifted?
 			if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 				phase0 <= '0';
 --				is_preload <= '0';
 --				is_last_vis <= '0';
 				if (h_zero = '1') then
-					if (is_80 = '1') then
-						slot_cnt <= "000000011";
+--					if (is_80 = '1') then
+--						slot_cnt <= "000000011";
+--					else
+--						slot_cnt <= "000000111";
+--					end if;
+					if (mode_tv = '1') then
+						slot_cnt <= "000000000";
 					else
-						slot_cnt <= "000000111";
+						slot_cnt <= "000000100";
 					end if;
 					slot_state <= "00";
 					is_border_1 <= '1';
@@ -171,20 +178,28 @@ begin
 					case (slot_state) is
 					when "00" =>
 						-- counts number of chars / slots
+						-- until horizontal start of raster position is reached
 						slot_len_cnt <= "0000";
 						slot_cnt <= slot_cnt + 1;
 						if (is_hsync = '1') then
 							slot_state <= "01";
-							slot_cnt <= "000000000";
-							slot_len_cnt <= "0000";
 --								is_preload <= '1';
 						end if;
 					when "01" =>
+						-- sync start of raster with shift / slot phase, so
+						-- that first fetch starts immediately
+						slot_len_cnt <= "0000";
+						if (dotclk(2 downto 0) = "011") then
+							phase0 <= '1';
+							slot_state <= "10";
+							slot_cnt <= "000000001";
+						end if;
+					when "10" =>
 						
 						if (phase4 = '1') then
 							if (is_slots = '1') then
 								-- end display after slots to display are reached
-								slot_state <= "10";
+								slot_state <= "11";
 								-- last char starts shifting out
 								if (is_80 = '0' or mode_tv = '1') then
 									-- if VGA80, then is_slots is set already on the phase4 of the prev char/slot
@@ -207,7 +222,7 @@ begin
 							end if;
 						end if;
 
-					when "10" =>
+					when "11" =>
 						if (is_slot_len = '1') then
 							is_border_1 <= '1';
 						end if;

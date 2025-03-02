@@ -330,7 +330,8 @@ begin
 	begin 
 		if (reset = '1') then
 			h_zero_int <= '0';
-		elsif (falling_edge(qclk) and dotclk(2 downto 0) = "110") then
+		--elsif (falling_edge(qclk) and dotclk(2 downto 0) = "110") then
+		elsif (falling_edge(qclk) and dotclk(0) = '0') then
 			if (h_cnt = h_zero_pos) then
 				h_zero_int <= '1';
 			else 

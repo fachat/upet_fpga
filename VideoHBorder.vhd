@@ -48,13 +48,17 @@ entity HBorder is
 			mode_tv: in std_logic;
 			h_extborder: in std_logic;
 			is_80: in std_logic;
+
+			h_phase0: out std_logic;
+			h_phase1: out std_logic;
+			h_phase2: out std_logic;
+			h_phase3: out std_logic;
+			h_phase4: out std_logic;
 			
 			is_preload: out std_logic;		-- one slot before end of border
 			is_border: out std_logic;			
 			is_last_vis: out std_logic;
 			
-			new_slot: out std_logic;		-- active when new slot starts
-			fetch_slot: out std_logic;		-- active on last cycle of previour slot
 			is_shift2: out std_logic;
 			
 			reset : in std_logic
@@ -145,14 +149,9 @@ begin
 			-- should this be phase shifted?
 			if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 				phase0 <= '0';
---				is_preload <= '0';
---				is_last_vis <= '0';
+				is_preload <= '0';
+				is_last_vis <= '0';
 				if (h_zero = '1') then
---					if (is_80 = '1') then
---						slot_cnt <= "000000011";
---					else
---						slot_cnt <= "000000111";
---					end if;
 					if (mode_tv = '1') then
 						slot_cnt <= "000000000";
 					else
@@ -191,6 +190,7 @@ begin
 						slot_len_cnt <= "0000";
 						if (dotclk(2 downto 0) = "011") then
 							phase0 <= '1';
+							is_preload <= '1';
 							slot_state <= "10";
 							slot_cnt <= "000000001";
 						end if;
@@ -207,8 +207,7 @@ begin
 								end if;
 								-- reset slot len cnt
 								slot_len_cnt <= "0000";
---								is_border <= '1';
---								is_last_vis <= '1';
+								is_last_vis <= '1';
 							else
 								-- start display after first full phase set
 								is_border_3 <= is_border_1;
@@ -245,6 +244,11 @@ begin
 	is_border <= is_border_1 and is_border_2 when h_extborder = '0'
 					else is_border_1 or is_border_2 or is_border_3;
 	
+	h_phase0 <= phase0;
+	h_phase1 <= phase1;
+	h_phase2 <= phase2;
+	h_phase3 <= phase3;
+	h_phase4 <= phase4;
 	
 	slot_px: process(qclk, dotclk, slot_len, slot_cnt)
 	begin
@@ -348,8 +352,8 @@ begin
 		end if;
 	end process;
 
-	is_preload <= is_preload_int when mode_tv = '0'
-					else is_preload_int;
+--	is_preload <= is_preload_int when mode_tv = '0'
+--					else is_preload_int;
 	
 	Enable: process (qclk, dotclk, vh_cnt, is_preload_int_d, is_preload_int_dd, h_extborder, h_zero)
 	begin
@@ -358,7 +362,7 @@ begin
 			is_border_int <= '1';
 			--is_border <= '1';
 		elsif (falling_edge(qclk) and dotclk="1111") then
-			is_last_vis <= '0';
+			--is_last_vis <= '0';
 			--is_border <= is_border_int;
 			if ((mode_tv = '0' and (
 						(h_extborder = '0' and is_preload_int = '1')
@@ -382,7 +386,7 @@ begin
 					if (vh_cnt = slots_per_line
 							and (mode_tv = '0' or is_odd = '1' or h_extborder = '1')
 						) then -- and (mode_tv = '0' or is_odd = '1')) then
-							is_last_vis <= '1';
+							--is_last_vis <= '1';
 							is_border_int <= '1';
 							if (h_extborder = '1') then
 									--is_border <= '1';
@@ -393,38 +397,38 @@ begin
 		end if;
 	end process;
 	
-	
-	in_slot_cnt_p: process(qclk, vh_cnt, reset)
-	begin
-		if (reset = '1') then
-			new_slot <= '0';
-			fetch_slot <= '0';
-		elsif (falling_edge(qclk)) then
-			if (is_preload_int = '1' or h_state = '1') then
-				if (mode_tv = '0') then
-					if (is_80 = '1') then
-						new_slot <= '1';
-						fetch_slot <= '1';
-					else
-						new_slot <= not(vh_cnt(0));
-						fetch_slot <= vh_cnt(0);
-					end if;
-				else
-					if (is_80 = '1') then
-						new_slot <= is_odd;
-						fetch_slot <= not(is_odd);
-					else
-						new_slot <= vh_cnt(0) and is_odd;
-						fetch_slot <= vh_cnt(0) and not(is_odd);
-					end if;
-				end if;
-			else
-				new_slot <= '0';
-				fetch_slot <= '0';
-			end if;
-		end if;
-	end process;
-
+--	
+--	in_slot_cnt_p: process(qclk, vh_cnt, reset)
+--	begin
+--		if (reset = '1') then
+--			--new_slot <= '0';
+--			--fetch_slot <= '0';
+--		elsif (falling_edge(qclk)) then
+--			if (is_preload_int = '1' or h_state = '1') then
+--				if (mode_tv = '0') then
+--					if (is_80 = '1') then
+--						--new_slot <= '1';
+--						--fetch_slot <= '1';
+--					else
+--						--new_slot <= not(vh_cnt(0));
+--						--fetch_slot <= vh_cnt(0);
+--					end if;
+--				else
+--					if (is_80 = '1') then
+--						--new_slot <= is_odd;
+--						--fetch_slot <= not(is_odd);
+--					else
+--						--new_slot <= vh_cnt(0) and is_odd;
+--						--fetch_slot <= vh_cnt(0) and not(is_odd);
+--					end if;
+--				end if;
+--			else
+--				--new_slot <= '0';
+--				--fetch_slot <= '0';
+--			end if;
+--		end if;
+--	end process;
+--
 	---------------------------------------------------------------------------
 
 	is_shift_p: process(is_80, mode_tv, dotclk)

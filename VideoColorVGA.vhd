@@ -158,10 +158,6 @@ architecture Behavioral of Video is
 	signal raster_isbg: std_logic;
 	signal do_shift: std_logic;
 	
-	-- 1 bit slot counter to enable 40 column or tv mode
-	signal new_slot: std_logic;
-	signal fetch_slot: std_logic;
-	
 	-- mode
 	signal is_80: std_logic;
 	
@@ -290,6 +286,12 @@ architecture Behavioral of Video is
 	signal sprite_ptr_window: std_logic;
 	signal sprite_data_window: std_logic;
 
+	signal h_phase0: std_logic;		-- when next memclk should be phase1 video fetch
+	signal h_phase1: std_logic;		-- phase1 video fetch
+	signal h_phase2: std_logic;		-- phase2 video fetch
+	signal h_phase3: std_logic;		-- phase3 video fetch
+	signal h_phase4: std_logic;		-- phase4 
+	
 	signal x_default_offset: std_logic_vector(6 downto 0);
 	signal y_default_offset: natural;
 	
@@ -450,11 +452,15 @@ architecture Behavioral of Video is
 			h_extborder: in std_logic;
 			is_80: in std_logic;
 			
+			h_phase0: out std_logic;
+			h_phase1: out std_logic;
+			h_phase2: out std_logic;
+			h_phase3: out std_logic;
+			h_phase4: out std_logic;
+			
 			is_preload: out std_logic;		-- one slot before end of border
 			is_border: out std_logic;			
 			is_last_vis: out std_logic;
-			new_slot: out std_logic;
-			fetch_slot: out std_logic;
 			is_shift2: out std_logic;
 			
 			reset : in std_logic
@@ -566,33 +572,33 @@ begin
 	
 	windows_p: process(dotclk)
 	begin
-			chr_window <= '0';
-			pxl_window <= '0';
-			attr_window <= '0';
-			sr_window <= '0';
+			chr_window <= h_phase1;		--'0';
+			pxl_window <= h_phase3;		--'0';
+			attr_window <= h_phase2;	--'0';
+			sr_window <= h_phase4;		--'0';
 			sprite_ptr_window <= '0';
 			sprite_data_window <= '0';
 			
 			-- access windows for pixel data, character data, or chr ROM
 			-- TODO: make case()
 			if (dotclk(3 downto 2) = "00") then
-				chr_window <= '1';
+				--chr_window <= '1';
 				sprite_ptr_window <= '1';
 			end if;
 			
 			-- note: attributes must be loaded before character set, as attributes contain alternate character bit
 			if (dotclk(3 downto 2) = "01") then
-				attr_window <= '1';
+				--attr_window <= '1';
 				sprite_data_window <= '1';
 			end if;
 
 			if (dotclk(3 downto 2) = "10") then
-				pxl_window <= '1';
+				--pxl_window <= '1';
 				sprite_data_window <= '1';
 			end if;			
 			
 			if (dotclk(3 downto 2) = "11") then
-				sr_window <= '1';
+				--sr_window <= '1';
 				sprite_data_window <= '1';
 			end if;
 			
@@ -600,72 +606,22 @@ begin
 
 	ce_p: process(dotclk)
 	begin
---			pxl0_ce <= '0';
---			pxl1_ce <= '0';
---			pxl2_ce <= '0';
---			pxl3_ce <= '0';
---			pxl4_ce <= '0';
---			pxl5_ce <= '0';
---			pxl6_ce <= '0';
---			pxl7_ce <= '0';
---			pxl8_ce <= '0';
---			pxl9_ce <= '0';
---			pxla_ce <= '0';
 			pxlb_ce <= '0';
---			pxlc_ce <= '0';
 			pxld_ce <= '0';
 			pxle_ce <= '0';
---			pxlf_ce <= '0';
 			fetch_ce <= '0';
 
---			if (dotclk(3 downto 0) = "0000") then
---				pxl0_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "0001") then
---				pxl1_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "0010") then
---				pxl2_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "0011") then
---				pxl3_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "0100") then
---				pxl4_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "0101") then
---				pxl5_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "0110") then
---				pxl6_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "0111") then
---				pxl7_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "1000") then
---				pxl8_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "1001") then
---				pxl9_ce <= '1';
---			end if;
---			if (dotclk(3 downto 0) = "1010") then
---				pxla_ce <= '1';
---			end if;
-			if (dotclk(3 downto 0) = "1011") then
+			if (dotclk(2 downto 0) = "011") then
 				pxlb_ce <= '1';
 			end if;
---			if (dotclk(3 downto 0) = "1100") then
---				pxlc_ce <= '1';
---			end if;
-			if (dotclk(3 downto 0) = "1101") then
+
+			if (dotclk(2 downto 0) = "101") then
 				pxld_ce <= '1';
 			end if;
-			if (dotclk(3 downto 0) = "1110") then
+			if (dotclk(2 downto 0) = "110") then
 				pxle_ce <= '1';
 			end if;
---			if (dotclk(3 downto 0) = "1111") then
---				pxlf_ce <= '1';
---			end if;
+
 			if (dotclk(1 downto 0) = "11") then
 				fetch_ce <= '1';
 			end if;
@@ -673,7 +629,7 @@ begin
 	
 
 	--fetch_int <= is_enable and (not(in_slot) or is_80) and (interlace_int or not(rline_cnt0));
-	fetch_int <= is_enable and fetch_slot and (interlace_int or not(rline_cnt0));
+	fetch_int <= is_enable and (interlace_int or not(rline_cnt0));
 	
 	
 	-- do we fetch character index?
@@ -753,11 +709,14 @@ begin
 			mode_tv,
 			h_extborder,			
 			is_80,
+			h_phase0,
+			h_phase1,
+			h_phase2,
+			h_phase3,
+			h_phase4,
 			x_start,
 			x_border,
 			last_vis_slot_of_line,
-			new_slot,
-			fetch_slot,
 			is_shift2,
 			reset
 	);
@@ -804,7 +763,7 @@ begin
 	begin
 		if (reset ='1') then
 			vid_addr_hold <= (others => '0');
-		elsif (falling_edge(qclk) and dotclk = "0111") then
+		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then -- and sr_fetch_int = '1' and dotclk(2 downto 0) = "111") then
 			if (last_vis_slot_of_line = '1') then
 				if (last_line_of_screen = '1') then
 					vid_addr_hold <= vid_base;
@@ -835,18 +794,16 @@ begin
 		end if;
 	end process;
 	
-	AddrCnt: process(x_start, vid_addr, vid_addr_hold, is_80, new_slot, qclk, reset, dotclk)
+	AddrCnt: process(x_start, vid_addr, vid_addr_hold, is_80, qclk, reset, dotclk)
 	begin
 		if (reset = '1') then
 			vid_addr <= (others => '0');
 			attr_addr <= (others => '0');
-		elsif (falling_edge(qclk) and dotclk = "1111") then --dotclk(1 downto 0) = "11") then
-				if (x_start = '0') then
-					if (new_slot = '1') then
-						vid_addr <= vid_addr + 1;
-						attr_addr <= attr_addr + 1;
-					end if;
-				else
+		elsif (falling_edge(qclk) and dotclk(2 downto 0) = "111") then --dotclk(1 downto 0) = "11") then
+				if (x_start = '0' and sr_fetch_int = '1' ) then
+					vid_addr <= vid_addr + 1;
+					attr_addr <= attr_addr + 1;
+				elsif (x_start = '1') then
 					vid_addr <= vid_addr_hold;
 					attr_addr <= attr_addr_hold;
 				end if;
@@ -1385,7 +1342,7 @@ begin
 --		end if;
 
 		if (falling_edge(qclk)) then
-			if (pxlb_ce = '1' and fetch_int = '1') then
+			if (pxlb_ce = '1' and sr_fetch_int = '1') then
 			
 				sr_underline_p <= '0';
 				sr_blink <= '0';
@@ -1414,7 +1371,7 @@ begin
 		end if;
 
 		if (falling_edge(qclk)) then
-			if (pxld_ce = '1' and fetch_int = '1') then
+			if (pxld_ce = '1' and sr_fetch_int = '1') then
 				--attr_buf2 <= attr_buf;
 				if (sr_underline_p = '1') then
 					sr_buf <= "11111111";
@@ -1427,7 +1384,7 @@ begin
 		end if;
 		
 		if (falling_edge(qclk)) then
-			if (pxle_ce = '1' and (fetch_int = '1')) then
+			if (pxle_ce = '1' and (sr_fetch_int = '1')) then
 				sr_attr <= attr_buf;
 				sr(6 downto 0) <= sr_buf (6 downto 0);
 				sr_odd <= '0';

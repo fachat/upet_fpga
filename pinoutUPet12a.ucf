@@ -2,6 +2,7 @@
 #
 # csa_ultracpu 1.4a
 # ultipet 1.0a
+# ultipet 1.1a
 #
 ## NET VD<0>	LOC=P142 | IOSTANDARD=LVCMOS33 |PULLUP;
 ## NET VD<0>	LOC=P142 | IOSTANDARD=LVCMOS33 | DRIVE=16;

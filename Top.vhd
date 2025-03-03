@@ -522,7 +522,7 @@ begin
 	------------------------------------------------------
 	-- bus timing
 
-	bus_stat_p: process(reset, q50m, is_bus, chold, csetup, dotclk, cp11)
+	bus_stat_p: process(reset, q50m, is_bus, chold, csetup, dotclk, cp11, cp00)
 	begin
 		if (reset = '1') then
 			bus_state <= BUS_NONE;
@@ -1015,11 +1015,11 @@ begin
 		end if;
 				
 		if (rising_edge(q50m)) then
-			if (VA_select = VRA_CPU) then
-				va_is_cpu_d <= '1';
-			else
-				va_is_cpu_d <= '0';
-			end if;
+--			if (VA_select = VRA_CPU) then
+--				va_is_cpu_d <= '1';
+--			else
+--				va_is_cpu_d <= '0';
+--			end if;
 			
 			VA_select_d <= VA_select;
 		end if;
@@ -1028,7 +1028,7 @@ begin
 
 	
 	v_out_p2: process(q50m, memclk, VA_select, reset,
-			rwb, ipl_cnt, ca_in, ma_out, dac_dma_addr, va_out)
+			rwb, ipl_cnt, ca_in, ma_out, dac_dma_addr, va_out, VA_select_d)
 	begin
 
 		-- keep VA, ramrwb etc stable one half qclk cycle after
@@ -1076,7 +1076,7 @@ begin
 --	VD <= 	spi_dout	when ipl = '1' 		else	-- IPL
 --		D 		when va_is_cpu_d = '1' and ramrwb_int = '0' else	-- CPU write
 --		(others => 'Z');
-	vd_out_p: process(spi_dout, D, VA_select_d)
+	vd_out_p: process(spi_dout, D, VA_select_d, ramrwb_int)
 	begin
 		case (VA_select_d) is
 		when VRA_IPL =>	

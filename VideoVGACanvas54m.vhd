@@ -195,7 +195,7 @@ begin
 
 	-- geometry
 
-	geo_p: process(mode_60hz) 
+	geo_p: process(mode_60hz, mode_tv) 
 	begin
 	
 		if (mode_60hz = '1') then
@@ -322,6 +322,7 @@ begin
 						h_limit <= '1';
 					end if;
 				when others =>
+					null;
 			end case;
 		end if;
 	end process;
@@ -432,6 +433,7 @@ begin
 						v_limit <= '1';
 					end if;
 				when others =>
+					null;
 			end case;
 			
 			if (v_cnt = v_zero_pos) then

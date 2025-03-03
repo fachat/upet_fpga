@@ -296,23 +296,13 @@ architecture Behavioral of Video is
 	signal y_default_offset: natural;
 	
 	-- clock phases (16 half-pixels in one slot)
---	signal pxl0_ce: std_logic;
---	signal pxl1_ce: std_logic;
---	signal pxl2_ce: std_logic;
---	signal pxl3_ce: std_logic;
---	signal pxl4_ce: std_logic;
---	signal pxl5_ce: std_logic;
---	signal pxl6_ce: std_logic;
---	signal pxl7_ce: std_logic;
---	signal pxl8_ce: std_logic;
---	signal pxl9_ce: std_logic;
---	signal pxla_ce: std_logic;
 	signal pxlb_ce: std_logic;
---	signal pxlc_ce: std_logic;
 	signal pxld_ce: std_logic;
 	signal pxle_ce: std_logic;
---	signal pxlf_ce: std_logic;
 	signal fetch_ce: std_logic;
+
+	signal new_line_attr: std_logic;
+	signal new_line_vaddr: std_logic;
 	
 	signal fetch_int: std_logic;
 	signal fetch_sprite_en: std_logic;
@@ -570,7 +560,7 @@ architecture Behavioral of Video is
 
 begin
 	
-	windows_p: process(dotclk)
+	windows_p: process(dotclk, h_phase1, h_phase2, h_phase3, h_phase4)
 	begin
 			chr_window <= h_phase1;		--'0';
 			pxl_window <= h_phase3;		--'0';
@@ -759,28 +749,41 @@ begin
 	-----------------------------------------------------------------------------
 	-- raster address calculations
 	
+	newline_p:process(last_line_of_char, mode_bitmap, rline_cnt0, is_double_int)
+	begin
+		new_line_vaddr <= '0';
+		new_line_attr <= '0';
+		
+		if (last_line_of_char = '1') then
+				new_line_attr <='1';
+		end if;
+		if (mode_bitmap = '0') then
+			if (last_line_of_char = '1') then
+				new_line_vaddr <= '1';
+			end if;
+		else
+			-- bitmap
+			if (rline_cnt0 = '1' or is_double_int = '1') then
+				new_line_vaddr <= '1';
+			end if;
+		end if;
+	end process;
+	
 	AddrHold: process(qclk, last_line_of_screen, vid_addr, reset, dotclk) 
 	begin
 		if (reset ='1') then
 			vid_addr_hold <= (others => '0');
-		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then -- and sr_fetch_int = '1' and dotclk(2 downto 0) = "111") then
+		elsif (rising_edge(qclk) and dotclk(1 downto 0) = "11") then -- and sr_fetch_int = '1' and dotclk(2 downto 0) = "111") then
 			if (last_vis_slot_of_line = '1') then
 				if (last_line_of_screen = '1') then
 					vid_addr_hold <= vid_base;
 					attr_addr_hold <= attr_base;
 				else
-					if (last_line_of_char = '1') then
+					if (new_line_attr = '1') then
 						attr_addr_hold <= attr_addr + va_offset;
 					end if;
-					if (mode_bitmap = '0') then
-						if (last_line_of_char = '1') then
-							vid_addr_hold <= vid_addr + va_offset;
-						end if;
-					else
-						-- bitmap
-						if (rline_cnt0 = '1' or is_double_int = '1') then
-							vid_addr_hold <= vid_addr + va_offset;
-						end if;
+					if (new_line_vaddr = '1') then
+						vid_addr_hold <= vid_addr + va_offset;
 					end if;
 					-- alternate values on raster match
 					if (is_raster_match = '1' and alt_match_vaddr = '1') then
@@ -799,13 +802,17 @@ begin
 		if (reset = '1') then
 			vid_addr <= (others => '0');
 			attr_addr <= (others => '0');
-		elsif (falling_edge(qclk) and dotclk(2 downto 0) = "111") then --dotclk(1 downto 0) = "11") then
+		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then --dotclk(1 downto 0) = "11") then
 				if (x_start = '0' and sr_fetch_int = '1' ) then
 					vid_addr <= vid_addr + 1;
 					attr_addr <= attr_addr + 1;
 				elsif (x_start = '1') then
-					vid_addr <= vid_addr_hold;
-					attr_addr <= attr_addr_hold;
+					if (new_line_attr = '0') then
+						attr_addr <= attr_addr_hold;
+					end if;
+					if (new_line_vaddr = '0') then
+						vid_addr <= vid_addr_hold;
+					end if;
 				end if;
 		end if;
 	end process;
@@ -1016,7 +1023,6 @@ begin
 		when 5 =>	sprite_fetch_ce(5) <= sprite_data_fetch and fetch_ce;
 		when 6 =>	sprite_fetch_ce(6) <= sprite_data_fetch and fetch_ce;
 		when 7 =>	sprite_fetch_ce(7) <= sprite_data_fetch and fetch_ce;
-		when others =>
 		end case;
 		
 	end process;
@@ -1304,7 +1310,7 @@ begin
 	-----------------------------------------------------------------------------
 	-- replace discrete color circuitry of ultracpu 1.2b
 
-	is_shift_p: process(is_80, mode_tv, dotclk)
+	is_shift_p: process(is_80, mode_tv, dotclk, is_shift2)
 	begin
 		is_shift <= not(dotclk(0)) and is_shift2;
 	end process;
@@ -1664,7 +1670,7 @@ begin
 	-----------------------------------------------------------------------------
 	-- output sr control
 
-	en_p: process(nsrload, qclk, enable, h_enable, interlace_int)
+	en_p: process(nsrload, qclk, enable, h_enable, v_enable, interlace_int, rline_cnt0)
 	begin
 		enable <= h_enable and v_enable
 				and (interlace_int or not(rline_cnt0));

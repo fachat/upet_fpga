@@ -99,20 +99,20 @@ architecture Behavioral of HBorder is
 	
 	--
 	
-	-- signal defs
-	signal h_state: std_logic;
-	signal is_preload_int: std_logic;
-	signal is_preload_int_d: std_logic;
-	signal is_preload_int_dd: std_logic;
-	signal is_preload_int_ddd: std_logic;
-	signal is_preload_int_dddd: std_logic;
-
-	signal is_border_int: std_logic;
-	
-	signal is_odd: std_logic;
-	
-	-- up to 127 slots/line
-	signal vh_cnt : std_logic_vector (6 downto 0) := (others => '0');
+--	-- signal defs
+--	signal h_state: std_logic;
+--	signal is_preload_int: std_logic;
+--	signal is_preload_int_d: std_logic;
+--	signal is_preload_int_dd: std_logic;
+--	signal is_preload_int_ddd: std_logic;
+--	signal is_preload_int_dddd: std_logic;
+--
+--	signal is_border_int: std_logic;
+--	
+--	signal is_odd: std_logic;
+--	
+--	-- up to 127 slots/line
+--	signal vh_cnt : std_logic_vector (6 downto 0) := (others => '0');
 
 begin
 
@@ -138,11 +138,12 @@ begin
 		end if;
 	end process;
 	
-	slot_p: process(qclk, dotclk, slot_len, slot_cnt)
+	slot_p: process(qclk, dotclk, slot_len, slot_cnt, reset)
 	begin
 		if (reset = '1') then
 			slot_state <= "00";
 			slot_cnt <= (others => '0');
+			is_last_vis <= '0';
 		else
 			-- every memclk
 			-- output (is_border) is evaluated at falling qclk and dotclk(0)=1
@@ -150,7 +151,6 @@ begin
 			if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 				phase0 <= '0';
 				is_preload <= '0';
-				is_last_vis <= '0';
 				if (h_zero = '1') then
 					if (mode_tv = '1') then
 						slot_cnt <= "000000000";
@@ -182,7 +182,6 @@ begin
 						slot_cnt <= slot_cnt + 1;
 						if (is_hsync = '1') then
 							slot_state <= "01";
---								is_preload <= '1';
 						end if;
 					when "01" =>
 						-- sync start of raster with shift / slot phase, so
@@ -222,10 +221,11 @@ begin
 						end if;
 
 					when "11" =>
+						is_last_vis <= '0';
 						if (is_slot_len = '1') then
 							is_border_1 <= '1';
-						end if;
-						
+						end if;	
+
 					when others =>
 						null;
 					end case;
@@ -250,7 +250,7 @@ begin
 	h_phase3 <= phase3;
 	h_phase4 <= phase4;
 	
-	slot_px: process(qclk, dotclk, slot_len, slot_cnt)
+	slot_px: process(qclk, dotclk, slot_len, slot_cnt, reset)
 	begin
 		if (reset = '1') then
 			is_hsync <= '0';
@@ -300,103 +300,103 @@ begin
 --	fetch_slot <= phase0;
 --	new_slot <= phase4;
 	
-	---------------------------------------------------------------------------
-	-- old
-	
-	CharCnt: process(qclk, dotclk, h_zero, is_preload_int, vh_cnt, reset)
-	begin
-		if (reset = '1') then
-			vh_cnt <= (others => '0');
-			h_state <= '0';
-			is_odd <= '0';
-		elsif (falling_edge(qclk) and dotclk = "1111") then
-			if (h_zero = '1') then
-				vh_cnt <= (others => '0');
-				h_state <= '0';
-				-- fix jitter
-				is_odd <= mode_tv;
-			elsif (is_preload_int = '1') then
-				vh_cnt <= "0000001";
-				h_state <= '1';
-				is_odd <= '0';
-			else
-				-- this change doubles the width, but introduces jitter at start of line for now
-				if (is_odd = '0' and mode_tv = '1') then
-					is_odd <= '1';
-				else
-					vh_cnt <= vh_cnt + 1;
-					is_odd <= '0';
-				end if;
-			end if;
-		end if;
-	end process;
-
-	Preload: process (qclk, vh_cnt, h_state, hsync_pos, dotclk)
-	begin		
-		if (falling_edge(qclk) and dotclk = "0000") then
-			if (h_state = '0' and (
-					(mode_tv = '0' and vh_cnt = hsync_pos)
-					or (mode_tv = '1' and vh_cnt = hsync_pos + 1 and is_odd = '0')
-					)) then
-				is_preload_int <= '1';
-			else
-				is_preload_int <= '0';
-			end if;
-		end if;
-		
-		if (falling_edge(qclk) and dotclk = "1111") then
-			is_preload_int_d <= is_preload_int;
-			is_preload_int_dd <= is_preload_int_d;
-			is_preload_int_ddd <= is_preload_int_dd;
-			is_preload_int_dddd <= is_preload_int_ddd;
-		end if;
-	end process;
-
---	is_preload <= is_preload_int when mode_tv = '0'
---					else is_preload_int;
-	
-	Enable: process (qclk, dotclk, vh_cnt, is_preload_int_d, is_preload_int_dd, h_extborder, h_zero)
-	begin
-		
-		if (h_zero = '1') then
-			is_border_int <= '1';
-			--is_border <= '1';
-		elsif (falling_edge(qclk) and dotclk="1111") then
-			--is_last_vis <= '0';
-			--is_border <= is_border_int;
-			if ((mode_tv = '0' and (
-						(h_extborder = '0' and is_preload_int = '1')
-						or (is_preload_int_d = '1' and is_80 = '1')
-						or (is_preload_int_dd = '1')))
-					or (mode_tv = '1' and (
-						(h_extborder = '0' and is_preload_int = '1')
-						or (is_preload_int_ddd = '1' and is_80 = '1')
-						or (is_preload_int_dddd = '1')))
-					) then
-					is_border_int <= '0';
-			elsif (h_state = '1') then
-					if (vh_cnt = slots_per_line - 1
-							and (mode_tv = '0' or is_odd = '0')
-							and h_extborder = '1' 
-							and is_80 = '0'
-						) then
-							is_border_int <= '1';
-							--is_border <= '1';
-					end if;
-					if (vh_cnt = slots_per_line
-							and (mode_tv = '0' or is_odd = '1' or h_extborder = '1')
-						) then -- and (mode_tv = '0' or is_odd = '1')) then
-							--is_last_vis <= '1';
-							is_border_int <= '1';
-							if (h_extborder = '1') then
-									--is_border <= '1';
-							end if;
-					end if;
-			end if;
-			
-		end if;
-	end process;
-	
+--	---------------------------------------------------------------------------
+--	-- old
+--	
+--	CharCnt: process(qclk, dotclk, h_zero, is_preload_int, vh_cnt, reset)
+--	begin
+--		if (reset = '1') then
+--			vh_cnt <= (others => '0');
+--			h_state <= '0';
+--			is_odd <= '0';
+--		elsif (falling_edge(qclk) and dotclk = "1111") then
+--			if (h_zero = '1') then
+--				vh_cnt <= (others => '0');
+--				h_state <= '0';
+--				-- fix jitter
+--				is_odd <= mode_tv;
+--			elsif (is_preload_int = '1') then
+--				vh_cnt <= "0000001";
+--				h_state <= '1';
+--				is_odd <= '0';
+--			else
+--				-- this change doubles the width, but introduces jitter at start of line for now
+--				if (is_odd = '0' and mode_tv = '1') then
+--					is_odd <= '1';
+--				else
+--					vh_cnt <= vh_cnt + 1;
+--					is_odd <= '0';
+--				end if;
+--			end if;
+--		end if;
+--	end process;
+--
+--	Preload: process (qclk, vh_cnt, h_state, hsync_pos, dotclk)
+--	begin		
+--		if (falling_edge(qclk) and dotclk = "0000") then
+--			if (h_state = '0' and (
+--					(mode_tv = '0' and vh_cnt = hsync_pos)
+--					or (mode_tv = '1' and vh_cnt = hsync_pos + 1 and is_odd = '0')
+--					)) then
+--				is_preload_int <= '1';
+--			else
+--				is_preload_int <= '0';
+--			end if;
+--		end if;
+--		
+--		if (falling_edge(qclk) and dotclk = "1111") then
+--			is_preload_int_d <= is_preload_int;
+--			is_preload_int_dd <= is_preload_int_d;
+--			is_preload_int_ddd <= is_preload_int_dd;
+--			is_preload_int_dddd <= is_preload_int_ddd;
+--		end if;
+--	end process;
+--
+----	is_preload <= is_preload_int when mode_tv = '0'
+----					else is_preload_int;
+--	
+--	Enable: process (qclk, dotclk, vh_cnt, is_preload_int_d, is_preload_int_dd, h_extborder, h_zero)
+--	begin
+--		
+--		if (h_zero = '1') then
+--			is_border_int <= '1';
+--			--is_border <= '1';
+--		elsif (falling_edge(qclk) and dotclk="1111") then
+--			--is_last_vis <= '0';
+--			--is_border <= is_border_int;
+--			if ((mode_tv = '0' and (
+--						(h_extborder = '0' and is_preload_int = '1')
+--						or (is_preload_int_d = '1' and is_80 = '1')
+--						or (is_preload_int_dd = '1')))
+--					or (mode_tv = '1' and (
+--						(h_extborder = '0' and is_preload_int = '1')
+--						or (is_preload_int_ddd = '1' and is_80 = '1')
+--						or (is_preload_int_dddd = '1')))
+--					) then
+--					is_border_int <= '0';
+--			elsif (h_state = '1') then
+--					if (vh_cnt = slots_per_line - 1
+--							and (mode_tv = '0' or is_odd = '0')
+--							and h_extborder = '1' 
+--							and is_80 = '0'
+--						) then
+--							is_border_int <= '1';
+--							--is_border <= '1';
+--					end if;
+--					if (vh_cnt = slots_per_line
+--							and (mode_tv = '0' or is_odd = '1' or h_extborder = '1')
+--						) then -- and (mode_tv = '0' or is_odd = '1')) then
+--							--is_last_vis <= '1';
+--							is_border_int <= '1';
+--							if (h_extborder = '1') then
+--									--is_border <= '1';
+--							end if;
+--					end if;
+--			end if;
+--			
+--		end if;
+--	end process;
+--	
 --	
 --	in_slot_cnt_p: process(qclk, vh_cnt, reset)
 --	begin

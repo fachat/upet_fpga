@@ -93,7 +93,7 @@ begin
 			spislowclk;
 		
 	-- read registers
-	read_p: process (phi2, rs, rwb, cs, sr, sel, cpol, cpha, run_sr, txd_valid, start_rx, ack_rxtx, ipl, reset)
+	read_p: process (phi2, rs, rwb, cs, sr, sel, cpol, cpha, run_sr, txd_valid, start_rx, ack_rxtx, slow, ipl, reset)
 	begin
 		if (reset = '1') then
 			start_rx <= '0';

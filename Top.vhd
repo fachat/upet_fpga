@@ -198,6 +198,7 @@ architecture Behavioral of Top is
 	signal vidblock : std_logic_vector(2 downto 0);
 	signal lockb0 : std_logic;
 	signal forceb0 : std_logic;
+	signal m_dbg_out: std_logic;
 	
 	-- video
 	signal va_out: std_logic_vector(15 downto 0);
@@ -210,6 +211,7 @@ architecture Behavioral of Top is
 	signal isnocolmap: std_logic;
 	signal v_out: std_logic_vector(5 downto 0);
 	signal vis_regmap: std_logic;		-- when set, Viccy occupies not 4, but 96 addresses due to register-to-memory mapping
+	signal v_dbg_out: std_logic;
 	
 	-- cpu
 	signal ca_in: std_logic_vector(15 downto 0);
@@ -331,7 +333,7 @@ architecture Behavioral of Top is
 	   forceb0: in std_logic;
 	   screenb0: in std_logic;
 	   is8296: in std_logic;
-		
+		isnocolmap: in std_logic;
 	   dbgout: out std_logic
 	  );
 	end component;
@@ -371,6 +373,7 @@ architecture Behavioral of Top is
 	
 		irq_out : out std_logic;
 		
+		dbg_out : out std_logic;
 	   reset : in std_logic
 	 );
 	end component;
@@ -615,7 +618,9 @@ begin
 		bus_win_c_is_io,
 	   forceb0,
 	   screenb0,
-		isnocolmap
+		is8296,
+		isnocolmap,
+		m_dbg_out
 	);
 
 	forceb0 <= '1' when lockb0 = '1' and e = '1' else
@@ -640,9 +645,10 @@ begin
 		elsif (falling_edge(memclk)) then
 			niosel <= niosel_int
 					or wait_bus; 
-			nmemsel <= nmemsel_int
-					or wait_bus;
-					
+--			nmemsel <= nmemsel_int	FIXME
+--					or wait_bus;
+	nmemsel <= v_dbg_out;
+	
 			if (niosel_int = '0'
 				and ca_in(7 downto 4) = "0001") then
 				nsel1 <= '0';
@@ -727,6 +733,7 @@ begin
 		vreq_video,
 		v_out,
 		irq_out,
+		v_dbg_out,
 		reset
 	);
 

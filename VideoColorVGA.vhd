@@ -754,16 +754,11 @@ begin
 		new_line_vaddr <= '0';
 		new_line_attr <= '0';
 		
-		if (last_line_of_char = '1') then
-				new_line_attr <='1';
-		end if;
-		if (mode_bitmap = '0') then
+		if (rline_cnt0 = '1' or is_double_int = '1') then
 			if (last_line_of_char = '1') then
-				new_line_vaddr <= '1';
+				new_line_attr <='1';
 			end if;
-		else
-			-- bitmap
-			if (rline_cnt0 = '1' or is_double_int = '1') then
+			if (last_line_of_char = '1' or mode_bitmap = '1') then
 				new_line_vaddr <= '1';
 			end if;
 		end if;
@@ -773,7 +768,7 @@ begin
 	begin
 		if (reset ='1') then
 			vid_addr_hold <= (others => '0');
-		elsif (rising_edge(qclk) and dotclk(1 downto 0) = "11") then -- and sr_fetch_int = '1' and dotclk(2 downto 0) = "111") then
+		elsif (rising_edge(qclk) and dotclk(1 downto 0) = "11") then 
 			if (last_vis_slot_of_line = '1') then
 				if (last_line_of_screen = '1') then
 					vid_addr_hold <= vid_base;
@@ -802,16 +797,18 @@ begin
 		if (reset = '1') then
 			vid_addr <= (others => '0');
 			attr_addr <= (others => '0');
-		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then --dotclk(1 downto 0) = "11") then
-				if (x_start = '0' and sr_fetch_int = '1' ) then
-					vid_addr <= vid_addr + 1;
-					attr_addr <= attr_addr + 1;
-				elsif (x_start = '1') then
-					if (new_line_attr = '0') then
+		elsif (rising_edge(qclk) and dotclk(1 downto 0) = "11") then --dotclk(1 downto 0) = "11") then
+				if (x_start = '1') then
+					if (last_line_of_char = '0' or (rline_cnt0 = '1' and interlace_int = '1')) then
 						attr_addr <= attr_addr_hold;
 					end if;
-					if (new_line_vaddr = '0') then
+					if (last_line_of_char = '0' or (rline_cnt0 = '1' and interlace_int = '1')) then
 						vid_addr <= vid_addr_hold;
+					end if;
+				else
+					if (sr_fetch_int = '1' ) then
+						vid_addr <= vid_addr + 1;
+						attr_addr <= attr_addr + 1;
 					end if;
 				end if;
 		end if;
@@ -1673,8 +1670,7 @@ begin
 	en_p: process(nsrload, qclk, enable, h_enable, v_enable, interlace_int, rline_cnt0)
 	begin
 		enable <= h_enable and v_enable
-				and (interlace_int or not(rline_cnt0));
-
+				;--and (interlace_int or not(rline_cnt0)); FIXME
 		dena_int <= enable;
 	end process;
 
@@ -1862,15 +1858,22 @@ begin
 	pbr_addrB <= vid_out_idx;
 	
 	
-	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
+--	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
 	vid_out(3 downto 2) <= "00" when vid_out_blank = '1' else pbr_doB(4 downto 3);  -- GREEN
-	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
+--	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
+
+	vid_out(0) <= '0' when vid_out_blank = '1' else last_line_of_char;
+	vid_out(1) <= '0' when vid_out_blank = '1' else '0';--rline_cnt0;
+	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
+	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
+	
+	
 	
 	--------------------------------------------
 	-- crtc register emulation
 	-- only 8/9 rows per char are emulated right now
 
-	dbg_out <= '0';
+	dbg_out <= h_zero; --'0';
 
 	is_double_int <= mode_double or mode_tv;
 	interlace_int <= mode_interlace or mode_tv;
@@ -2003,7 +2006,7 @@ begin
 			when x"08" =>
 				-- b1: interlace, b0: double (if b1=1)
 				mode_interlace <= CPU_D(1);
-				mode_double <= CPU_D(0) and CPU_D(1);
+				mode_double <= CPU_D(0);-- and CPU_D(1);
 				mode_tv <= CPU_D(5);
 				mode_60hz <= CPU_D(6);
 				mode_80col <= CPU_D(7);

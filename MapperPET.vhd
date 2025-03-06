@@ -76,7 +76,9 @@ entity Mapper is
 	   screenb0: in std_logic;
 		-- are we in 8296 mode?
 		is8296: in std_logic;
-	   
+		-- don't map colour video at $8800-$8fff (mostly for 8296)
+	   isnocolmap: in std_logic;
+		
 	   dbgout: out std_logic
 	);
 end Mapper;

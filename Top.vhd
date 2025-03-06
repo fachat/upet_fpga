@@ -645,9 +645,9 @@ begin
 		elsif (falling_edge(memclk)) then
 			niosel <= niosel_int
 					or wait_bus; 
---			nmemsel <= nmemsel_int	FIXME
---					or wait_bus;
-	nmemsel <= v_dbg_out;
+			nmemsel <= nmemsel_int
+					or wait_bus;
+--	nmemsel <= v_dbg_out; FIXME
 	
 			if (niosel_int = '0'
 				and ca_in(7 downto 4) = "0001") then

@@ -802,7 +802,7 @@ begin
 					if (last_line_of_char = '0' or (rline_cnt0 = '1' and interlace_int = '1')) then
 						attr_addr <= attr_addr_hold;
 					end if;
-					if (last_line_of_char = '0' or (rline_cnt0 = '1' and interlace_int = '1')) then
+					if ((mode_bitmap = '0' and last_line_of_char = '0') or (rline_cnt0 = '1' and interlace_int = '1')) then
 						vid_addr <= vid_addr_hold;
 					end if;
 				else
@@ -1670,7 +1670,7 @@ begin
 	en_p: process(nsrload, qclk, enable, h_enable, v_enable, interlace_int, rline_cnt0)
 	begin
 		enable <= h_enable and v_enable
-				;--and (interlace_int or not(rline_cnt0)); FIXME
+				and (interlace_int or not(rline_cnt0)); -- comment to DEBUG interlace timing
 		dena_int <= enable;
 	end process;
 
@@ -1858,14 +1858,15 @@ begin
 	pbr_addrB <= vid_out_idx;
 	
 	
---	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
+	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
 	vid_out(3 downto 2) <= "00" when vid_out_blank = '1' else pbr_doB(4 downto 3);  -- GREEN
---	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
+	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
 
-	vid_out(0) <= '0' when vid_out_blank = '1' else last_line_of_char;
-	vid_out(1) <= '0' when vid_out_blank = '1' else '0';--rline_cnt0;
-	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
-	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
+	-- potential DEBUG
+--	vid_out(0) <= '0' when vid_out_blank = '1' else last_line_of_char;
+--	vid_out(1) <= '0' when vid_out_blank = '1' else '0';--rline_cnt0;
+--	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
+--	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
 	
 	
 	

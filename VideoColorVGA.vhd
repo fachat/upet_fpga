@@ -296,9 +296,9 @@ architecture Behavioral of Video is
 	signal y_default_offset: natural;
 	
 	-- clock phases (16 half-pixels in one slot)
-	signal pxlb_ce: std_logic;
-	signal pxld_ce: std_logic;
-	signal pxle_ce: std_logic;
+	signal pxl_ce_00: std_logic;
+	signal pxl_ce_01: std_logic;
+	signal pxl_ce_10: std_logic;
 	signal fetch_ce: std_logic;
 
 	signal new_line_attr: std_logic;
@@ -563,8 +563,8 @@ begin
 	windows_p: process(dotclk, h_phase1, h_phase2, h_phase3, h_phase4)
 	begin
 			chr_window <= h_phase1;		--'0';
-			pxl_window <= h_phase3;		--'0';
 			attr_window <= h_phase2;	--'0';
+			pxl_window <= h_phase3;		--'0';
 			sr_window <= h_phase4;		--'0';
 			sprite_ptr_window <= '0';
 			sprite_data_window <= '0';
@@ -596,20 +596,20 @@ begin
 
 	ce_p: process(dotclk)
 	begin
-			pxlb_ce <= '0';
-			pxld_ce <= '0';
-			pxle_ce <= '0';
+			pxl_ce_00 <= '0';
+			pxl_ce_01 <= '0';
+			pxl_ce_10 <= '0';
 			fetch_ce <= '0';
 
-			if (dotclk(2 downto 0) = "011") then
-				pxlb_ce <= '1';
+			if (dotclk(1 downto 0) = "00") then
+				pxl_ce_00 <= '1';
 			end if;
 
-			if (dotclk(2 downto 0) = "101") then
-				pxld_ce <= '1';
+			if (dotclk(1 downto 0) = "01") then
+				pxl_ce_01 <= '1';
 			end if;
-			if (dotclk(2 downto 0) = "110") then
-				pxle_ce <= '1';
+			if (dotclk(1 downto 0) = "10") then
+				pxl_ce_10 <= '1';
 			end if;
 
 			if (dotclk(1 downto 0) = "11") then
@@ -1339,13 +1339,8 @@ begin
 			end if;
 		end if;
 
-		-- when do I really need to load the pixel SR?
---		if (falling_edge(qclk)) then
---			nsrload	<= not (memclk and sr_fetch_int );
---		end if;
-
 		if (falling_edge(qclk)) then
-			if (pxlb_ce = '1' and sr_fetch_int = '1') then
+			if (pxl_ce_00 = '1' and sr_fetch_int = '1') then
 			
 				sr_underline_p <= '0';
 				sr_blink <= '0';
@@ -1367,14 +1362,15 @@ begin
 					end if;
 				end if;
 				
-				sr_reverse_p <= mode_rev 
-								xor sr_crsr
-								xor sr_blink;
 			end if;
 		end if;
+		
+		sr_reverse_p <= mode_rev 
+								xor sr_crsr
+								xor sr_blink;
 
 		if (falling_edge(qclk)) then
-			if (pxld_ce = '1' and sr_fetch_int = '1') then
+			if (pxl_ce_01 = '1' and sr_fetch_int = '1') then
 				--attr_buf2 <= attr_buf;
 				if (sr_underline_p = '1') then
 					sr_buf <= "11111111";
@@ -1387,7 +1383,7 @@ begin
 		end if;
 		
 		if (falling_edge(qclk)) then
-			if (pxle_ce = '1' and (sr_fetch_int = '1')) then
+			if (pxl_ce_10 = '1' and (sr_fetch_int = '1')) then
 				sr_attr <= attr_buf;
 				sr(6 downto 0) <= sr_buf (6 downto 0);
 				sr_odd <= '0';

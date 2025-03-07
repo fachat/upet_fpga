@@ -2422,7 +2422,8 @@ begin
 	--- cursor
 	crsr_p: process(h_sync_int)
 	begin
-		if (falling_edge(h_sync_int)) then
+		--if (falling_edge(h_sync_int)) then
+		if (falling_edge(h_zero)) then
 			if rcline_cnt = crsr_start_scan then
 				case crsr_mode is
 				when "00" =>
@@ -2445,7 +2446,8 @@ begin
 	--- underline
 	uline_p: process(h_sync_int)
 	begin
-		if (falling_edge(h_sync_int)) then
+		--if (falling_edge(h_sync_int)) then
+		if (falling_edge(h_zero)) then
 			if rcline_cnt = uline_scan then
 				uline_active <= '1';
 			else

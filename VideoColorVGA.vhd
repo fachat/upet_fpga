@@ -713,7 +713,7 @@ begin
 	
 	v_border: VBorder
 	port map (
-			h_zero,	--h_sync_int,	
+			h_zero,
 			v_zero,
 			y_addr,
 			vsync_pos,
@@ -2420,9 +2420,8 @@ begin
 	end process;
 	
 	--- cursor
-	crsr_p: process(h_sync_int)
+	crsr_p: process(h_zero)
 	begin
-		--if (falling_edge(h_sync_int)) then
 		if (falling_edge(h_zero)) then
 			if rcline_cnt = crsr_start_scan then
 				case crsr_mode is
@@ -2444,9 +2443,8 @@ begin
 	end process;
 
 	--- underline
-	uline_p: process(h_sync_int)
+	uline_p: process(h_zero)
 	begin
-		--if (falling_edge(h_sync_int)) then
 		if (falling_edge(h_zero)) then
 			if rcline_cnt = uline_scan then
 				uline_active <= '1';
@@ -2456,9 +2454,9 @@ begin
 		end if;
 	end process;
 	
-	cblink_p: process(h_sync_int) 
+	cblink_p: process(h_zero) 
 	begin
-		if (falling_edge(h_sync_int)) then
+		if (falling_edge(h_zero)) then
 			if ((cblink_mode = '0' and blink_16='1') or (cblink_mode = '1' and blink_32 = '1')) then
 				cblink_active <= '1';
 			else 

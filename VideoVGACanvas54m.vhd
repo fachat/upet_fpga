@@ -99,6 +99,13 @@ architecture Behavioral of Canvas is
 	constant h_zero_pos_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(24		-1, 11));
 	-- in characters
 	constant x_default_offset_50: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
+
+	-- visible window is shifted 8 cycles in front to account for pre-fetch; so we shift sync 8 cycles back
+	constant hh_display_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720				-1, 11));
+	constant hh_sync_pos_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(732				+7, 11));
+	constant hh_sync_end_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(796 			+7, 11));
+	constant hh_total_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864				-1, 11));
+	constant hh_zero_50: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(820				+7, 11));
 	
 	-- all values in rasterlines
 	constant v_back_porch_50: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(39				-1, 10));
@@ -125,6 +132,13 @@ architecture Behavioral of Canvas is
 	constant h_sync_width_60: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(60 + 798	-1, 11));
 	-- zero for pixel coordinates is 2x24 pixels left of default borders must be divisible by 8
 	constant h_zero_pos_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(16	-1, 11));
+
+	constant hh_display_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720				-1, 11));
+	constant hh_sync_pos_60: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(739				+7, 11));
+	constant hh_sync_end_60: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(801 			+7, 11));
+	constant hh_total_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858				-1, 11));
+	constant hh_zero_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(824				+7, 11));
+
 	-- in characters
 	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
 	--
@@ -134,14 +148,20 @@ architecture Behavioral of Canvas is
 	constant h_front_porch_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(10 + 726	-9, 11));
 	constant h_sync_width_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(60 + 798  -1, 11));
 	-- zero for pixel coordinates is 2x24 pixels left of default borders must be divisible by 8
-	--constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(16	-1, 11));
+	constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(16	-1, 11));
 	-- broken constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(774	-1, 11));
 	-- black constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(776	-1, 11));
 	-- broken constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(799	-1, 11));
 	-- broken constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(812	-1, 11));
 	-- broken constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(818	-1, 11));
 	--constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(821	-1, 11));
-	constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(824	-1, 11));
+	--constant h_zero_pos_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(824	-1, 11));
+
+	constant hh_display_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720	*2			-1, 11));
+	constant hh_sync_pos_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(725	*2			+7, 11));
+	constant hh_sync_end_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(850 *2			+7, 11));
+	constant hh_total_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858	*2			-1, 11));
+	constant hh_zero_60_tv: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(824	*2			+7, 11));
 	
 	-- in characters
 --	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(8,7));
@@ -164,6 +184,12 @@ architecture Behavioral of Canvas is
 	signal h_front_porch: std_logic_vector(10 downto 0);
 	signal h_sync_width: std_logic_vector(10 downto 0);
 	signal h_zero_pos: std_logic_vector(10 downto 0);
+
+	signal hh_display: std_logic_vector(10 downto 0);
+	signal hh_sync_pos: std_logic_vector(10 downto 0);
+	signal hh_sync_end: std_logic_vector(10 downto 0);
+	signal hh_total: std_logic_vector(10 downto 0);
+	signal hh_zero: std_logic_vector(10 downto 0);
 
 	signal v_back_porch: std_logic_vector(9 downto 0);
 	signal v_width: std_logic_vector(9 downto 0);
@@ -228,12 +254,24 @@ begin
 				h_sync_width(0) <= '0';
 				h_zero_pos(6 downto 1)			<= h_zero_pos_60_tv(5 downto 0);
 				h_zero_pos(0) <= '1';
+				
+				hh_display 			<= hh_display_60_tv;
+				hh_sync_pos 		<= hh_sync_pos_60_tv;
+				hh_sync_end 		<= hh_sync_end_60_tv;
+				hh_total 			<= hh_total_60_tv;
+				hh_zero	 			<= hh_zero_60_tv;
 			else
 				h_back_porch 		<= h_back_porch_60;
 				h_width				<= h_width_60;
 				h_front_porch		<= h_front_porch_60;
 				h_sync_width		<= h_sync_width_60;
 				h_zero_pos			<= h_zero_pos_60;
+				
+				hh_display 			<= hh_display_60;
+				hh_sync_pos 		<= hh_sync_pos_60;
+				hh_sync_end 		<= hh_sync_end_60;
+				hh_total 			<= hh_total_60;
+				hh_zero	 			<= hh_zero_60;
 			end if;
 			v_zero_pos			<= v_zero_pos_60;
 			v_back_porch 		<= v_back_porch_60;
@@ -254,12 +292,25 @@ begin
 				h_sync_width(0) <= '0';
 				h_zero_pos(6 downto 1)			<= h_zero_pos_50(5 downto 0);
 				h_zero_pos(0) <= '1';
+				
+				hh_display 			<= hh_display_60_tv;
+				hh_sync_pos 		<= hh_sync_pos_60_tv;
+				hh_sync_end 		<= hh_sync_end_60_tv;
+				hh_total 			<= hh_total_60_tv;
+				hh_zero	 			<= hh_zero_60_tv;
+
 			else
 				h_back_porch 		<= h_back_porch_50;
 				h_width				<= h_width_50;
 				h_front_porch		<= h_front_porch_50;
 				h_sync_width		<= h_sync_width_50;
 				h_zero_pos			<= h_zero_pos_50;
+				
+				hh_display 			<= hh_display_50;
+				hh_sync_pos 		<= hh_sync_pos_50;
+				hh_sync_end 		<= hh_sync_end_50;
+				hh_total 			<= hh_total_50;
+				hh_zero	 			<= hh_zero_50;
 			end if;
 			v_zero_pos			<= v_zero_pos_50;
 			v_back_porch 		<= v_back_porch_50;
@@ -276,40 +327,39 @@ begin
 
 	--h_cnt(2 downto 0) <= dotclk(2 downto 0);
 	
-	pxl: process(qclk, dotclk, h_cnt, h_limit, reset)
+	pxl: process(qclk, dotclk, h_cnt, h_limit, h_state, reset)
 	begin 
 		if (reset = '1') then
-			h_cnt(9 downto 4) <= (others => '0');
+			h_cnt <= (others => '0');
 			h_state <= "00";
 			h_sync_int <= '0';
 			h_enable_int <= '0';
 		elsif (falling_edge(qclk) and dotclk(0) = '1') then
-
+		
+			if (h_zero_int = '0' or dotclk(3 downto 1) = "111") then
+					h_cnt <= h_cnt + 1;
+			end if;
+			
 			if (h_limit = '1') then
 				if (h_state = "11") then
-					if (dotclk(3 downto 0) = "1111") then
-						-- sync with slotcnt / memclk by setting to zero on dotclk="1110"
-						h_cnt <= (others => '0');
-						h_state <= "00";
-					end if;
+					h_state <= "00";
+					h_cnt <= (others => '0');
 				else
 					h_state <= h_state + 1;
-					h_cnt <= h_cnt + 1;
-				end if; 
-			else
-				h_cnt <= h_cnt + 1;
+				end if;
 			end if;
 
+		end if;
+		
 			h_enable_int <= '0';
-			if (h_state = "01") then
+			if (h_state = "00") then
 				h_enable_int <= '1';
 			end if;
 			
 			h_sync_int <= '0';
-			if (h_state = "11") then
+			if (h_state = "10") then
 				h_sync_int <= '1';
 			end if;
-		end if;
 	end process;
 
 	h_sync <= not(h_sync_int);
@@ -323,20 +373,20 @@ begin
 			h_limit <= '0';
 
 			case h_state is
-				when "00" =>	-- back porch
-					if (h_cnt = h_back_porch) then
+				when "00" =>	-- visible
+					if (h_cnt = hh_display) then
 						h_limit <= '1';
 					end if;
-				when "01" =>	-- data
-					if (h_cnt = h_width) then
+				when "01" =>	-- front porch
+					if (h_cnt = hh_sync_pos) then
 						h_limit <= '1';
 					end if;
-				when "10" =>	-- front porch
-					if (h_cnt = h_front_porch) then
+				when "10" =>	-- sync
+					if (h_cnt = hh_sync_end) then
 						h_limit <= '1';
 					end if;
-				when "11" =>	-- sync
-					if (h_cnt = h_sync_width) then
+				when "11" =>	-- back porch
+					if (h_cnt = hh_total) then
 						h_limit <= '1';
 					end if;
 				when others =>
@@ -349,9 +399,8 @@ begin
 	begin 
 		if (reset = '1') then
 			h_zero_int <= '0';
-		--elsif (falling_edge(qclk) and dotclk(2 downto 0) = "110") then
 		elsif (falling_edge(qclk) and dotclk(0) = '0') then
-			if (h_cnt = h_zero_pos) then
+			if (h_cnt = hh_zero) then
 				h_zero_int <= '1';
 			else 
 				h_zero_int <= '0';

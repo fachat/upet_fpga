@@ -38,8 +38,6 @@ The following are the internal Viccy registers:
 - r5: HDISP_MM: if registers are memory-mapped (r32.6 = 1), same as r1.
 - r6: VDISP: vertial displayed - the number of character rows displayed in a frame (CRTC)
 - r8: MODE: mode register
-  - bit 7: 1=80 columns
-    - TODO: see r22
   - bit 1-0: 
     - 0x= normal display
     - 10= interlace (show every scanline twice, i.e. r9 is effectivly twice its value)
@@ -142,7 +140,6 @@ The following are the internal Viccy registers:
   - bit 5: if set, set bitmap, attribute and extended mode bits to alternate values on raster match - reset to orig values at start of screen
   - bit 6: if set, set attribute address memory counter to alternate address on raster match (r38/39) - reset to orig values at start of screen
   - bit 7: if set, set video memory address counter to alternate address on raster match (r38/39) - reset to orig values at start of screen
-
 - r41: ALT2: alternate register control II
   - bit 0-3: alternate raster row counter for a character cell
   - bit 6: if set, set set horizontal sync (R25.0-3) to alternate value on raster match

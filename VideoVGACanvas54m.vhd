@@ -125,6 +125,12 @@ architecture Behavioral of Canvas is
 	constant hh_total_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858				-1, 11));
 	constant hh_zero_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(824				+7, 11));
 
+	-- in rasterlines
+	constant vv_display_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
+	constant vv_sync_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(489		-1, 10));
+	constant vv_sync_end_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(495		-1, 10));
+	constant vv_total_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
+
 	-- in characters
 	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
 
@@ -136,10 +142,10 @@ architecture Behavioral of Canvas is
 	constant hh_zero_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(824	*2			+7, 11));
 	
 	-- in rasterlines
-	constant vv_display_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
-	constant vv_sync_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(489		-1, 10));
-	constant vv_sync_end_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(495		-1, 10));
-	constant vv_total_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
+	constant vv_display_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
+	constant vv_sync_pos_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(485		-1, 10));
+	constant vv_sync_end_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(520		-1, 10));
+	constant vv_total_60_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
 
 	-- zero for pixel coordinates is 85 rasterlines up of default borders
 	constant vv_zero_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(480, 10));
@@ -214,17 +220,22 @@ begin
 				hh_sync_end 		<= hh_sync_end_60_tv;
 				hh_total 			<= hh_total_60_tv;
 				hh_zero	 			<= hh_zero_60_tv;
+				vv_display			<= vv_display_60_tv;
+				vv_sync_pos			<= vv_sync_pos_60_tv;
+				vv_sync_end			<= vv_sync_end_60_tv;
+				vv_total				<= vv_total_60_tv;
 			else
 				hh_display 			<= hh_display_60;
 				hh_sync_pos 		<= hh_sync_pos_60;
 				hh_sync_end 		<= hh_sync_end_60;
 				hh_total 			<= hh_total_60;
 				hh_zero	 			<= hh_zero_60;
+				vv_display			<= vv_display_60;
+				vv_sync_pos			<= vv_sync_pos_60;
+				vv_sync_end			<= vv_sync_end_60;
+				vv_total				<= vv_total_60;
+				vv_zero				<= vv_zero_60;
 			end if;
-			vv_display			<= vv_display_60;
-			vv_sync_pos			<= vv_sync_pos_60;
-			vv_sync_end			<= vv_sync_end_60;
-			vv_total				<= vv_total_60;
 			vv_zero				<= vv_zero_60;
 			x_default_offset_val<= x_default_offset_60;
 			y_default_offset_val<= y_default_offset_60;

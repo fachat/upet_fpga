@@ -106,7 +106,7 @@ architecture Behavioral of Canvas is
 	constant vv_total_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(625		-1, 10));
 	
 	-- zero for pixel coordinates is 88 rasterlines up of default borders
-	constant vv_zero_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(608, 10));
+	constant vv_zero_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(605, 10));
 
 	-- in rasterlines
 	constant y_default_offset_50: natural := 80; -- 130
@@ -142,7 +142,7 @@ architecture Behavioral of Canvas is
 	constant vv_total_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
 
 	-- zero for pixel coordinates is 85 rasterlines up of default borders
-	constant vv_zero_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(490, 10));
+	constant vv_zero_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(480, 10));
 
 	-- in rasterlines
 	constant y_default_offset_60: natural:= 80;
@@ -155,12 +155,6 @@ architecture Behavioral of Canvas is
 	signal hh_sync_end: std_logic_vector(10 downto 0);
 	signal hh_total: std_logic_vector(10 downto 0);
 	signal hh_zero: std_logic_vector(10 downto 0);
-
-	signal v_back_porch: std_logic_vector(9 downto 0);
-	signal v_width: std_logic_vector(9 downto 0);
-	signal v_front_porch: std_logic_vector(9 downto 0);
-	signal v_sync_width: std_logic_vector(9 downto 0);
-	signal v_zero_pos: std_logic_vector(9 downto 0);
 
 	signal vv_display: std_logic_vector(9 downto 0);
 	signal vv_sync_pos: std_logic_vector(9 downto 0);
@@ -387,6 +381,11 @@ begin
 				v_state <= v_state + 1;
 			end if;
 
+			if (v_limit = '1') then
+				v_state <= v_state + 1;
+			end if;
+		end if;
+		
 			v_enable <= '0';
 			if (v_state = "00") then
 				v_enable <= '1';
@@ -397,10 +396,6 @@ begin
 				v_sync_int <= '1';
 			end if;
 
-			if (v_limit = '1') then
-				v_state <= v_state + 1;
-			end if;
-		end if;
 	end process;
 
 	v_sync <= not(v_sync_int);
@@ -439,7 +434,7 @@ begin
 					null;
 			end case;
 			
-			if (v_cnt = v_zero_pos) then
+			if (v_cnt = vv_zero) then
 				v_zero_int <= '1';
 			else 
 				v_zero_int <= '0';

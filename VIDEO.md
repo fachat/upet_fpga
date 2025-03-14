@@ -42,6 +42,7 @@ The following are the internal Viccy registers:
     - 0x= normal display
     - 10= interlace (show every scanline twice, i.e. r9 is effectivly twice its value)
     - 11= double vertical resolution
+  - bit 4: if set in addition to TV timing, use sync timing for real PET monitor
   - bit 5: if set, use TV timing, i.e. 720x480i60 resp. 720x576i50 (halfs pixel clock)
   - bit 6: if set, use 720x480p60 instead of 720x576p50
   - bit 7: if set, use 80 columns instead of 40 columns (doubles pixel clock)

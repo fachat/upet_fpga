@@ -101,7 +101,8 @@ architecture Behavioral of Video is
 	signal mode_attrib_reg: std_logic;	
 	signal mode_regmap_int: std_logic;
 	signal mode_tv: std_logic;				-- used to enable "i" instead of "p" video modes, allowing for PAL/NTSC compatible timing
-	signal mode_60hz: std_logic;				-- used to set 720x480p60 instead of the default 720x576p50
+	signal mode_60hz: std_logic;			-- used to set 720x480p60 instead of the default 720x576p50
+	signal mode_out: std_logic;			-- if mode_tv is set, use PET monitor timing
 	signal alt_match_modes : std_logic;
 	signal alt_match_hsync : std_logic;
 	signal alt_match_palette : std_logic;
@@ -407,6 +408,7 @@ architecture Behavioral of Video is
 
 			  mode_60hz: in std_logic;
 			  mode_tv: in std_logic;
+			  mode_out: in std_logic;
 			  
            v_sync : out  STD_LOGIC;
            h_sync : out  STD_LOGIC;
@@ -671,6 +673,7 @@ begin
 		dotclk,
 		mode_60hz,
 		mode_tv,
+		mode_out,
 		v_sync_int,
 		h_sync_int,
 		v_sync_ext,
@@ -1916,6 +1919,7 @@ begin
 		if (reset = '1') then
 			mode_tv <= '0';
 			mode_60hz <= '0';
+			mode_out <= '0';
 			mode_rev <= '0';
 			cblink_mode <= '0';
 			mode_attrib_reg <= '0';
@@ -2004,6 +2008,7 @@ begin
 				-- b1: interlace, b0: double (if b1=1)
 				mode_interlace <= CPU_D(1);
 				mode_double <= CPU_D(0);-- and CPU_D(1);
+				mode_out <= CPU_D(4);
 				mode_tv <= CPU_D(5);
 				mode_60hz <= CPU_D(6);
 				mode_80col <= CPU_D(7);
@@ -2223,6 +2228,7 @@ begin
 					when x"08" =>
 						vd_out(0) <= mode_double;
 						vd_out(1) <= mode_interlace;
+						vd_out(4) <= mode_out;
 						vd_out(5) <= mode_tv;
 						vd_out(6) <= mode_60hz;
 						vd_out(7) <= mode_80col;

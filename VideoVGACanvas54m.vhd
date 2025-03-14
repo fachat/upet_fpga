@@ -41,6 +41,7 @@ entity Canvas is
 
 		mode_60hz: in std_logic;
 		mode_tv: in std_logic;
+ 	   mode_out: in std_logic;
 		
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
@@ -88,28 +89,55 @@ architecture Behavioral of Canvas is
 	-- 15.625 kHz 	ModeLine "720x576" 13.50 720 732 795 864 576 580 586 624 -HSync -VSync Interlace 
 	-- 31.25 kHz 	ModeLine "720x576" 27.00 720 732 796 864 576 581 586 625 -HSync -VSync 
 	--
+	
 	-- in characters
 	constant x_default_offset_50: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
+	-- in rasterlines
+	constant y_default_offset_50: natural := 80; -- 130
+	-- zero for pixel coordinates is 88 rasterlines up of default borders
+	constant vv_zero_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(605, 10));
+	
+	-- visible horizontal window is shifted 8 cycles in front to account for pre-fetch; so we shift sync 8 cycles back
 
+	---- VGA 50Hz 720x576p timing
 	-- all values in pixels
-	-- visible window is shifted 8 cycles in front to account for pre-fetch; so we shift sync 8 cycles back
 	constant hh_display_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720				-1, 11));
 	constant hh_sync_pos_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(732				+7, 11));
 	constant hh_sync_end_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(796 			+7, 11));
 	constant hh_total_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864				-1, 11));
 	constant hh_zero_50: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(820				+7, 11));
-	
 	-- all values in rasterlines
 	constant vv_display_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(576		-1, 10));
 	constant vv_sync_pos_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(581		-1, 10));
 	constant vv_sync_end_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(586		-1, 10));
-	constant vv_total_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(625		-1, 10));
+	constant vv_total_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(625		-1, 10));	
 	
-	-- zero for pixel coordinates is 88 rasterlines up of default borders
-	constant vv_zero_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(605, 10));
+	---- TV PAL timing
+	-- values in pixel
+	constant hh_display_50_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720 *2				-1, 11));
+	constant hh_sync_pos_50_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(732 *2				+7, 11));
+	constant hh_sync_end_50_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(796 *2	 			+7, 11));
+	constant hh_total_50_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864 *2				-1, 11));
+	constant hh_zero_50_tv: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(820 *2				+7, 11));
+	-- all values in rasterlines
+	constant vv_display_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(576		-1, 10));
+	constant vv_sync_pos_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(580		-1, 10));
+	constant vv_sync_end_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(586		-1, 10));
+	constant vv_total_50_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(625		-1, 10));	
 
-	-- in rasterlines
-	constant y_default_offset_50: natural := 80; -- 130
+	---- PET monitor timing
+	-- values in pixel
+	constant hh_display_50_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(720 *2				-1, 11));
+	constant hh_sync_pos_50_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(728 *2				+7, 11));
+	constant hh_sync_end_50_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(856 *2	 			+7, 11));
+	constant hh_total_50_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864 *2				-1, 11));
+	constant hh_zero_50_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(820 *2				+7, 11));
+	-- all values in rasterlines
+	constant vv_display_50_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(576		-1, 10));
+	constant vv_sync_pos_50_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(590		-1, 10));
+	constant vv_sync_end_50_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(620		-1, 10));
+	constant vv_total_50_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(625		-1, 10));	
+
 
 	----------------------------------------------------------------------------------------------------------------
 	-- 720x480p60
@@ -118,40 +146,54 @@ architecture Behavioral of Canvas is
 	-- 15.7343 kHz 	ModeLine "720x480" 13.50 720 739 801 858 480 488 494 524 -HSync -VSync Interlace 
 	-- 31.4685 kHz 	ModeLine "720x480" 27.00 720 736 798 858 480 489 495 525 -HSync -VSync 
 	--
-	-- all values in pixels
-	constant hh_display_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720				-1, 11));
-	constant hh_sync_pos_60: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(739				+7, 11));
-	constant hh_sync_end_60: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(801 			+7, 11));
-	constant hh_total_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858				-1, 11));
-	constant hh_zero_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(824				+7, 11));
-
-	-- in rasterlines
-	constant vv_display_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
-	constant vv_sync_pos_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(489		-1, 10));
-	constant vv_sync_end_60: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(495		-1, 10));
-	constant vv_total_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
-
+	
 	-- in characters
 	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
-
-	--	horizonatl timing
-	constant hh_display_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(720	*2			-1, 11));
-	constant hh_sync_pos_60_tv: std_logic_vector(10 downto 0):= std_logic_vector(to_unsigned(725	*2			+7, 11));
-	constant hh_sync_end_60_tv: std_logic_vector(10 downto 0):= std_logic_vector(to_unsigned(850 *2			+7, 11));
-	constant hh_total_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(858	*2			-1, 11));
-	constant hh_zero_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(824	*2			+7, 11));
-	
-	-- in rasterlines
-	constant vv_display_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
-	constant vv_sync_pos_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(485		-1, 10));
-	constant vv_sync_end_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(520		-1, 10));
-	constant vv_total_60_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
-
-	-- zero for pixel coordinates is 85 rasterlines up of default borders
-	constant vv_zero_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(480, 10));
-
 	-- in rasterlines
 	constant y_default_offset_60: natural:= 80;
+	-- zero for pixel coordinates is 85 rasterlines up of default borders
+	constant vv_zero_60: std_logic_vector(9 downto 0)				:=std_logic_vector(to_unsigned(480, 10));
+	
+	---- VGA 60Hz 720x480p timing
+	-- all values in pixels
+	constant hh_display_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(720				-1, 11));
+	constant hh_sync_pos_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(736				+7, 11));
+	constant hh_sync_end_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(798 			+7, 11));
+	constant hh_total_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(858				-1, 11));
+	constant hh_zero_60: std_logic_vector(10 downto 0)				:= std_logic_vector(to_unsigned(824				+7, 11));
+	-- in rasterlines
+	constant vv_display_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(480		-1, 10));
+	constant vv_sync_pos_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(489		-1, 10));
+	constant vv_sync_end_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(495		-1, 10));
+	constant vv_total_60: std_logic_vector(9 downto 0)				:=std_logic_vector(to_unsigned(525		-1, 10));
+
+	---- 60Hz NTSC timing
+	--	horizonatl timing
+	constant hh_display_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720	*2			-1, 11));
+	constant hh_sync_pos_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(739	*2			+7, 11));
+	constant hh_sync_end_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(801 *2			+7, 11));
+	constant hh_total_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858	*2			-1, 11));
+	constant hh_zero_60_tv: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(824	*2			+7, 11));	
+	-- in rasterlines
+	constant vv_display_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
+	constant vv_sync_pos_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(488		-1, 10));
+	constant vv_sync_end_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(494		-1, 10));
+	constant vv_total_60_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
+
+	---- 60Hz PET monitor timing
+	--	horizonatl timing
+	constant hh_display_60_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(720	*2			-1, 11));
+	constant hh_sync_pos_60_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(730	*2			+7, 11));
+	constant hh_sync_end_60_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(850 *2			+7, 11));
+	constant hh_total_60_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858	*2			-1, 11));
+	constant hh_zero_60_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(824	*2			+7, 11));	
+	-- in rasterlines
+	constant vv_display_60_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
+	constant vv_sync_pos_60_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(485		-1, 10));
+	constant vv_sync_end_60_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(520		-1, 10));
+	constant vv_total_60_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(524		-1, 10));
+
+
 
 	----------------------------------------------------------------------------------------------------------------
 	-- all values in pixels
@@ -210,20 +252,32 @@ begin
 
 	-- geometry
 
-	geo_p: process(mode_60hz, mode_tv) 
+	geo_p: process(mode_60hz, mode_tv, mode_out) 
 	begin
 	
 		if (mode_60hz = '1') then
-			if (mode_tv = '1') then		
-				hh_display 			<= hh_display_60_tv;
-				hh_sync_pos 		<= hh_sync_pos_60_tv;
-				hh_sync_end 		<= hh_sync_end_60_tv;
-				hh_total 			<= hh_total_60_tv;
-				hh_zero	 			<= hh_zero_60_tv;
-				vv_display			<= vv_display_60_tv;
-				vv_sync_pos			<= vv_sync_pos_60_tv;
-				vv_sync_end			<= vv_sync_end_60_tv;
-				vv_total				<= vv_total_60_tv;
+			if (mode_tv = '1') then
+				if (mode_out = '1') then
+					hh_display 			<= hh_display_60_mon;
+					hh_sync_pos 		<= hh_sync_pos_60_mon;
+					hh_sync_end 		<= hh_sync_end_60_mon;
+					hh_total 			<= hh_total_60_mon;
+					hh_zero	 			<= hh_zero_60_mon;
+					vv_display			<= vv_display_60_mon;
+					vv_sync_pos			<= vv_sync_pos_60_mon;
+					vv_sync_end			<= vv_sync_end_60_mon;
+					vv_total				<= vv_total_60_mon;
+				else
+					hh_display 			<= hh_display_60_tv;
+					hh_sync_pos 		<= hh_sync_pos_60_tv;
+					hh_sync_end 		<= hh_sync_end_60_tv;
+					hh_total 			<= hh_total_60_tv;
+					hh_zero	 			<= hh_zero_60_tv;
+					vv_display			<= vv_display_60_tv;
+					vv_sync_pos			<= vv_sync_pos_60_tv;
+					vv_sync_end			<= vv_sync_end_60_tv;
+					vv_total				<= vv_total_60_tv;
+				end if;
 			else
 				hh_display 			<= hh_display_60;
 				hh_sync_pos 		<= hh_sync_pos_60;
@@ -234,32 +288,47 @@ begin
 				vv_sync_pos			<= vv_sync_pos_60;
 				vv_sync_end			<= vv_sync_end_60;
 				vv_total				<= vv_total_60;
-				vv_zero				<= vv_zero_60;
 			end if;
-			vv_zero				<= vv_zero_60;
-			x_default_offset_val<= x_default_offset_60;
-			y_default_offset_val<= y_default_offset_60;
+			vv_zero					<= vv_zero_60;
+			x_default_offset_val	<= x_default_offset_60;
+			y_default_offset_val	<= y_default_offset_60;
 		else
 			if (mode_tv = '1') then
-				hh_display 			<= hh_display_60_tv;
-				hh_sync_pos 		<= hh_sync_pos_60_tv;
-				hh_sync_end 		<= hh_sync_end_60_tv;
-				hh_total 			<= hh_total_60_tv;
-				hh_zero	 			<= hh_zero_60_tv;
+				if (mode_out = '1') then
+					hh_display 			<= hh_display_50_mon;
+					hh_sync_pos 		<= hh_sync_pos_50_mon;
+					hh_sync_end 		<= hh_sync_end_50_mon;
+					hh_total 			<= hh_total_50_mon;
+					hh_zero	 			<= hh_zero_50_mon;
+					vv_display			<= vv_display_50_mon;
+					vv_sync_pos			<= vv_sync_pos_50_mon;
+					vv_sync_end			<= vv_sync_end_50_mon;
+					vv_total				<= vv_total_50_mon;
+				else
+					hh_display 			<= hh_display_50_tv;
+					hh_sync_pos 		<= hh_sync_pos_50_tv;
+					hh_sync_end 		<= hh_sync_end_50_tv;
+					hh_total 			<= hh_total_50_tv;
+					hh_zero	 			<= hh_zero_50_tv;
+					vv_display			<= vv_display_50_tv;
+					vv_sync_pos			<= vv_sync_pos_50_tv;
+					vv_sync_end			<= vv_sync_end_50_tv;
+					vv_total				<= vv_total_50_tv;
+				end if;
 			else
 				hh_display 			<= hh_display_50;
 				hh_sync_pos 		<= hh_sync_pos_50;
 				hh_sync_end 		<= hh_sync_end_50;
 				hh_total 			<= hh_total_50;
 				hh_zero	 			<= hh_zero_50;
+				vv_display			<= vv_display_50;
+				vv_sync_pos			<= vv_sync_pos_50;
+				vv_sync_end			<= vv_sync_end_50;
+				vv_total				<= vv_total_50;
 			end if;
-			vv_display			<= vv_display_50;
-			vv_sync_pos			<= vv_sync_pos_50;
-			vv_sync_end			<= vv_sync_end_50;
-			vv_total				<= vv_total_50;
-			vv_zero				<= vv_zero_50;
-			x_default_offset_val<= x_default_offset_50;
-			y_default_offset_val<= y_default_offset_50;
+			vv_zero					<= vv_zero_50;
+			x_default_offset_val	<= x_default_offset_50;
+			y_default_offset_val	<= y_default_offset_50;
 		end if;
 	end process;
 
@@ -369,7 +438,7 @@ begin
 	-----------------------------------------------------------------------------
 	-- vertical geometry calculation
 
-	rline: process(h_enable_int, dotclk, v_cnt, v_limit, reset)
+	rline: process(h_enable_int, dotclk, v_cnt, v_state, v_limit, reset)
 	begin 
 		if (reset = '1') then
 			v_cnt <= (others => '0');

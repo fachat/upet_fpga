@@ -304,6 +304,8 @@ architecture Behavioral of Video is
 
 	signal new_line_attr: std_logic;
 	signal new_line_vaddr: std_logic;
+	signal new_line_attr_d: std_logic;
+	signal new_line_vaddr_d: std_logic;
 	
 	signal fetch_int: std_logic;
 	signal fetch_sprite_en: std_logic;
@@ -791,6 +793,8 @@ begin
 						attr_addr_hold <= attr_base_alt;
 					end if;
 				end if;
+				new_line_attr_d <= new_line_attr;
+				new_line_vaddr_d <= new_line_vaddr;
 			end if;
 		end if;
 	end process;
@@ -802,10 +806,14 @@ begin
 			attr_addr <= (others => '0');
 		elsif (rising_edge(qclk) and dotclk(1 downto 0) = "11") then --dotclk(1 downto 0) = "11") then
 				if (x_start = '1') then
-					if (last_line_of_char = '0' or (rline_cnt0 = '1' and interlace_int = '1')) then
+--					if (last_line_of_char = '0' 
+--							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
+					if (new_line_attr_d = '0') then
 						attr_addr <= attr_addr_hold;
 					end if;
-					if ((mode_bitmap = '0' and last_line_of_char = '0') or (rline_cnt0 = '1' and interlace_int = '1')) then
+--					if ((mode_bitmap = '0' and last_line_of_char = '0') 
+--							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
+					if (new_line_vaddr_d = '0') then
 						vid_addr <= vid_addr_hold;
 					end if;
 				else

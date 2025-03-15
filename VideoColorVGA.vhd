@@ -808,12 +808,16 @@ begin
 				if (x_start = '1') then
 --					if (last_line_of_char = '0' 
 --							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
-					if (new_line_attr_d = '0') then
+					if (new_line_attr = '0'
+							or (interlace_int = '1')
+							) then
 						attr_addr <= attr_addr_hold;
 					end if;
 --					if ((mode_bitmap = '0' and last_line_of_char = '0') 
 --							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
-					if (new_line_vaddr_d = '0') then
+					if (new_line_vaddr = '0'
+							or (interlace_int = '1')
+							) then
 						vid_addr <= vid_addr_hold;
 					end if;
 				else

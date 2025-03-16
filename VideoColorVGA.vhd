@@ -233,6 +233,8 @@ architecture Behavioral of Video is
 	-- border
 	signal h_shift: std_logic_vector(2 downto 0);
 	signal h_extborder: std_logic;
+	signal h_extborder_alt: std_logic;
+	signal h_extborder_reg: std_logic;
 	signal v_extborder: std_logic;
 	signal v_shift: std_logic_vector(3 downto 0);
 	
@@ -1711,7 +1713,8 @@ begin
 						is_raster_match <= '1';
 					end if;
 				else
-					if (raster_match(9 downto 1) = y_addr(9 downto 1)) then
+					if (raster_match(9 downto 1) = y_addr(9 downto 1)
+							and y_addr(0) = '1') then
 						is_raster_match <= '1';
 					end if;
 				end if;
@@ -1820,9 +1823,11 @@ begin
 			end if;
 			if (v_zero = '1' or mode_set_hsync = '1') then
 				h_shift <= h_shift_reg;
-			elsif (is_raster_match = '1') then
+				h_extborder <= h_extborder_reg;
+			elsif (is_raster_match_d = '1') then
 				if (alt_match_hsync = '1') then
 					h_shift <= h_shift_alt;
+					h_extborder <= h_extborder_alt;
 				end if;
 			end if;
 			if (v_zero = '1') then
@@ -2001,7 +2006,8 @@ begin
 			col_bg2 <= "0000";
 			col_border <= "0000";
 			uline_scan <= (others => '0');
-			h_extborder <= '0';
+			h_extborder_alt <= '0';
+			h_extborder_reg <= '0';
 			v_extborder <= '0';
 			h_shift_reg <= (others => '0');
 			h_shift_alt <= (others => '0');
@@ -2129,10 +2135,11 @@ begin
 			when x"19" =>	-- R25
 				if (mode_altreg = '1') then
 					h_shift_alt <= CPU_D(2 downto 0);
+					h_extborder_alt <= CPU_D(4);
 				else
 					h_shift_reg <= CPU_D(2 downto 0);
+					h_extborder_reg <= CPU_D(4);
 				end if;
-				h_extborder <= CPU_D(4);
 			when x"1a" => 	-- R26
 				col_fg <= CPU_D(7 downto 4);
 				col_bg0 <= CPU_D(3 downto 0);
@@ -2333,10 +2340,11 @@ begin
 					when x"19" =>	-- R25
 						if (mode_altreg = '1') then
 							vd_out(2 downto 0) <= h_shift_alt;
+							vd_out(4) <= h_extborder_alt;
 						else
 							vd_out(2 downto 0) <= h_shift_reg;
+							vd_out(4) <= h_extborder_reg;
 						end if;
-						vd_out(4) <= h_extborder;
 					when x"1a" => 	-- R26
 						vd_out(7 downto 4) <= col_fg;
 						vd_out(3 downto 0) <= col_bg0;

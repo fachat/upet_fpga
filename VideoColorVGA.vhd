@@ -259,6 +259,8 @@ architecture Behavioral of Video is
 	-- raster interrupt
 	signal raster_match: std_logic_vector(9 downto 0);
 	signal is_raster_match: std_logic;
+	signal is_raster_match_d: std_logic;
+	signal is_raster_match_dd: std_logic;
 	
 	-- interrupts
 	signal irq_raster_ack: std_logic;
@@ -780,10 +782,19 @@ begin
 					attr_addr_hold <= attr_base;
 				else
 					if (new_line_attr = '1') then
-						attr_addr_hold <= attr_addr + va_offset;
+						-- so tired of this...
+						if (is_80 = '1' and interlace_int = '1' and mode_tv = '0') then
+							attr_addr_hold <= attr_addr + va_offset + 1;
+						else
+							attr_addr_hold <= attr_addr + va_offset;
+						end if;
 					end if;
 					if (new_line_vaddr = '1') then
-						vid_addr_hold <= vid_addr + va_offset;
+						if (is_80 = '1' and interlace_int = '1' and mode_tv = '0') then
+							vid_addr_hold <= vid_addr + va_offset + 1;
+						else
+							vid_addr_hold <= vid_addr + va_offset;
+						end if;
 					end if;
 					-- alternate values on raster match
 					if (is_raster_match = '1' and alt_match_vaddr = '1') then
@@ -1692,11 +1703,26 @@ begin
 	begin
 		
 		if (rising_edge(h_zero)) then
-			if (raster_match = y_addr) then
-				is_raster_match <= '1';
+			is_raster_match <= '0';
+			
+			if (mode_tv = '0') then
+				if (interlace_int = '1') then
+					if (raster_match = y_addr) then
+						is_raster_match <= '1';
+					end if;
+				else
+					if (raster_match(9 downto 1) = y_addr(9 downto 1)) then
+						is_raster_match <= '1';
+					end if;
+				end if;
 			else
-				is_raster_match <= '0';
+				if (raster_match(9 downto 1) = y_addr(8 downto 0)) then
+					is_raster_match <= '1';
+				end if;
 			end if;
+			
+			is_raster_match_d <= is_raster_match;
+			is_raster_match_dd <= is_raster_match_d;
 		end if;
 		
 	end process;
@@ -1719,6 +1745,7 @@ begin
 			
 		end if;
 
+		-- FIXME: if you ack the interrupt while it is still active, this might immediately trigger again 
 		if (reset = '1') then
 			irq_raster <= '0';
 		elsif (falling_edge(phi2)) then
@@ -1784,7 +1811,7 @@ begin
 				mode_attrib <= mode_attrib_reg;
 				mode_extended <= mode_extended_reg;
 				mode_bitmap <= mode_bitmap_reg;
-			elsif (is_raster_match = '1') then
+			elsif (is_raster_match_d = '1') then
 				if (alt_match_modes = '1') then
 					mode_attrib <= mode_attrib_alt;
 					mode_extended <= mode_extended_alt;

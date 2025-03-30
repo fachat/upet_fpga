@@ -478,7 +478,7 @@ begin
 
 	end process;
 
-	v_sync <= not(v_sync_int);
+	v_sync <= v_sync_int;
 
 
 	v_limit_p: process(h_enable_int, v_cnt, reset)

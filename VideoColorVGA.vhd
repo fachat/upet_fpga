@@ -2464,7 +2464,7 @@ begin
 	begin
 		if (reset = '1') then
 			blink_cnt <= (others => '0');
-		elsif (falling_edge(v_sync_int)) then
+		elsif (falling_edge(v_zero)) then
 			blink_cnt <= blink_cnt + 1;
 		end if;
 		

@@ -2384,7 +2384,7 @@ begin
 						vd_out(3) <= irq_sprite_border;
 						vd_out(7) <= irq_out_int;
 					when x"25" => 	-- R37
-						vd_out(6) <= h_sync_int;
+						vd_out(6) <= not(h_sync_int);
 						vd_out(5) <= v_sync_int;
 					when x"26" =>	-- R38 (was R44)
 						vd_out(6 downto 0) <= hsync_pos;

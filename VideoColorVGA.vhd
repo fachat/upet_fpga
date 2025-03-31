@@ -325,7 +325,8 @@ architecture Behavioral of Video is
 	
 	-- true when shift should be done
 	signal is_shift: std_logic;
-	signal is_shift2: std_logic;
+	signal is_shift40: std_logic;
+	signal is_shift80: std_logic;
 	
 	-- temporary
 	signal is_double_int: std_logic;
@@ -459,7 +460,8 @@ architecture Behavioral of Video is
 			is_preload: out std_logic;		-- one slot before end of border
 			is_border: out std_logic;			
 			is_last_vis: out std_logic;
-			is_shift2: out std_logic;
+			is_shift40: out std_logic;
+			is_shift80: out std_logic;
 			
 			reset : in std_logic
 		);
@@ -521,7 +523,8 @@ architecture Behavioral of Video is
 		is_interlace: in std_logic;
 		is80: in std_logic;
 		is_tv: in std_logic;
-		is_shift2: in std_logic;
+		is_shift40: in std_logic;
+		is_shift80: in std_logic;
 
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -716,7 +719,8 @@ begin
 			x_start,
 			x_border,
 			last_vis_slot_of_line,
-			is_shift2,
+			is_shift40,
+			is_shift80,
 			reset
 	);
 	
@@ -1077,7 +1081,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(0),
 		--sprite_active(0),
 		sprite_ison(0),
@@ -1112,7 +1117,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(1),
 		--sprite_active(1),
 		sprite_ison(1),
@@ -1147,7 +1153,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(2),
 		--sprite_active(2),
 		sprite_ison(2),
@@ -1182,7 +1189,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(3),
 		--sprite_active(3),
 		sprite_ison(3),
@@ -1217,7 +1225,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(4),
 		--sprite_active(4),
 		sprite_ison(4),
@@ -1252,7 +1261,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(5),
 		--sprite_active(5),
 		sprite_ison(5),
@@ -1287,7 +1297,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(6),
 		--sprite_active(6),
 		sprite_ison(6),
@@ -1322,7 +1333,8 @@ begin
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
 		sprite_enabled(7),
 		--sprite_active(7),
 		sprite_ison(7),
@@ -1335,9 +1347,13 @@ begin
 	-----------------------------------------------------------------------------
 	-- replace discrete color circuitry of ultracpu 1.2b
 
-	is_shift_p: process(is_80, mode_tv, dotclk, is_shift2)
+	is_shift_p: process(is_80, mode_tv, dotclk, is_shift40, is_shift80)
 	begin
-		is_shift <= not(dotclk(0)) and is_shift2;
+		if (is_80 = '0') then
+			is_shift <= not(dotclk(0)) and is_shift40;
+		else
+			is_shift <= not(dotclk(0)) and is_shift80;
+		end if;
 	end process;
 	
 	char_buf_p: process(qclk, memclk, chr_fetch_int, attr_fetch_int, pxl_fetch_int, VRAM_D, qclk, 

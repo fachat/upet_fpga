@@ -252,6 +252,8 @@ architecture Behavioral of Top is
 	signal bus_window_9: std_logic; -- map $009xxx to MEMSEL
 	signal bus_win_9_is_io: std_logic;
 	signal bus_win_c_is_io: std_logic;
+	signal page9_map: std_logic_vector(7 downto 0);
+	signal pageA_map: std_logic_vector(7 downto 0);
 	
 	signal bus_state: T_BUS_STATE;
 	signal bus_state_d: T_BUS_STATE;
@@ -329,6 +331,9 @@ architecture Behavioral of Top is
 	   bus_window_c: in std_logic;
 	   bus_win_9_is_io: in std_logic;
 	   bus_win_c_is_io: in std_logic;
+		-- page 9/a maps
+		page9_map: in std_logic_vector(7 downto 0);
+		pageA_map: in std_logic_vector(7 downto 0);
 
 	   forceb0: in std_logic;
 	   screenb0: in std_logic;
@@ -616,6 +621,8 @@ begin
 	   bus_window_c,
 		bus_win_9_is_io,
 		bus_win_c_is_io,
+		page9_map,
+		pageA_map,
 	   forceb0,
 	   screenb0,
 		is8296,
@@ -848,6 +855,8 @@ begin
 			bus_window_9 <= '0';
 			bus_win_c_is_io <= '0';
 			bus_win_9_is_io <= '0';
+			page9_map <= "00001001";
+			pageA_map <= "00001010";
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0' and ca_in(3) = '0') then
 			-- Write to $E80x
 			case (ca_in(2 downto 0)) is
@@ -881,6 +890,12 @@ begin
 			when "101" =>
 				-- video bank controls
 				vidblock <= D(2 downto 0);
+			when "110" =>
+				-- page 9 map
+				page9_map <= D;
+			when "111" =>
+				-- page A map
+				pageA_map <= D;
 			when others =>
 				null;
 			end case;
@@ -891,7 +906,7 @@ begin
 		vis_80_in, screenb0, isnocolmap, vis_enable, lockb0, boot, is8296, 
 		wp_rom9, wp_roma, wp_romb, wp_rompet, lowbank, mode,
 		bus_window_9, bus_window_c, bus_win_9_is_io, bus_win_c_is_io,
-		vidblock
+		vidblock, page9_map, pageA_map
 	)
 	begin
 	
@@ -930,6 +945,12 @@ begin
 			when "101" =>
 				-- video bank controls
 				s0_d(2 downto 0) <= vidblock;
+			when "110" =>
+				-- page 9 map
+				s0_d <= page9_map;
+			when "111" =>
+				-- page A map
+				s0_d <= pageA_map;
 			when others =>
 				s0_d <= (others => '0');
 			end case;

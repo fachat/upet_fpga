@@ -59,7 +59,8 @@ entity HBorder is
 			is_border: out std_logic;			
 			is_last_vis: out std_logic;
 			
-			is_shift2: out std_logic;
+			is_shift40: out std_logic;
+			is_shift80: out std_logic;
 			
 			reset : in std_logic
 		);
@@ -287,21 +288,15 @@ begin
 	begin
 		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
 		if (mode_tv = '0') then
-			if (is_80 = '0') then
 				-- VGA 40 col
-				is_shift2 <= dotclk(1);
-			else
+				is_shift40 <= dotclk(1);
 				-- VGA 80 col
-				is_shift2 <= '1';
-			end if;
+				is_shift80 <= '1';
 		else
-			if (is_80 = '0') then
 				-- TV 40 col
-				is_shift2 <= dotclk(1) and dotclk(2);
-			else
+				is_shift40 <= dotclk(1) and dotclk(2);
 				-- TV 80 col
-				is_shift2 <= dotclk(1);
-			end if;
+				is_shift80 <= dotclk(1);
 		end if;
 	end process;
 

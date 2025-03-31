@@ -59,7 +59,8 @@ entity Sprite is
 		is_interlace: in std_logic;
 		is80: in std_logic;
 		is_tv: in std_logic;
-		is_shift2: in std_logic;
+		is_shift40: in std_logic;
+		is_shift80: in std_logic;
 		
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -92,6 +93,7 @@ architecture Behavioral of Sprite is
 	
 	signal shiftreg: std_logic_vector(23 downto 0) := "111100101000001010101111";
 	signal cur: std_logic_vector(1 downto 0);
+	signal is_shift2: std_logic;
 	
 	signal enabled_int: std_logic;
 	signal active_int: std_logic;
@@ -114,6 +116,8 @@ architecture Behavioral of Sprite is
 	end; -- function reverse_any_vector
 
 begin
+
+	is_shift2 <= is_shift40;
 
 	xcnt_p: process(qclk, h_zero, dotclk, is80, is_shift2)
 	begin

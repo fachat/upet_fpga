@@ -117,7 +117,8 @@ architecture Behavioral of Sprite is
 
 begin
 
-	is_shift2 <= is_shift40;
+	is_shift2 <= is_shift80 when s_fine = '1' else
+				is_shift40;
 
 	xcnt_p: process(qclk, h_zero, dotclk, is80, is_shift2)
 	begin

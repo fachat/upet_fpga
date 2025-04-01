@@ -191,17 +191,10 @@ begin
 	fetch_offset <= fetch_offset_int;
 	
 	-- TODO
-	out_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx)
+	fetch_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx)
 	begin
-	
-		if (x_expand = '0') then
-			pxl_idx <= to_integer(unsigned(x_cnt));
-		else
-			pxl_idx <= to_integer(unsigned(x_cnt(5 downto 1)));
-		end if;
-		cur(0) <= shiftreg(pxl_idx);
-		cur(1) <= shiftreg(pxl_idx + 1);
-		
+			
+		-- fetch sprite data
 		if (v_zero = '1') then
 			fetch_offset_int <= (others => '0');
 		elsif (falling_edge(qclk)) then
@@ -232,9 +225,25 @@ begin
 						-- fetch_ce only active during the three values above
 					end case;
 				end if;
-				
+			end if;
 			--elsif (dotclk(0) = '1' and (is80 = '1' or dotclk(1) = '1')) then
-			elsif (dotclk(0) = '1' and is_shift2 = '1') then
+		end if;
+	end process;
+	
+	out_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx)
+	begin
+	
+		if (x_expand = '0') then
+			pxl_idx <= to_integer(unsigned(x_cnt));
+		else
+			pxl_idx <= to_integer(unsigned(x_cnt(5 downto 1)));
+		end if;
+		cur(0) <= shiftreg(pxl_idx);
+		cur(1) <= shiftreg(pxl_idx + 1);
+		
+		-- shift out bits
+		if (falling_edge(qclk)) then
+			if (dotclk(0) = '1' and is_shift2 = '1') then
 			
 				if (active_int = '1') then
 					outbits(4) <= s_palette;

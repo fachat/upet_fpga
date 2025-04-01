@@ -228,6 +228,7 @@ architecture Behavioral of Video is
 	--
    signal x_addr: std_logic_vector(10 downto 0);    -- x coordinate in pixels
    signal y_addr: std_logic_vector(9 downto 0);    -- y coordinate in rasterlines
+	signal y_addr_d: std_logic_vector(9 downto 0);	-- y coord delayed at end of h visible, to get early sprite enable
 	signal y_addr_latch: std_logic_vector(9 downto 8); 	-- latch upper two bits when reading lower bits from r38
 	
 	-- border
@@ -698,6 +699,13 @@ begin
 		reset
 	);
 
+	y_addr_d_p: process(y_addr, h_enable)
+	begin
+		if (falling_edge(h_enable)) then
+			y_addr_d <= y_addr;
+		end if;
+	end process;
+	
 	-------------------------------------------
 	-- border calculations and display state
 
@@ -1076,7 +1084,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
@@ -1112,7 +1120,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
@@ -1148,7 +1156,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
@@ -1184,7 +1192,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
@@ -1220,7 +1228,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
@@ -1256,7 +1264,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
@@ -1292,7 +1300,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
@@ -1328,7 +1336,7 @@ begin
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,

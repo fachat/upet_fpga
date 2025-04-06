@@ -95,7 +95,7 @@ architecture Behavioral of Canvas is
 	-- in rasterlines
 	constant y_default_offset_50: natural := 80; -- 130
 	-- zero for pixel coordinates is 88 rasterlines up of default borders
-	constant vv_zero_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(605, 10));
+	constant vv_zero_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(606, 10));
 	
 	-- visible horizontal window is shifted 8 cycles in front to account for pre-fetch; so we shift sync 8 cycles back
 
@@ -116,14 +116,14 @@ architecture Behavioral of Canvas is
 	-- values in pixel
 	constant hh_display_50_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720 *2				-1, 11));
 	constant hh_sync_pos_50_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(732 *2				+7, 11));
-	constant hh_sync_end_50_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(796 *2	 			+7, 11));
+	constant hh_sync_end_50_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(795 *2	 			+7, 11));
 	constant hh_total_50_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864 *2				-1, 11));
 	constant hh_zero_50_tv: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(820 *2				+7, 11));
 	-- all values in rasterlines
 	constant vv_display_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(576		-1, 10));
 	constant vv_sync_pos_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(580		-1, 10));
 	constant vv_sync_end_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(586		-1, 10));
-	constant vv_total_50_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(625		-1, 10));	
+	constant vv_total_50_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(624		-1, 10));	
 
 	---- PET monitor timing
 	-- values in pixel
@@ -378,7 +378,7 @@ begin
 	begin 
 		if (reset = '1') then
 			h_limit <= '0';
-		elsif (rising_edge(qclk)) then -- and dotclk(3 downto 0) = "0111") then
+		elsif (falling_edge(qclk) and dotclk(0)='0') then -- and dotclk(3 downto 0) = "0111") then
 
 			h_limit <= '0';
 
@@ -424,7 +424,7 @@ begin
 	
 	xa: process(qclk, dotclk, h_zero_int, x_addr_int)
 	begin
-		if (falling_edge(qclk) and dotclk(0) = '1') then
+		if (rising_edge(qclk) and dotclk(0) = '1') then
 			if (h_zero_int = '1') then
 				x_addr_int <= (others => '0');
 			else
@@ -478,7 +478,7 @@ begin
 
 	end process;
 
-	v_sync <= not(v_sync_int);
+	v_sync <= v_sync_int;
 
 
 	v_limit_p: process(h_enable_int, v_cnt, reset)

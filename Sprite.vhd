@@ -51,6 +51,7 @@ entity Sprite is
 		qclk: in std_logic;
 		dotclk: in std_logic_vector(3 downto 0);
 		vdin: in std_logic_vector(7 downto 0);
+		h_enable: in std_logic;
 		h_zero: in std_logic;
 		v_zero: in std_logic;
 		x_addr: in std_logic_vector(10 downto 0);
@@ -59,7 +60,9 @@ entity Sprite is
 		is_interlace: in std_logic;
 		is80: in std_logic;
 		is_tv: in std_logic;
-		is_shift2: in std_logic;
+		is_shift40: in std_logic;
+		is_shift80: in std_logic;
+		vsync_pos0: in std_logic;
 		
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -89,9 +92,12 @@ architecture Behavioral of Sprite is
 	
 	signal x_cnt: std_logic_vector(5 downto 0);
 	signal y_cnt: std_logic_vector(6 downto 0);
+	signal y_sub: std_logic_vector(1 downto 0);
+	signal y_sub_end: std_logic_vector(1 downto 0);
 	
 	signal shiftreg: std_logic_vector(23 downto 0) := "111100101000001010101111";
 	signal cur: std_logic_vector(1 downto 0);
+	signal is_shift2: std_logic;
 	
 	signal enabled_int: std_logic;
 	signal active_int: std_logic;
@@ -115,6 +121,9 @@ architecture Behavioral of Sprite is
 
 begin
 
+	is_shift2 <= is_shift80 when s_fine = '1' else
+				is_shift40;
+
 	xcnt_p: process(qclk, h_zero, dotclk, is80, is_shift2)
 	begin
 		if (h_zero = '1') then
@@ -129,39 +138,35 @@ begin
 		end if;
 	end process;
 
-	ycnt_p: process(qclk, v_zero, h_zero)
+	-- note: is_tv, not is_double; 
+	y_sub_end <= "00" when is_tv = '1' and y_expand = '0' else
+					 "01" when y_expand = '0' or is_tv = '1' else
+					 "11";	-- y_expand = '1' and is_tv='0'
+					 
+	enable_p: process (h_enable)
 	begin
-		if (v_zero = '1') then
-			y_cnt <= (others => '0');
-		elsif (falling_edge(h_zero)) then -- and first_row = '1') then
-			if (enabled_int = '1') then
-				y_cnt <= y_cnt + 1;
-			end if;
-		end if;
-	end process;
-	
-	enable_p: process (h_zero)
-	begin
-		if (rising_edge(h_zero)) then
+		if (falling_edge(h_enable)) then
 			if (s_enabled = '1' and (
-					(is_tv = '0' and y_addr = y_pos)
+					(is_tv = '0' and y_addr(9 downto 1) = y_pos(9 downto 1) and y_addr(0) = vsync_pos0)
 					or (is_tv = '1' and y_addr(9) = '0' and y_addr(8 downto 0) = y_pos(9 downto 1))
 					)) then
 				enabled_int <= '1';
+				y_cnt <= (others => '0');
+				y_sub <= "00";
+			elsif (enabled_int = '1') then
+				if (y_sub = y_sub_end) then
+					if (y_cnt = "0010100") then
+						enabled_int <= '0';
+					else
+						y_cnt <= y_cnt + 1;
+						y_sub <= "00";
+					end if;
+				else
+					y_sub <= y_sub + 1;
+				end if;
 			end if;
-			if ((y_expand = '0' and is_double = '1') and y_cnt = "0010101") then	-- 21
-				enabled_int <= '0';
-			end if;
-			if ((y_expand = '0' and is_double = '0') and y_cnt = "0101010") then	-- 42
-				enabled_int <= '0';
-			end if;
-			if ((y_expand = '1' and is_double = '1') and y_cnt = "0101010") then	-- 42
-				enabled_int <= '0';
-			end if;
-			if ((y_expand = '1' and is_double = '0') and y_cnt = "1010100") then	-- 84
-				enabled_int <= '0';
-			end if;
-			if (v_zero = '1' or fetch_offset_int = "111111") then
+
+			if (v_zero = '1') then -- or fetch_offset_int = "111111") then
 				enabled_int <= '0';
 			end if;
 		end if;
@@ -186,32 +191,18 @@ begin
 	fetch_offset <= fetch_offset_int;
 	
 	-- TODO
-	out_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx)
+	fetch_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx, enabled_int)
 	begin
-	
-		if (x_expand = '0') then
-			pxl_idx <= to_integer(unsigned(x_cnt));
-		else
-			pxl_idx <= to_integer(unsigned(x_cnt(5 downto 1)));
-		end if;
-		cur(0) <= shiftreg(pxl_idx);
-		cur(1) <= shiftreg(pxl_idx + 1);
-		
-		if (v_zero = '1') then
+			
+		-- fetch sprite data
+		if (enabled_int = '0') then
 			fetch_offset_int <= (others => '0');
 		elsif (falling_edge(qclk)) then
 			if (fetch_ce = '1') then
 			
 				if (
-						((y_expand = '0' and is_double = '0') and (is_interlace = '0' or y_cnt(0) = '1'))  -- ok
-					or ((y_expand = '0' and is_double = '1'))	-- ok 		
-					or	((y_expand = '1' and is_double = '0') 
-						--and ((is_interlace = '0' ) 	-- shows twice
-						--and ((is_interlace = '0' and y_cnt(1) = '1') -- on odd coords, show last row as first
-						--and ((is_interlace = '0' and y_cnt(1) = '0') -- on even coords, show last row as first
-						and ((is_interlace = '0' and ((y_pos(0) = '0' and y_cnt(1) = '1') or (y_pos(0) = '1' and y_cnt(1) = '0')))
-							or (is_interlace = '1' and y_cnt(1) = '0' and y_cnt(0) = '1')))  -- ok 
-					or	((y_expand = '1' and is_double = '1') and y_cnt(0) = '1') -- ok
+						y_sub = "00" 
+						or (is_interlace = '0' and y_sub = "01")
 					) then
 				
 					fetch_offset_int <= fetch_offset_int + 1;
@@ -227,9 +218,25 @@ begin
 						-- fetch_ce only active during the three values above
 					end case;
 				end if;
-				
+			end if;
 			--elsif (dotclk(0) = '1' and (is80 = '1' or dotclk(1) = '1')) then
-			elsif (dotclk(0) = '1' and is_shift2 = '1') then
+		end if;
+	end process;
+	
+	out_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx)
+	begin
+	
+		if (x_expand = '0') then
+			pxl_idx <= to_integer(unsigned(x_cnt));
+		else
+			pxl_idx <= to_integer(unsigned(x_cnt(5 downto 1)));
+		end if;
+		cur(0) <= shiftreg(pxl_idx);
+		cur(1) <= shiftreg(pxl_idx + 1);
+		
+		-- shift out bits
+		if (falling_edge(qclk)) then
+			if (dotclk(0) = '1' and is_shift2 = '1') then
 			
 				if (active_int = '1') then
 					outbits(4) <= s_palette;

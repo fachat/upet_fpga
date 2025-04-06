@@ -228,11 +228,14 @@ architecture Behavioral of Video is
 	--
    signal x_addr: std_logic_vector(10 downto 0);    -- x coordinate in pixels
    signal y_addr: std_logic_vector(9 downto 0);    -- y coordinate in rasterlines
+	signal y_addr_d: std_logic_vector(9 downto 0);	-- y coord delayed at end of h visible, to get early sprite enable
 	signal y_addr_latch: std_logic_vector(9 downto 8); 	-- latch upper two bits when reading lower bits from r38
 	
 	-- border
 	signal h_shift: std_logic_vector(2 downto 0);
 	signal h_extborder: std_logic;
+	signal h_extborder_alt: std_logic;
+	signal h_extborder_reg: std_logic;
 	signal v_extborder: std_logic;
 	signal v_shift: std_logic_vector(3 downto 0);
 	
@@ -259,6 +262,8 @@ architecture Behavioral of Video is
 	-- raster interrupt
 	signal raster_match: std_logic_vector(9 downto 0);
 	signal is_raster_match: std_logic;
+	signal is_raster_match_d: std_logic;
+	signal is_raster_match_dd: std_logic;
 	
 	-- interrupts
 	signal irq_raster_ack: std_logic;
@@ -304,7 +309,7 @@ architecture Behavioral of Video is
 
 	signal new_line_attr: std_logic;
 	signal new_line_vaddr: std_logic;
-	signal new_line_attr_d: std_logic;
+	--signal new_line_attr_d: std_logic;
 	signal new_line_vaddr_d: std_logic;
 	
 	signal fetch_int: std_logic;
@@ -321,7 +326,8 @@ architecture Behavioral of Video is
 	
 	-- true when shift should be done
 	signal is_shift: std_logic;
-	signal is_shift2: std_logic;
+	signal is_shift40: std_logic;
+	signal is_shift80: std_logic;
 	
 	-- temporary
 	signal is_double_int: std_logic;
@@ -342,6 +348,16 @@ architecture Behavioral of Video is
 	signal sprite_mcol1: std_logic_vector(3 downto 0);
 	signal sprite_mcol2: std_logic_vector(3 downto 0);
 	signal sprite_base: std_logic_vector(7 downto 0);
+	
+	-- goes high after h_enable goes low to enable sprite fetch
+	signal spr_fetch_en: std_logic;
+	-- when a sprite fetch is active
+	signal spr_fetch_active: std_logic_vector(7 downto 0);
+	-- fetch enable from one sprite to the next, chaining the sprite fetches together
+	signal spr_fetch_next: std_logic_vector(7 downto 0);
+	-- active when sprite ptr is done on next fetch_ce
+	signal spr_fetch_ptr: std_logic_vector(7 downto 0);
+	
 	
 	-- palette
 	--signal palette: AOA8(0 to 31);
@@ -455,7 +471,8 @@ architecture Behavioral of Video is
 			is_preload: out std_logic;		-- one slot before end of border
 			is_border: out std_logic;			
 			is_last_vis: out std_logic;
-			is_shift2: out std_logic;
+			is_shift40: out std_logic;
+			is_shift80: out std_logic;
 			
 			reset : in std_logic
 		);
@@ -509,6 +526,7 @@ architecture Behavioral of Video is
 		qclk: in std_logic;
 		dotclk: in std_logic_vector(3 downto 0);
 		vdin: in std_logic_vector(7 downto 0);
+		h_enable: in std_logic;
 		h_zero: in std_logic;
 		v_zero: in std_logic;
 		x_addr: in std_logic_vector(10 downto 0);
@@ -517,7 +535,9 @@ architecture Behavioral of Video is
 		is_interlace: in std_logic;
 		is80: in std_logic;
 		is_tv: in std_logic;
-		is_shift2: in std_logic;
+		is_shift40: in std_logic;
+		is_shift80: in std_logic;
+		vsync_pos0: in std_logic;
 
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -691,6 +711,13 @@ begin
 		reset
 	);
 
+	y_addr_d_p: process(y_addr, h_enable)
+	begin
+		if (falling_edge(h_enable)) then
+			y_addr_d <= y_addr;
+		end if;
+	end process;
+	
 	-------------------------------------------
 	-- border calculations and display state
 
@@ -712,7 +739,8 @@ begin
 			x_start,
 			x_border,
 			last_vis_slot_of_line,
-			is_shift2,
+			is_shift40,
+			is_shift80,
 			reset
 	);
 	
@@ -780,10 +808,19 @@ begin
 					attr_addr_hold <= attr_base;
 				else
 					if (new_line_attr = '1') then
-						attr_addr_hold <= attr_addr + va_offset;
+						-- so tired of this...
+						if (is_80 = '1' and interlace_int = '1' and mode_tv = '0') then
+							attr_addr_hold <= attr_addr + va_offset + 1;
+						else
+							attr_addr_hold <= attr_addr + va_offset;
+						end if;
 					end if;
 					if (new_line_vaddr = '1') then
-						vid_addr_hold <= vid_addr + va_offset;
+						if (is_80 = '1' and interlace_int = '1' and mode_tv = '0') then
+							vid_addr_hold <= vid_addr + va_offset + 1;
+						else
+							vid_addr_hold <= vid_addr + va_offset;
+						end if;
 					end if;
 					-- alternate values on raster match
 					if (is_raster_match = '1' and alt_match_vaddr = '1') then
@@ -793,7 +830,7 @@ begin
 						attr_addr_hold <= attr_base_alt;
 					end if;
 				end if;
-				new_line_attr_d <= new_line_attr;
+				--new_line_attr_d <= new_line_attr;
 				new_line_vaddr_d <= new_line_vaddr;
 			end if;
 		end if;
@@ -808,12 +845,16 @@ begin
 				if (x_start = '1') then
 --					if (last_line_of_char = '0' 
 --							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
-					if (new_line_attr_d = '0') then
+					if (new_line_attr = '0'
+							or (interlace_int = '1')
+							) then
 						attr_addr <= attr_addr_hold;
 					end if;
 --					if ((mode_bitmap = '0' and last_line_of_char = '0') 
 --							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
-					if (new_line_vaddr_d = '0') then
+					if (new_line_vaddr = '0'
+							or (interlace_int = '1')
+							) then
 						vid_addr <= vid_addr_hold;
 					end if;
 				else
@@ -985,9 +1026,11 @@ begin
 		end if;
 	end process;
 
-	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx)
+	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx, h_enable)
 	begin
-		if (h_zero = '1') then
+	-- start fetching sprite immediately after end of visible area
+		if (h_enable = '1') then
+		--if (h_enable = '0') then
 			sprite_fetch_idx <= 0;
 			sprite_fetch_win <= '0';
 			sprite_fetch_done <= '0';
@@ -1011,28 +1054,29 @@ begin
 			sprite_enabled, sprite_fetch_offset)
 	begin
 		sprite_fetch_active <= sprite_enabled(sprite_fetch_idx);
-		sprite_fetch_ptr(5 downto 0) <= sprite_fetch_offset(sprite_fetch_idx);
+
+		sprite_fetch_ptr(5 downto 0) <= sprite_fetch_offset(sprite_fetch_idx);			
 		sprite_fetch_ptr(13 downto 6) <= sprite_data_ptr;
 		sprite_fetch_ptr(15 downto 14) <= sprite_base(7 downto 6);
-		
+				
 		if (falling_edge(qclk)) then
 			if (fetch_ce = '1' and sprite_ptr_fetch = '1') then
 				sprite_data_ptr <= VRAM_D;
 			end if;
 		end if;
-		
+
 		sprite_fetch_ce <= "00000000";
 		case (sprite_fetch_idx) is
-		when 0 =>	sprite_fetch_ce(0) <= sprite_data_fetch and fetch_ce;
-		when 1 =>	sprite_fetch_ce(1) <= sprite_data_fetch and fetch_ce;
-		when 2 =>	sprite_fetch_ce(2) <= sprite_data_fetch and fetch_ce;
-		when 3 =>	sprite_fetch_ce(3) <= sprite_data_fetch and fetch_ce;
-		when 4 =>	sprite_fetch_ce(4) <= sprite_data_fetch and fetch_ce;
-		when 5 =>	sprite_fetch_ce(5) <= sprite_data_fetch and fetch_ce;
-		when 6 =>	sprite_fetch_ce(6) <= sprite_data_fetch and fetch_ce;
-		when 7 =>	sprite_fetch_ce(7) <= sprite_data_fetch and fetch_ce;
+		when 0 =>       sprite_fetch_ce(0) <= sprite_data_fetch and fetch_ce;
+		when 1 =>       sprite_fetch_ce(1) <= sprite_data_fetch and fetch_ce;
+		when 2 =>       sprite_fetch_ce(2) <= sprite_data_fetch and fetch_ce;
+		when 3 =>       sprite_fetch_ce(3) <= sprite_data_fetch and fetch_ce;
+		when 4 =>       sprite_fetch_ce(4) <= sprite_data_fetch and fetch_ce;
+		when 5 =>       sprite_fetch_ce(5) <= sprite_data_fetch and fetch_ce;
+		when 6 =>       sprite_fetch_ce(6) <= sprite_data_fetch and fetch_ce;
+		when 7 =>       sprite_fetch_ce(7) <= sprite_data_fetch and fetch_ce;
 		end case;
-		
+
 	end process;
 
 	sprite0: Sprite
@@ -1052,17 +1096,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(0),
-		--sprite_active(0),
 		sprite_ison(0),
 		sprite_overraster(0),
 		sprite_overborder(0),
@@ -1087,17 +1133,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(1),
-		--sprite_active(1),
 		sprite_ison(1),
 		sprite_overraster(1),
 		sprite_overborder(1),
@@ -1122,17 +1170,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(2),
-		--sprite_active(2),
 		sprite_ison(2),
 		sprite_overraster(2),
 		sprite_overborder(2),
@@ -1157,17 +1207,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(3),
-		--sprite_active(3),
 		sprite_ison(3),
 		sprite_overraster(3),
 		sprite_overborder(3),
@@ -1192,17 +1244,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(4),
-		--sprite_active(4),
 		sprite_ison(4),
 		sprite_overraster(4),
 		sprite_overborder(4),
@@ -1227,17 +1281,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(5),
-		--sprite_active(5),
 		sprite_ison(5),
 		sprite_overraster(5),
 		sprite_overborder(5),
@@ -1262,17 +1318,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(6),
-		--sprite_active(6),
 		sprite_ison(6),
 		sprite_overraster(6),
 		sprite_overborder(6),
@@ -1297,17 +1355,19 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
-		y_addr,
+		y_addr_d,
 		is_double_int,
 		interlace_int,
 		is_80,
 		mode_tv,
-		is_shift2,
+		is_shift40,
+		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(7),
-		--sprite_active(7),
 		sprite_ison(7),
 		sprite_overraster(7),
 		sprite_overborder(7),
@@ -1318,9 +1378,13 @@ begin
 	-----------------------------------------------------------------------------
 	-- replace discrete color circuitry of ultracpu 1.2b
 
-	is_shift_p: process(is_80, mode_tv, dotclk, is_shift2)
+	is_shift_p: process(is_80, mode_tv, dotclk, is_shift40, is_shift80)
 	begin
-		is_shift <= not(dotclk(0)) and is_shift2;
+		if (is_80 = '0') then
+			is_shift <= not(dotclk(0)) and is_shift40;
+		else
+			is_shift <= not(dotclk(0)) and is_shift80;
+		end if;
 	end process;
 	
 	char_buf_p: process(qclk, memclk, chr_fetch_int, attr_fetch_int, pxl_fetch_int, VRAM_D, qclk, 
@@ -1688,11 +1752,27 @@ begin
 	begin
 		
 		if (rising_edge(h_zero)) then
-			if (raster_match = y_addr) then
-				is_raster_match <= '1';
+			is_raster_match <= '0';
+			
+			if (mode_tv = '0') then
+				if (interlace_int = '1') then
+					if (raster_match = y_addr) then
+						is_raster_match <= '1';
+					end if;
+				else
+					if (raster_match(9 downto 1) = y_addr(9 downto 1)
+							and y_addr(0) = '1') then
+						is_raster_match <= '1';
+					end if;
+				end if;
 			else
-				is_raster_match <= '0';
+				if (raster_match(9 downto 1) = y_addr(8 downto 0)) then
+					is_raster_match <= '1';
+				end if;
 			end if;
+			
+			is_raster_match_d <= is_raster_match;
+			is_raster_match_dd <= is_raster_match_d;
 		end if;
 		
 	end process;
@@ -1715,6 +1795,7 @@ begin
 			
 		end if;
 
+		-- FIXME: if you ack the interrupt while it is still active, this might immediately trigger again 
 		if (reset = '1') then
 			irq_raster <= '0';
 		elsif (falling_edge(phi2)) then
@@ -1780,7 +1861,7 @@ begin
 				mode_attrib <= mode_attrib_reg;
 				mode_extended <= mode_extended_reg;
 				mode_bitmap <= mode_bitmap_reg;
-			elsif (is_raster_match = '1') then
+			elsif (is_raster_match_d = '1') then
 				if (alt_match_modes = '1') then
 					mode_attrib <= mode_attrib_alt;
 					mode_extended <= mode_extended_alt;
@@ -1789,9 +1870,11 @@ begin
 			end if;
 			if (v_zero = '1' or mode_set_hsync = '1') then
 				h_shift <= h_shift_reg;
-			elsif (is_raster_match = '1') then
+				h_extborder <= h_extborder_reg;
+			elsif (is_raster_match_d = '1') then
 				if (alt_match_hsync = '1') then
 					h_shift <= h_shift_alt;
+					h_extborder <= h_extborder_alt;
 				end if;
 			end if;
 			if (v_zero = '1') then
@@ -1970,7 +2053,8 @@ begin
 			col_bg2 <= "0000";
 			col_border <= "0000";
 			uline_scan <= (others => '0');
-			h_extborder <= '0';
+			h_extborder_alt <= '0';
+			h_extborder_reg <= '0';
 			v_extborder <= '0';
 			h_shift_reg <= (others => '0');
 			h_shift_alt <= (others => '0');
@@ -2098,10 +2182,11 @@ begin
 			when x"19" =>	-- R25
 				if (mode_altreg = '1') then
 					h_shift_alt <= CPU_D(2 downto 0);
+					h_extborder_alt <= CPU_D(4);
 				else
 					h_shift_reg <= CPU_D(2 downto 0);
+					h_extborder_reg <= CPU_D(4);
 				end if;
-				h_extborder <= CPU_D(4);
 			when x"1a" => 	-- R26
 				col_fg <= CPU_D(7 downto 4);
 				col_bg0 <= CPU_D(3 downto 0);
@@ -2302,10 +2387,11 @@ begin
 					when x"19" =>	-- R25
 						if (mode_altreg = '1') then
 							vd_out(2 downto 0) <= h_shift_alt;
+							vd_out(4) <= h_extborder_alt;
 						else
 							vd_out(2 downto 0) <= h_shift_reg;
+							vd_out(4) <= h_extborder_reg;
 						end if;
-						vd_out(4) <= h_extborder;
 					when x"1a" => 	-- R26
 						vd_out(7 downto 4) <= col_fg;
 						vd_out(3 downto 0) <= col_bg0;
@@ -2345,7 +2431,7 @@ begin
 						vd_out(3) <= irq_sprite_border;
 						vd_out(7) <= irq_out_int;
 					when x"25" => 	-- R37
-						vd_out(6) <= h_sync_int;
+						vd_out(6) <= not(h_sync_int);
 						vd_out(5) <= v_sync_int;
 					when x"26" =>	-- R38 (was R44)
 						vd_out(6 downto 0) <= hsync_pos;
@@ -2425,7 +2511,7 @@ begin
 	begin
 		if (reset = '1') then
 			blink_cnt <= (others => '0');
-		elsif (falling_edge(v_sync_int)) then
+		elsif (falling_edge(v_zero)) then
 			blink_cnt <= blink_cnt + 1;
 		end if;
 		

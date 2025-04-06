@@ -133,7 +133,7 @@ The following are the internal Viccy registers:
   - bit 0-7, defaults to 80 (so 25 rows with 8 rasterlines/char are centered on screen); in upet compat mode, gets set when r9 is written
 
 - r40: ALT1: alternate register control I
-  - bit 0: if set, enable access to alternate r12/r13 video memory, r20/r21 attribute memory addresses, and r88-95 alternate palette
+  - bit 0: if set, enable access to alternate r12/r13 video memory, r20/r21 attribute memory addresses, r25 horizontal shift/border, and r88-95 alternate palette
   - bit 1: alternate bitmap mode bit
   - bit 2: alternate attribute mode bit
   - bit 3: alternate extended mode bit
@@ -143,7 +143,7 @@ The following are the internal Viccy registers:
   - bit 7: if set, set video memory address counter to alternate address on raster match (r38/39) - reset to orig values at start of screen
 - r41: ALT2: alternate register control II
   - bit 0-3: alternate raster row counter for a character cell
-  - bit 6: if set, set set horizontal sync (R25.0-3) to alternate value on raster match
+  - bit 6: if set, set set horizontal sync (R25.0-3) and horizontal border extension (R25.4) to alternate value on raster match
   - bit 7: if set, set the raster row counter to alternate value on raster match
 
 Sprite registers (subject to change):

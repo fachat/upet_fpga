@@ -1,9 +1,7 @@
 
 #
-# micropet 3.x
+# micropet 3.0b
 #
-## NET VD<0>	LOC=P142 | IOSTANDARD=LVCMOS33 |PULLUP;
-## NET VD<0>	LOC=P142 | IOSTANDARD=LVCMOS33 | DRIVE=16;
 
 NET VD<0>	LOC=P48 | IOSTANDARD = LVTTL | TNM = "vd_tnm";	# RAMD0
 NET VD<1>	LOC=P46 | IOSTANDARD = LVTTL | TNM = "vd_tnm";

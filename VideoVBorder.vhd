@@ -40,12 +40,14 @@ entity VBorder is
 			h_zero: in std_logic;
 			
 			v_zero: in std_logic;
+			y_addr: in std_logic_vector(9 downto 0);
 			vsync_pos: in std_logic_vector(7 downto 0);
 			rows_per_char: in std_logic_vector(3 downto 0);
 			vis_rows_per_char: in std_logic_vector(3 downto 0);
 			clines_per_screen: in std_logic_vector(7 downto 0);
 			v_extborder: in std_logic;			
 			is_double: in std_logic;
+			mode_tv: in std_logic;
 			v_shift: in std_logic_vector(3 downto 0);
 			alt_rc_cnt: in std_logic_vector(3 downto 0);
 			alt_set_rc: in std_logic;
@@ -178,8 +180,16 @@ begin
 			v_next <= '0';
 
 			is_last_row_of_char_ext <= '0';
+
+			if (v_zero = '1') then
+				is_border_int <= '1';
+			end if;
 			
-			if (v_state = '0' and vh_cnt = vsync_pos) then -- vsync_pos) then
+			if (v_state = '0' and 
+					y_addr(9 downto 8) = "00" and (
+					(mode_tv = '1' and y_addr(7) = '0' and y_addr(6 downto 0) = vsync_pos(7 downto 1))
+					or (mode_tv = '0' and y_addr(7 downto 0) = vsync_pos))
+					) then
 				v_next <= '1';				
 			end if;
 			

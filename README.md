@@ -72,7 +72,8 @@ This is an overview on the register set:
 - $e803 (59395)  [Speed control](#e803-59395-speed-control)
 - $e804 (59396)  [bus window](#e804-59396-bus-window)
 - $e805 (59397)  [video window map](#e805-59397-video-window)
-
+- $e806 (59398)  [page 9 map](#e806-59398-page9-map)
+- $e807 (59399)  [page a map](#e807-59399-pagea-map)
 
 ### $e800 (59392) Video Control
 
@@ -213,6 +214,18 @@ In this mode, the colour window is switched off, and normal video memory is mapp
 is mapped into the character memory. 
 
 As a result, only bits 1 and 2 are valid from the Video window register.
+
+### $e806 (59398) Page 9 Map
+
+Bit 7: enable mapping of page 9 ($9xxx) into the media RAM
+Bit 0-6: A12-A18 for memory that is mapped from the low Megabyte of memory into the
+window at $9xxx.
+
+### $e807 (59399) Page A Map (preliminary)
+
+Bit 7: enable mapping of page 9 ($9xxx) into the media RAM
+Bit 0-6: A12-A18 for memory that is mapped from the low Megabyte of memory into the
+window at $Axxx.
 
 ### 8296 control port
 
@@ -438,5 +451,8 @@ due to their minimally different pinout definitions and I/O select outputs.
 
 For more information on the setup, see the [build file](Build.md).
 
+## Theory of Operation
+
+Some notes on how the timing is generated etc can be found in the [theory file](Theory.md).
 
 

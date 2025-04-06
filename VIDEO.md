@@ -38,12 +38,14 @@ The following are the internal Viccy registers:
 - r5: HDISP_MM: if registers are memory-mapped (r32.6 = 1), same as r1.
 - r6: VDISP: vertial displayed - the number of character rows displayed in a frame (CRTC)
 - r8: MODE: mode register
-  - bit 7: 1=80 columns
-    - TODO: see r22
   - bit 1-0: 
     - 0x= normal display
     - 10= interlace (show every scanline twice, i.e. r9 is effectivly twice its value)
     - 11= double vertical resolution
+  - bit 4: if set in addition to TV timing, use sync timing for real PET monitor
+  - bit 5: if set, use TV timing, i.e. 720x480i60 resp. 720x576i50 (halfs pixel clock)
+  - bit 6: if set, use 720x480p60 instead of 720x576p50
+  - bit 7: if set, use 80 columns instead of 40 columns (doubles pixel clock)
 - r9: CHEIGHT: (bits 3-0) scan lines per character - 1 (CRTC)
   - note: in upet compat mode, also sets vertical position (r45)
 - r10: CRSR_STRT: cursor start scan line:  (CRTC)
@@ -126,11 +128,12 @@ The following are the internal Viccy registers:
   - bit 6: hsync
 
 - r38: HPOS: horizontal position (in chars); replaces r2
-  - bit 0-6, defaults to 21 (on 70 MHz)
+  - bit 0-6, defaults to 8 (on 54 MHz)
 - r39: VPOS: vertical position (in rasterlines) of start of raster screen; replaces r7
-  - bit 0-7, defaults to 110 (so 25 rows with 8 rasterlines/char are centered on screen); in upet compat mode, gets set when r9 is written
+  - bit 0-7, defaults to 80 (so 25 rows with 8 rasterlines/char are centered on screen); in upet compat mode, gets set when r9 is written
+
 - r40: ALT1: alternate register control I
-  - bit 0: if set, enable access to alternate r12/r13 video memory, r20/r21 attribute memory addresses, and r88-95 alternate palette
+  - bit 0: if set, enable access to alternate r12/r13 video memory, r20/r21 attribute memory addresses, r25 horizontal shift/border, and r88-95 alternate palette
   - bit 1: alternate bitmap mode bit
   - bit 2: alternate attribute mode bit
   - bit 3: alternate extended mode bit
@@ -140,7 +143,7 @@ The following are the internal Viccy registers:
   - bit 7: if set, set video memory address counter to alternate address on raster match (r38/39) - reset to orig values at start of screen
 - r41: ALT2: alternate register control II
   - bit 0-3: alternate raster row counter for a character cell
-  - bit 6: if set, set set horizontal sync (R25.0-3) to alternate value on raster match
+  - bit 6: if set, set set horizontal sync (R25.0-3) and horizontal border extension (R25.4) to alternate value on raster match
   - bit 7: if set, set the raster row counter to alternate value on raster match
 
 Sprite registers (subject to change):
@@ -174,7 +177,8 @@ Sprite registers (subject to change):
   - bit 3: Multicolour flag
   - bit 4: sprite data priority: if set high, background overlays the sprite
   - bit 5: sprite border flag (if set, show sprite over border)
-  - bit 6: if set, use 80 col (X) / double resolution (Y) coordinates
+  - bit 6: if set, use 80 col (X) / double resolution (Y) coordinates and pixel clock
+  - bit 7: if set, use the alternative palette for the sprite
 - r52-: SPRT_BASE_1: sprite 1
 - r56-: SPRT_BASE_2: sprite 2
 - r60-: SPRT_BASE_3: sprite 3

@@ -69,6 +69,9 @@ entity Mapper is
 	   bus_window_c: in std_logic;
 	   bus_win_9_is_io: in std_logic;
 	   bus_win_c_is_io: in std_logic;
+		-- page 9/a maps
+		page9_map: in std_logic_vector(7 downto 0);
+		pageA_map: in std_logic_vector(7 downto 0);
 		
 	   -- force bank0 (used in emulation mode)
 	   forceb0: in std_logic;
@@ -76,7 +79,9 @@ entity Mapper is
 	   screenb0: in std_logic;
 		-- are we in 8296 mode?
 		is8296: in std_logic;
-	   
+		-- don't map colour video at $8800-$8fff (mostly for 8296)
+	   isnocolmap: in std_logic;
+		
 	   dbgout: out std_logic
 	);
 end Mapper;
@@ -113,6 +118,9 @@ architecture Behavioral of Mapper is
 	signal iosel_int: std_logic;
 	signal iowin_int2: std_logic;
    signal RA_int : std_logic_vector (19 downto 8);
+	
+	signal page_map: std_logic_vector(7 downto 0);
+	signal do_page_map: std_logic;
 	
 	signal bank: std_logic_vector(7 downto 0);
 	
@@ -162,8 +170,8 @@ begin
 	petio <= '1' when A(15 downto 8) = x"E8"
 		else '0';
 	
-	-- the following are only used to determine write protect
-	-- of ROM area in the upper half of bank 0
+	-- the following are used to determine write protect
+	-- of ROM area in the upper half of bank 0 and if page9/A maps are to be used
 	-- Is evaluated in bank 0 only, so low64k can be ignored here
 	petrom <= '1' when A(15) = '1' and			-- upper half
 			A(14) = '1' -- upper 16k
@@ -215,21 +223,33 @@ begin
 				else
 			'0';
 			 
+	-- page 9/A mapping
+	do_page_map <= '1' when low64k = '1' 
+								and ((petrom9 = '1' and page9_map(7) = '1') or (petromA = '1' and pageA_map(7) = '1'))
+								and c8296ram = '0'
+				else '0';
+				
+	page_map <= page9_map when petrom9 = '1'
+					else pageA_map;
+					
 	-----------------------------------------------------------------------
 	-- physical address space generation
 	--
 	
 	-- banks 2-15
-	RA_int(19) <=	bank(3);
+	RA_int(19) <=	
+			bank(3);
 	
 	RA_int(18 downto 17) <= 
 			lowbank(3 downto 2) when low64k = '1' and A(15) = '0' else
+			page_map(6 downto 5) when do_page_map = '1' else
 			bank(2 downto 1);			-- just map
 	
 	-- bank 0/1
 	RA_int(16) <= 
-			lowbank(1) when low64k = '1' and A(15) = '0' else
 			bank(0) when low64k = '0' else  	-- CPU is not in low 64k
+			lowbank(1) when A(15) = '0' else
+			page_map(4) when do_page_map = '1' else
 			'1' 	when c8296ram = '1' 		-- 8296 enabled,
 					and A(15) = '1' 	-- upper half of bank0
 					else  			 
@@ -239,6 +259,7 @@ begin
 	RA_int(15) <= 
 			A(15) when low64k = '0' else		-- some upper bank
 			lowbank(0) when A(15) = '0' else-- lower half of bank0
+			page_map(3) when do_page_map = '1' else
 			'1' when c8296ram = '0' else	-- upper half of bank0, no 8296 mapping
 			cfg_mp(3) when A(14) = '1' else	-- 8296 map block $c000-$ffff -> $1c000-1ffff / 14000-17fff
 			cfg_mp(2);			-- 8296 map block $8000-$bfff -> $18000-1bfff / 10000-13fff
@@ -249,14 +270,17 @@ begin
 	-- Note: vidblock maps in 2k steps; 8 positions are possible, so we
 	-- get 16k char RAM at $8000-$BFFF and 16k color RAM at $C000-FFFF
 	-- BUT: in 8296 mode, we directly map to video RAM, as the 8296 CRTC
-	-- has 8k video RAM
+	-- has 8k video RAM, using isnocolmap
 	RA_int(14) <= 
-			A(14) when screenwin = '0' or is8296 = '1' else
+			page_map(2) when do_page_map = '1' else
+			A(14) when screenwin = '0' or isnocolmap = '1' else
 			A(11);
 	RA_int(13) <= 
+			page_map(1) when do_page_map = '1' else
 			A(13) when screenwin = '0' else
 			vidblock(2);
 	RA_int(12) <= 
+			page_map(0) when do_page_map = '1' else
 			A(12) when screenwin = '0' else
 			vidblock(1);
 	RA_int(11) <= 
@@ -311,12 +335,14 @@ begin
 	vramsel_int <= '0' when avalid = '0' else
 --			'1' when screenwin = '1' or vram9 = '1' else
 			'1' when screenwin = '1' else
+			'1' when (do_page_map = '1' and page_map(7) = '1') else
 			boota19;			-- second 512k (or 1st 512k on boot)
 
 	framsel_int <= '0' when avalid='0' 
 					or boota19 = '1' else	-- not in upper half of 1M address space is ROM (4-7 are ignored, only 1M addr space)
 			'1' when low64k = '0' or A(15) = '0' else	-- lowest 32k or 64k-512k is RAM, i.e. all above 64k besides ROM
-			'0' when screenwin = '1' or iowin_int = '1' or buswin = '1' or wprot = '1' else	-- not in screen window
+			'0' when screenwin = '1' or iowin_int = '1' or buswin = '1' or wprot = '1' 
+					or (do_page_map ='1' and page_map(7) = '1') else	-- not in screen window
 			'1' when c8296ram = '1' else	-- upper half mapped (except peek through)
 			'0' when petio = '1' else	-- not in I/O space
 			'1';

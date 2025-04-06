@@ -198,6 +198,7 @@ architecture Behavioral of Top is
 	signal vidblock : std_logic_vector(2 downto 0);
 	signal lockb0 : std_logic;
 	signal forceb0 : std_logic;
+	signal m_dbg_out: std_logic;
 	
 	-- video
 	signal va_out: std_logic_vector(15 downto 0);
@@ -210,6 +211,7 @@ architecture Behavioral of Top is
 	signal isnocolmap: std_logic;
 	signal v_out: std_logic_vector(5 downto 0);
 	signal vis_regmap: std_logic;		-- when set, Viccy occupies not 4, but 96 addresses due to register-to-memory mapping
+	signal v_dbg_out: std_logic;
 	
 	-- cpu
 	signal ca_in: std_logic_vector(15 downto 0);
@@ -220,6 +222,7 @@ architecture Behavioral of Top is
 	signal wait_bus: std_logic;	-- when CPU waits for end of CS/A bus cycle
 	signal wait_setup: std_logic;	-- when CPU needs to wait for setup time
 	signal is_bus: std_logic;
+	signal is_bus_a: std_logic;	-- bus access where memclk is on wrong phase with phi2 going down
 	signal wait_int: std_logic;
 	signal ramrwb_int: std_logic;
 	signal do_cpu : std_logic;
@@ -249,6 +252,8 @@ architecture Behavioral of Top is
 	signal bus_window_9: std_logic; -- map $009xxx to MEMSEL
 	signal bus_win_9_is_io: std_logic;
 	signal bus_win_c_is_io: std_logic;
+	signal page9_map: std_logic_vector(7 downto 0);
+	signal pageA_map: std_logic_vector(7 downto 0);
 	
 	signal bus_state: T_BUS_STATE;
 	signal bus_state_d: T_BUS_STATE;
@@ -326,11 +331,14 @@ architecture Behavioral of Top is
 	   bus_window_c: in std_logic;
 	   bus_win_9_is_io: in std_logic;
 	   bus_win_c_is_io: in std_logic;
+		-- page 9/a maps
+		page9_map: in std_logic_vector(7 downto 0);
+		pageA_map: in std_logic_vector(7 downto 0);
 
 	   forceb0: in std_logic;
 	   screenb0: in std_logic;
 	   is8296: in std_logic;
-		
+		isnocolmap: in std_logic;
 	   dbgout: out std_logic
 	  );
 	end component;
@@ -370,6 +378,7 @@ architecture Behavioral of Top is
 	
 		irq_out : out std_logic;
 		
+		dbg_out : out std_logic;
 	   reset : in std_logic
 	 );
 	end component;
@@ -470,7 +479,6 @@ begin
 			clk4m	when mode = "10" else
 			clk2m	when mode = "01" else
 			clk1m;
---	is_cpu_trigger <= '1';
 	
 	-- depending on mode, goes high when we have a CPU access pending,
 	-- and else low when a CPU access is done
@@ -522,7 +530,7 @@ begin
 	------------------------------------------------------
 	-- bus timing
 
-	bus_stat_p: process(reset, q50m, is_bus, chold, csetup, dotclk, cp11)
+	bus_stat_p: process(reset, q50m, is_bus, chold, csetup, dotclk, cp11, cp00)
 	begin
 		if (reset = '1') then
 			bus_state <= BUS_NONE;
@@ -530,23 +538,37 @@ begin
 			if (is_bus = '0') then
 				bus_state <= BUS_NONE;
 			elsif (csetup = '1') then
-				bus_state <= BUS_SETUP;
+				if (is_bus_a = '0') then
+					bus_state <= BUS_SETUP;
+				else
+					bus_state <= BUS_NONE;
+				end if;
 			elsif (bus_state_d = BUS_SETUP) then
 				if (chold = '0') then
+					-- get away from BUS_SETUP, so CPU clock goes low for actual access at hi/lo transition
 					bus_state <= BUS_CPU;
 				end if;
 			else
 				bus_state <= BUS_WAIT;
 			end if;
 		end if;
+			
+		if (reset = '1') then
+			is_bus_a <= '0';
+		elsif (falling_edge(q50m) and cp00 = '1') then
+			if (bus_state_d = BUS_SETUP
+					and chold = '0') then
+				is_bus_a <= '1';
+			else
+				is_bus_a <= '0';
+			end if;
+		end if;
 		
 		if (falling_edge(q50m) and cp11 = '1') then
 			bus_state_d <= bus_state;
 		end if;
+		
 	end process;
-	
-	
-	
 
 	wait_setup <= '1' when bus_state = BUS_SETUP else '0';
 	wait_bus <= '1' when bus_state = BUS_WAIT else '0';
@@ -554,22 +576,11 @@ begin
 
 	-- Note if we use phi2 without setting it high on waits (and would use RDY instead), 
 	-- the I/O timers will always count on 8MHz - which is not what we want (at 1MHz at least)
-	phi2_int <= (memclk or not(do_cpu)) and not(ipl);
+	phi2_int <= (memclk or not(do_cpu)) and not(ipl) when is_bus_a = '0'
+					else not(csetup);
 	
-	-- split phi2, stretched phi2 for the CPU to accomodate for waits.
-	-- for full speed, don't delay VIA timers
-	phi2_p: process(phi2_int, q50m)
-	begin
-		if (rising_edge(q50m)) then
-		end if;
-	end process;
 	phi2_out <= phi2_int; -- or wait_bus or wait_setup;
 	
-	-- use a pullup and this mechanism to drive a 5V signal from a 3.3V CPLD
-	-- According to UG445 Figure 7: push up until detected high, then let pull up resistor do the rest.
-	-- data_to_pin<= data  when ((data and data_to_pin) ='0') else 'Z';	
-	--	phi2 <= phi2_out when ((phi2_out and phi2) = '0') else 'Z';
-	-- no need for that on 3.3V CPU, so just output phi2
 	phi2 <= phi2_out;
 		
 	------------------------------------------------------
@@ -610,9 +621,13 @@ begin
 	   bus_window_c,
 		bus_win_9_is_io,
 		bus_win_c_is_io,
+		page9_map,
+		pageA_map,
 	   forceb0,
 	   screenb0,
-		isnocolmap
+		is8296,
+		isnocolmap,
+		m_dbg_out
 	);
 
 	forceb0 <= '1' when lockb0 = '1' and e = '1' else
@@ -639,7 +654,8 @@ begin
 					or wait_bus; 
 			nmemsel <= nmemsel_int
 					or wait_bus;
-					
+--	nmemsel <= v_dbg_out; FIXME
+	
 			if (niosel_int = '0'
 				and ca_in(7 downto 4) = "0001") then
 				nsel1 <= '0';
@@ -724,6 +740,7 @@ begin
 		vreq_video,
 		v_out,
 		irq_out,
+		v_dbg_out,
 		reset
 	);
 
@@ -838,6 +855,8 @@ begin
 			bus_window_9 <= '0';
 			bus_win_c_is_io <= '0';
 			bus_win_9_is_io <= '0';
+			page9_map <= "00001001";
+			pageA_map <= "00001010";
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0' and ca_in(3) = '0') then
 			-- Write to $E80x
 			case (ca_in(2 downto 0)) is
@@ -871,6 +890,12 @@ begin
 			when "101" =>
 				-- video bank controls
 				vidblock <= D(2 downto 0);
+			when "110" =>
+				-- page 9 map
+				page9_map <= D;
+			when "111" =>
+				-- page A map
+				pageA_map <= D;
 			when others =>
 				null;
 			end case;
@@ -881,7 +906,7 @@ begin
 		vis_80_in, screenb0, isnocolmap, vis_enable, lockb0, boot, is8296, 
 		wp_rom9, wp_roma, wp_romb, wp_rompet, lowbank, mode,
 		bus_window_9, bus_window_c, bus_win_9_is_io, bus_win_c_is_io,
-		vidblock
+		vidblock, page9_map, pageA_map
 	)
 	begin
 	
@@ -920,6 +945,12 @@ begin
 			when "101" =>
 				-- video bank controls
 				s0_d(2 downto 0) <= vidblock;
+			when "110" =>
+				-- page 9 map
+				s0_d <= page9_map;
+			when "111" =>
+				-- page A map
+				s0_d <= pageA_map;
 			when others =>
 				s0_d <= (others => '0');
 			end case;
@@ -1012,11 +1043,11 @@ begin
 		end if;
 				
 		if (rising_edge(q50m)) then
-			if (VA_select = VRA_CPU) then
-				va_is_cpu_d <= '1';
-			else
-				va_is_cpu_d <= '0';
-			end if;
+--			if (VA_select = VRA_CPU) then
+--				va_is_cpu_d <= '1';
+--			else
+--				va_is_cpu_d <= '0';
+--			end if;
 			
 			VA_select_d <= VA_select;
 		end if;
@@ -1025,7 +1056,7 @@ begin
 
 	
 	v_out_p2: process(q50m, memclk, VA_select, reset,
-			rwb, ipl_cnt, ca_in, ma_out, dac_dma_addr, va_out)
+			rwb, ipl_cnt, ca_in, ma_out, dac_dma_addr, va_out, VA_select_d)
 	begin
 
 		-- keep VA, ramrwb etc stable one half qclk cycle after
@@ -1073,7 +1104,7 @@ begin
 --	VD <= 	spi_dout	when ipl = '1' 		else	-- IPL
 --		D 		when va_is_cpu_d = '1' and ramrwb_int = '0' else	-- CPU write
 --		(others => 'Z');
-	vd_out_p: process(spi_dout, D, VA_select_d)
+	vd_out_p: process(spi_dout, D, VA_select_d, ramrwb_int)
 	begin
 		case (VA_select_d) is
 		when VRA_IPL =>	

@@ -309,7 +309,7 @@ architecture Behavioral of Video is
 
 	signal new_line_attr: std_logic;
 	signal new_line_vaddr: std_logic;
-	signal new_line_attr_d: std_logic;
+	--signal new_line_attr_d: std_logic;
 	signal new_line_vaddr_d: std_logic;
 	
 	signal fetch_int: std_logic;
@@ -348,6 +348,16 @@ architecture Behavioral of Video is
 	signal sprite_mcol1: std_logic_vector(3 downto 0);
 	signal sprite_mcol2: std_logic_vector(3 downto 0);
 	signal sprite_base: std_logic_vector(7 downto 0);
+	
+	-- goes high after h_enable goes low to enable sprite fetch
+	signal spr_fetch_en: std_logic;
+	-- when a sprite fetch is active
+	signal spr_fetch_active: std_logic_vector(7 downto 0);
+	-- fetch enable from one sprite to the next, chaining the sprite fetches together
+	signal spr_fetch_next: std_logic_vector(7 downto 0);
+	-- active when sprite ptr is done on next fetch_ce
+	signal spr_fetch_ptr: std_logic_vector(7 downto 0);
+	
 	
 	-- palette
 	--signal palette: AOA8(0 to 31);
@@ -516,6 +526,7 @@ architecture Behavioral of Video is
 		qclk: in std_logic;
 		dotclk: in std_logic_vector(3 downto 0);
 		vdin: in std_logic_vector(7 downto 0);
+		h_enable: in std_logic;
 		h_zero: in std_logic;
 		v_zero: in std_logic;
 		x_addr: in std_logic_vector(10 downto 0);
@@ -526,6 +537,7 @@ architecture Behavioral of Video is
 		is_tv: in std_logic;
 		is_shift40: in std_logic;
 		is_shift80: in std_logic;
+		vsync_pos0: in std_logic;
 
 		enabled: out std_logic;		-- if sprite data should be read in rasterline
 		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
@@ -818,7 +830,7 @@ begin
 						attr_addr_hold <= attr_base_alt;
 					end if;
 				end if;
-				new_line_attr_d <= new_line_attr;
+				--new_line_attr_d <= new_line_attr;
 				new_line_vaddr_d <= new_line_vaddr;
 			end if;
 		end if;
@@ -1014,9 +1026,11 @@ begin
 		end if;
 	end process;
 
-	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx)
+	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx, h_enable)
 	begin
-		if (h_zero = '1') then
+	-- start fetching sprite immediately after end of visible area
+		if (h_enable = '1') then
+		--if (h_enable = '0') then
 			sprite_fetch_idx <= 0;
 			sprite_fetch_win <= '0';
 			sprite_fetch_done <= '0';
@@ -1040,28 +1054,29 @@ begin
 			sprite_enabled, sprite_fetch_offset)
 	begin
 		sprite_fetch_active <= sprite_enabled(sprite_fetch_idx);
-		sprite_fetch_ptr(5 downto 0) <= sprite_fetch_offset(sprite_fetch_idx);
+
+		sprite_fetch_ptr(5 downto 0) <= sprite_fetch_offset(sprite_fetch_idx);			
 		sprite_fetch_ptr(13 downto 6) <= sprite_data_ptr;
 		sprite_fetch_ptr(15 downto 14) <= sprite_base(7 downto 6);
-		
+				
 		if (falling_edge(qclk)) then
 			if (fetch_ce = '1' and sprite_ptr_fetch = '1') then
 				sprite_data_ptr <= VRAM_D;
 			end if;
 		end if;
-		
+
 		sprite_fetch_ce <= "00000000";
 		case (sprite_fetch_idx) is
-		when 0 =>	sprite_fetch_ce(0) <= sprite_data_fetch and fetch_ce;
-		when 1 =>	sprite_fetch_ce(1) <= sprite_data_fetch and fetch_ce;
-		when 2 =>	sprite_fetch_ce(2) <= sprite_data_fetch and fetch_ce;
-		when 3 =>	sprite_fetch_ce(3) <= sprite_data_fetch and fetch_ce;
-		when 4 =>	sprite_fetch_ce(4) <= sprite_data_fetch and fetch_ce;
-		when 5 =>	sprite_fetch_ce(5) <= sprite_data_fetch and fetch_ce;
-		when 6 =>	sprite_fetch_ce(6) <= sprite_data_fetch and fetch_ce;
-		when 7 =>	sprite_fetch_ce(7) <= sprite_data_fetch and fetch_ce;
+		when 0 =>       sprite_fetch_ce(0) <= sprite_data_fetch and fetch_ce;
+		when 1 =>       sprite_fetch_ce(1) <= sprite_data_fetch and fetch_ce;
+		when 2 =>       sprite_fetch_ce(2) <= sprite_data_fetch and fetch_ce;
+		when 3 =>       sprite_fetch_ce(3) <= sprite_data_fetch and fetch_ce;
+		when 4 =>       sprite_fetch_ce(4) <= sprite_data_fetch and fetch_ce;
+		when 5 =>       sprite_fetch_ce(5) <= sprite_data_fetch and fetch_ce;
+		when 6 =>       sprite_fetch_ce(6) <= sprite_data_fetch and fetch_ce;
+		when 7 =>       sprite_fetch_ce(7) <= sprite_data_fetch and fetch_ce;
 		end case;
-		
+
 	end process;
 
 	sprite0: Sprite
@@ -1081,6 +1096,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1091,8 +1107,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(0),
-		--sprite_active(0),
 		sprite_ison(0),
 		sprite_overraster(0),
 		sprite_overborder(0),
@@ -1117,6 +1133,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1127,8 +1144,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(1),
-		--sprite_active(1),
 		sprite_ison(1),
 		sprite_overraster(1),
 		sprite_overborder(1),
@@ -1153,6 +1170,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1163,8 +1181,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(2),
-		--sprite_active(2),
 		sprite_ison(2),
 		sprite_overraster(2),
 		sprite_overborder(2),
@@ -1189,6 +1207,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1199,8 +1218,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(3),
-		--sprite_active(3),
 		sprite_ison(3),
 		sprite_overraster(3),
 		sprite_overborder(3),
@@ -1225,6 +1244,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1235,8 +1255,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(4),
-		--sprite_active(4),
 		sprite_ison(4),
 		sprite_overraster(4),
 		sprite_overborder(4),
@@ -1261,6 +1281,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1271,8 +1292,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(5),
-		--sprite_active(5),
 		sprite_ison(5),
 		sprite_overraster(5),
 		sprite_overborder(5),
@@ -1297,6 +1318,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1307,8 +1329,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(6),
-		--sprite_active(6),
 		sprite_ison(6),
 		sprite_overraster(6),
 		sprite_overborder(6),
@@ -1333,6 +1355,7 @@ begin
 		qclk,
 		dotclk,
 		VRAM_D,
+		h_enable,
 		h_zero,
 		v_zero,
 		x_addr,
@@ -1343,8 +1366,8 @@ begin
 		mode_tv,
 		is_shift40,
 		is_shift80,
+		vsync_pos(0),
 		sprite_enabled(7),
-		--sprite_active(7),
 		sprite_ison(7),
 		sprite_overraster(7),
 		sprite_overborder(7),

@@ -55,6 +55,7 @@
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="67"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
     </file>
+<<<<<<< HEAD
     <file xil_pn:name="ClockVGA13M.vhd" xil_pn:type="FILE_VHDL">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="105"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="10"/>
@@ -64,6 +65,9 @@
       <association xil_pn:name="Implementation" xil_pn:seqID="1"/>
     </file>
     <file xil_pn:name="pinoutUPet12a.ucf" xil_pn:type="FILE_UCF">
+=======
+    <file xil_pn:name="pinoutUCPU21a.ucf" xil_pn:type="FILE_UCF">
+>>>>>>> origin/main
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
     </file>
     <file xil_pn:name="VideoHBorder.vhd" xil_pn:type="FILE_VHDL">
@@ -418,7 +422,11 @@
   </properties>
 
   <bindings>
+<<<<<<< HEAD
     <binding xil_pn:location="/ShellUltra" xil_pn:name="pinoutUPet12a.ucf"/>
+=======
+    <binding xil_pn:location="/ShellUltra" xil_pn:name="pinoutUCPU21a.ucf"/>
+>>>>>>> origin/main
   </bindings>
 
   <libraries/>

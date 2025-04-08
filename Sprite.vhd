@@ -166,7 +166,7 @@ begin
 				end if;
 			end if;
 
-			if (v_zero = '1') then -- or fetch_offset_int = "111111") then
+			if (v_zero = '1' or fetch_offset_int = "111111") then
 				enabled_int <= '0';
 			end if;
 		end if;
@@ -276,7 +276,8 @@ begin
 	
 	regw_p: process(reset, phi2, sel, regsel,rwb)
 	begin
-		if (reset = '1') then
+		if (falling_edge(phi2)) then
+		 if (reset = '1') then
 			x_expand <= '0';
 			y_expand <= '0';
 			s_enabled <= '0';
@@ -287,10 +288,10 @@ begin
 			s_palette <= '0';
 			x_pos <= "0000000000";	-- (others => '0');
 			y_pos <= "0000000000";	-- (others => '0');
-		elsif (falling_edge(phi2)
-			and sel = '1' and rwb = '0'
+		 elsif(
+			sel = '1' and rwb = '0'
 			) then
-
+		
 			case (regsel) is
 			when "00" =>	-- R0
 				if (is80 = '1' or s_fine = '1') then
@@ -329,6 +330,7 @@ begin
 			when others =>
 				null;
 			end case;
+ 		 end if;
 		end if;
 	end process;
 	

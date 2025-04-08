@@ -149,7 +149,7 @@ INST "q50m"							TNM = "qclk_tnm";
 #INST "viccy/vid_fetch"			BUFG=CLK | TNM = "vidfetch_tnm";
 TIMESPEC "ts_dotclk" = FROM "qclk_tnm" TO "dotclk_tnm" 3 ns DATAPATHONLY;
 #TIMESPEC "ts_vidfetch" = FROM "qclk_tnm" to "vidfetch_tnm" 3 ns DATAPATHONLY;
-TIMESPEC "ts_ram" = FROM "qclk_tnm" TO "ram_tnm" 4 ns DATAPATHONLY;
+#TIMESPEC "ts_ram" = FROM "qclk_tnm" TO "ram_tnm" 4 ns DATAPATHONLY;
 
 TIMESPEC "ts_vwrite"	= FROM "d_tnm" to "vd_tnm" 7 ns DATAPATHONLY;
 

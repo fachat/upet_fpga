@@ -2006,7 +2006,8 @@ begin
 	
 	reg9: process(phi2, CPU_D, crtc_sel, crtc_rs, crtc_rwb, crtc_is_data, regsel, reset) 
 	begin
-		if (reset = '1') then
+		if (falling_edge(phi2)) then
+ 		 if (reset = '1') then
 			mode_tv <= '0';
 			mode_60hz <= '0';
 			mode_out <= '0';
@@ -2068,8 +2069,8 @@ begin
 			sprite_mcol1 <= "0000";
 			sprite_base <= "10010111";
 			pal_sel <= '0';
-		elsif (falling_edge(phi2) 
-				and crtc_sel = '1'
+		elsif(
+				crtc_sel = '1'
 				and crtc_is_data = '1' 
 				and crtc_rwb = '0'
 				) then
@@ -2276,6 +2277,7 @@ begin
 			when others =>
 				null;
 			end case;
+		 end if;
 		end if;
 	end process;
 

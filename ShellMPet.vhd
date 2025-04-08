@@ -211,6 +211,10 @@ begin
 	-- compensate for the missing inverter on the UPET board
 	ngraphic <= not(graphic);
 
+	be_in <= '0';
+	extio <= '0';
+	ioinh <= '0';
+	
 top_c: Top
 	port map (
 	-- clock

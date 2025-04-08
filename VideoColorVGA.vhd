@@ -54,7 +54,6 @@ entity Video is
 		
 	   qclk: in std_logic;		-- Q clock (50MHz)
 		dotclk: in std_logic_vector(3 downto 0);	-- 25Mhz, 1/2, 1/4, 1/8, 1/16
-      memclk : in STD_LOGIC;	-- system clock (12.5MHz)
 	   
 	   vid_fetch : out std_logic; -- true during video access phase (all, character, chrom, and hires pixel data)
 		vreq_video : out std_logic;	-- true if *next* memory access should be video
@@ -263,7 +262,6 @@ architecture Behavioral of Video is
 	signal raster_match: std_logic_vector(9 downto 0);
 	signal is_raster_match: std_logic;
 	signal is_raster_match_d: std_logic;
-	signal is_raster_match_dd: std_logic;
 	
 	-- interrupts
 	signal irq_raster_ack: std_logic;
@@ -1387,7 +1385,7 @@ begin
 		end if;
 	end process;
 	
-	char_buf_p: process(qclk, memclk, chr_fetch_int, attr_fetch_int, pxl_fetch_int, VRAM_D, qclk, 
+	char_buf_p: process(qclk, chr_fetch_int, attr_fetch_int, pxl_fetch_int, VRAM_D, qclk, 
 		mode_rev, sr_crsr, sr_blink, mode_attrib, mode_extended, attr_buf, cblink_active, uline_active)
 	begin
 
@@ -1772,7 +1770,6 @@ begin
 			end if;
 			
 			is_raster_match_d <= is_raster_match;
-			is_raster_match_dd <= is_raster_match_d;
 		end if;
 		
 	end process;
@@ -1926,6 +1923,8 @@ begin
 		pbr_doB
 	);
 	
+	pbr_diB <= "00000000";
+	
 	-- block ram uses rising edge on clk signal
 	pbr_clkA <= not(dotclk(1));
 	
@@ -1954,7 +1953,7 @@ begin
 
 	-- potential DEBUG
 --	vid_out(0) <= '0' when vid_out_blank = '1' else last_line_of_char;
---	vid_out(1) <= '0' when vid_out_blank = '1' else '0';--rline_cnt0;
+--	vid_out(1) <= '0' when vid_out_blank = '1' else rline_cnt0;
 --	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
 --	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
 	

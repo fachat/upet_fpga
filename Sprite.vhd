@@ -219,7 +219,6 @@ begin
 					end case;
 				end if;
 			end if;
-			--elsif (dotclk(0) = '1' and (is80 = '1' or dotclk(1) = '1')) then
 		end if;
 	end process;
 	

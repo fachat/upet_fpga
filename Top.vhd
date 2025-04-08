@@ -368,7 +368,6 @@ architecture Behavioral of Top is
 	   
 	   qclk: in std_logic;		-- Q clock
 		dotclk: in std_logic_vector(3 downto 0);	-- pixel clock
-      memclk : in STD_LOGIC;	-- system clock 12.5MHz
 	   
 	   vid_fetch : out std_logic; 	-- true during video memory fetch by Viccy
 	   vreq_video: out std_logic;		-- true when *next* vram access should be video
@@ -735,7 +734,6 @@ begin
 		vis_regmap,
 		q50m,		-- Q clock (50MHz)
 		dotclk,	-- pixel clock, 25MHz
-		memclk,		-- sysclk (12.5MHz)
 		vid_fetch,
 		vreq_video,
 		v_out,

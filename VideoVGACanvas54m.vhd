@@ -378,7 +378,7 @@ begin
 	begin 
 		if (reset = '1') then
 			h_limit <= '0';
-		elsif (falling_edge(qclk) and dotclk(0)='0') then -- and dotclk(3 downto 0) = "0111") then
+		elsif (falling_edge(qclk) and dotclk(0)='0') then
 
 			h_limit <= '0';
 

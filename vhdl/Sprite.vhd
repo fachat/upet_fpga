@@ -1,4 +1,4 @@
-----------------------------------------------------------------------------------
+---------f-------------------------------------------------------------------------
 -- Company: 
 -- Engineer: 
 -- 
@@ -91,7 +91,7 @@ architecture Behavioral of Sprite is
 	signal y_pos: std_logic_vector(9 downto 0);
 	
 	signal x_cnt: std_logic_vector(5 downto 0);
-	signal y_cnt: std_logic_vector(6 downto 0);
+	signal y_cnt: std_logic_vector(4 downto 0);
 	signal y_sub: std_logic_vector(1 downto 0);
 	signal y_sub_end: std_logic_vector(1 downto 0);
 	
@@ -102,6 +102,9 @@ architecture Behavioral of Sprite is
 	signal enabled_int: std_logic;
 	signal active_int: std_logic;
 	signal ison_int: std_logic;
+	
+	signal is_y_end: std_logic;
+	signal is_y_next: std_logic;
 	
 	signal pxl_idx: integer range 0 to 23;
 	
@@ -154,8 +157,8 @@ begin
 				y_cnt <= (others => '0');
 				y_sub <= "00";
 			elsif (enabled_int = '1') then
-				if (y_sub = y_sub_end) then
-					if (y_cnt = "0010100") then
+				if (is_y_next = '1') then
+					if (is_y_end = '1') then
 						enabled_int <= '0';
 					else
 						y_cnt <= y_cnt + 1;
@@ -168,6 +171,18 @@ begin
 
 			if (v_zero = '1' or fetch_offset_int = "111111") then
 				enabled_int <= '0';
+			end if;
+		end if;
+		
+		if (rising_edge(h_enable)) then
+			is_y_end <= '0';
+			if (y_cnt = "10100") then
+				is_y_end <= '1';
+			end if;
+			
+			is_y_next <= '0';
+			if (y_sub = y_sub_end) then
+				is_y_next <= '1';
 			end if;
 		end if;
 	end process;

@@ -169,7 +169,7 @@ begin
 				end if;
 			end if;
 
-			if (v_zero = '1' or fetch_offset_int = "111111") then
+			if (v_zero = '1') then -- or fetch_offset_int = "111111") then
 				enabled_int <= '0';
 			end if;
 		end if;

@@ -304,11 +304,12 @@ begin
 			else '0';
 	
 	vram9 <= '1' when is8296 = '1'		-- 8296 mode
---			and low64k = '1'					-- low 64k
---			and petrom9 = '1'					-- addresses $9xxx
-			and petromA = '1'					-- addresses $Axxx - for testing only, as $9xxx has boot code
-			and cfg_mp(7) = '0'				-- extended RAM off
-			and rwb = '0';						-- writes
+				and low64k = '1'					-- low 64k
+				and petrom9 = '1'					-- addresses $9xxx
+--				and petromA = '1'					-- addresses $Axxx - for testing only, as $9xxx has boot code
+				and cfg_mp(7) = '0'				-- extended RAM off
+				and rwb = '0'						-- writes
+			else '0';
 			
 	buswin <= '0' when low64k = '0'
 			else '1' when
@@ -333,8 +334,8 @@ begin
 			else '0';
 			
 	vramsel_int <= '0' when avalid = '0' else
---			'1' when screenwin = '1' or vram9 = '1' else
-			'1' when screenwin = '1' else
+			'1' when screenwin = '1' or vram9 = '1' else
+--			'1' when screenwin = '1' else
 			'1' when (do_page_map = '1' and page_map(7) = '1') else
 			boota19;			-- second 512k (or 1st 512k on boot)
 

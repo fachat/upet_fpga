@@ -84,7 +84,7 @@ architecture Behavioral of Video is
 	signal mode_attrib: std_logic;			-- r25.6, enable attribute use
 	signal mode_extended: std_logic;		-- r33.2, enables full and multicolor modes
 	signal mode_bitmap: std_logic;
-	signal mode_upet: std_logic;			-- when Micro-PET compat, r1 and others behave differently
+	signal mode_pet: std_logic;			-- when Micro-PET compat, r1 and others behave differently
 	signal mode_rev: std_logic;			-- r24.6, reverse the screen
 	signal dispen: std_logic;
 	signal mode_double: std_logic;
@@ -2019,7 +2019,7 @@ begin
 			mode_attrib_alt <= '0';
 			mode_extended_alt <= '0';
 			mode_bitmap_alt <= '0';
-			mode_upet <= '1';
+			mode_pet <= '1';
 			mode_double <= '0';
 			mode_interlace <= '0';
 			mode_80col <= '0';
@@ -2076,8 +2076,8 @@ begin
 				) then
 			case (regsel) is
 			when x"01" =>
-				-- note: if upet compat, value written is doubled (as in the PET for 80 columns)
-				if (mode_upet = '1' or is_80 = '0') then
+				-- note: if pet compat, value written is doubled (as in the PET for 80 columns)
+				if (mode_pet = '1' or is_80 = '0') then
 					slots_per_line(6 downto 1) <= CPU_D(5 downto 0);
 					slots_per_line(0) <= '0';
 				else
@@ -2086,8 +2086,8 @@ begin
 			when x"05" => 
 				-- mirror of R1 when regmap is set
 				if (mode_regmap_int = '1') then
-					-- note: if upet compat, value written is doubled (as in the PET for 80 columns)
-					if (mode_upet = '1' or is_80 = '0') then
+					-- note: if pet compat, value written is doubled (as in the PET for 80 columns)
+					if (mode_pet = '1' or is_80 = '0') then
 						slots_per_line(6 downto 1) <= CPU_D(5 downto 0);
 						slots_per_line(0) <= '0';
 					else
@@ -2099,24 +2099,26 @@ begin
 			when x"08" =>
 				-- b1: interlace, b0: double (if b1=1)
 				mode_interlace <= CPU_D(1);
-				mode_double <= CPU_D(0);-- and CPU_D(1);
-				mode_out <= CPU_D(4);
-				mode_tv <= CPU_D(5);
-				mode_60hz <= CPU_D(6);
-				mode_80col <= CPU_D(7);
-				if (mode_upet = '1') then
-					if (CPU_D(6) = '0') then
-						-- setup 
-						vsync_pos <= std_logic_vector(to_unsigned(y_default_offset,8));
-					else
-						vsync_pos <= std_logic_vector(to_unsigned(33,8));
-					end if;
+				mode_double <= CPU_D(0);
+				if (mode_pet = '0') then
+					mode_out <= CPU_D(4);
+					mode_tv <= CPU_D(5);
+					mode_60hz <= CPU_D(6);
+					mode_80col <= CPU_D(7);
 				end if;
+--				if (mode_pet = '1') then
+--					if (CPU_D(6) = '0') then
+--						-- setup 
+--						vsync_pos <= std_logic_vector(to_unsigned(y_default_offset,8));
+--					else
+--						vsync_pos <= std_logic_vector(to_unsigned(33,8));
+--					end if;
+--				end if;
 			when x"09" =>
 				rows_per_char <= CPU_D(3 downto 0);
-				if (mode_upet = '1') then
+				if (mode_pet = '1') then
 					if (CPU_D(3) = '1') then
-						vsync_pos <= std_logic_vector(to_unsigned(y_default_offset - 25,8));
+						vsync_pos <= std_logic_vector(to_unsigned(y_default_offset - 20,8));
 						rows_per_char <= "1000";	-- limit to 8
 					else
 						vsync_pos <= std_logic_vector(to_unsigned(y_default_offset,8));
@@ -2130,14 +2132,14 @@ begin
 			when x"0c" =>
 				if (mode_altreg = '1') then
 					vid_base_alt(14 downto 8) <= CPU_D(6 downto 0);
-					if (mode_upet = '1') then
+					if (mode_pet = '1') then
 						vid_base_alt(15) <= not(CPU_D(7));
 					else
 						vid_base_alt(15) <= CPU_D(7);
 					end if;
 				else
 					vid_base(14 downto 8) <= CPU_D(6 downto 0);
-					if (mode_upet = '1') then
+					if (mode_pet = '1') then
 						vid_base(15) <= not(CPU_D(7));
 					else
 						vid_base(15) <= CPU_D(7);
@@ -2151,7 +2153,7 @@ begin
 				end if;
 			when x"0e" =>
 				crsr_address(14 downto 8) <= CPU_D(6 downto 0);
-				if (mode_upet = '1') then
+				if (mode_pet = '1') then
 					crsr_address(15) <= not(CPU_D(7));
 				else
 					crsr_address(15) <= CPU_D(7);
@@ -2207,7 +2209,7 @@ begin
 				dispen <= CPU_D(4);
 				pal_sel <= CPU_D(5);
 				mode_regmap_int <= CPU_D(6);
-				mode_upet <= CPU_D(7);
+				mode_pet <= CPU_D(7);
 			when x"21" => 	-- R33 (was: R40)
 				col_bg1 <= CPU_D(3 downto 0);
 				col_bg2 <= CPU_D(7 downto 4);
@@ -2302,7 +2304,7 @@ begin
 					case (regsel) is
 					when x"01" =>
 						-- note: if upet compat, value written is doubled (as in the PET for 80 columns)
-						if (mode_upet = '1' or is_80 = '0') then
+						if (mode_pet = '1' or is_80 = '0') then
 							vd_out(5 downto 0) <= slots_per_line(6 downto 1);
 						else
 							vd_out(6 downto 0) <= slots_per_line(6 downto 0);
@@ -2311,13 +2313,13 @@ begin
 						-- mirrors R1 for memory-mapped mode
 						if (mode_regmap_int = '1') then
 							-- note: if upet compat, value written is doubled (as in the PET for 80 columns)
-							if (mode_upet = '1' or is_80 = '0') then
+							if (mode_pet = '1' or is_80 = '0') then
 								vd_out(5 downto 0) <= slots_per_line(6 downto 1);
 							else
 								vd_out(6 downto 0) <= slots_per_line(6 downto 0);
 							end if;
 						end if;
-					when x"06" => 
+					when x"06" =>
 						vd_out <= clines_per_screen;
 					when x"08" =>
 						vd_out(0) <= mode_double;
@@ -2336,14 +2338,14 @@ begin
 					when x"0c" =>
 						if (mode_altreg = '1') then
 							vd_out(6 downto 0) <= vid_base_alt(14 downto 8);
-							if (mode_upet = '1') then
+							if (mode_pet = '1') then
 								vd_out(7) <= not(vid_base_alt(15));
 							else
 								vd_out(7) <= vid_base_alt(15);
 							end if;
 						else
 							vd_out(6 downto 0) <= vid_base(14 downto 8);
-							if (mode_upet = '1') then
+							if (mode_pet = '1') then
 								vd_out(7) <= not(vid_base(15));
 							else
 								vd_out(7) <= vid_base(15);
@@ -2357,7 +2359,7 @@ begin
 						end if;
 					when x"0e" =>
 						vd_out(6 downto 0) <= crsr_address(14 downto 8);
-						if (mode_upet = '1') then
+						if (mode_pet = '1') then
 							vd_out(7) <= not(crsr_address(15));
 						else
 							vd_out(7) <= crsr_address(15);
@@ -2414,7 +2416,7 @@ begin
 						vd_out(4) <= dispen;
 						vd_out(5) <= pal_sel;
 						vd_out(6) <= mode_regmap_int;
-						vd_out(7) <= mode_upet;
+						vd_out(7) <= mode_pet;
 					when x"21" => 	-- R33 (was R40)
 						vd_out(3 downto 0) <= col_bg1;
 						vd_out(7 downto 4) <= col_bg2;

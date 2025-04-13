@@ -46,6 +46,7 @@ The following are the internal Viccy registers:
   - bit 5: if set, use TV timing, i.e. 720x480i60 resp. 720x576i50 (halfs pixel clock)
   - bit 6: if set, use 720x480p60 instead of 720x576p50
   - bit 7: if set, use 80 columns instead of 40 columns (doubles pixel clock)
+  Note: if upet compat mode is set, bits 4-7 are not modified on writes
 - r9: CHEIGHT: (bits 3-0) scan lines per character - 1 (CRTC)
   - note: in upet compat mode, also sets vertical position (r45)
 - r10: CRSR_STRT: cursor start scan line:  (CRTC)
@@ -103,7 +104,7 @@ The following are the internal Viccy registers:
   - bit 4: DEN: display enable
   - bit 5: palette select (0 = lower half of palette in R88-R95, 1 = upper half) 
   - bit 6: if set, map registers into memory (see below)
-  - bit 7: Micro-PET compatible (see r1)
+  - bit 7: PET/Micro-PET compatible (see r1,r8,r9,r12,r14,r39)
 
 - r33: EXT_BGCOLS: extended background colour 
   - bits 3-0 background colour 1

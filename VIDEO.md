@@ -8,12 +8,10 @@ it adds a lot of other features similar to those from the C128's VDC, and the C6
 The Viccy-II, as the Viccy before, is using a fixed VGA-defined timing for outputting the video signal.
 This means, that anything defined here just paints pixels onto that frame canvas.
 
-Currently the Viccys support 640x480@60Hz VGA timing. As 80 character with 8 pixel width already consume
-640 pixels in the horizontal resolution, there are no left and right borders. However, there is a 
-vertical border, depending on the vertical timing setup. An option to increase the resolution to 768x576@60Hz
-is under investigation.
+Currently the Viccys support 720x576 at progressive 50Hz or 720x480 at 60 Hz VGA timing. Also, if "TV timing" is selected, "interlace" mode is supported too with half the pixel frequency, and half the vertical resolution. A 12" PET monitor can be used too.
 
-Note: this is currently under development and subject to change without notice!
+As 80 character with 8 pixel width consume
+640 pixels in the horizontal resolution and only 400 rows (interlace), there are borders that can be set to a specific colour, or used for sprites. The flexible VICCY-II geometry capabilities inherited from the CRTC specs allows resolutions up to the full supported VGA size.
 
 ## Overview
 

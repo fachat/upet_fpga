@@ -449,7 +449,11 @@ It can still be downloaded from the Xilinx website.
 Note that you need to create separate builds for the Micro-PET on one side, and the Ultra-CPU and Ulti-PET on the other side
 due to their minimally different pinout definitions and I/O select outputs.
 
-For more information on the setup, see the [build file](Build.md).
+The information on the setup, [build file](Build.md) is largely outdated and only kept for reference (for a while).
+At this time, for each PCB (micropet, ultracpu, and ultipet), and sometimes different versions of a PCB, there is a WebISE .xise project file.
+This file can be opened by the WebISE tool and is completely setup for the respective PCB, you just need to generate the programming file.
+You can program the programming file to a connected PCB using the Xilinx programmer, if you want to quickly test some changes.
+The "mkbins.sh" shell script then converts the output to a bin file that can be programmed into the Flash PROM used to boot the FPGA.
 
 ## Theory of Operation
 

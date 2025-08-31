@@ -41,7 +41,7 @@ For the 2Phi2 clock, the 27 clock ticks for a half 1 MHz clock are divided into 
 
 The 8Phi2 clock is used as pixel clock on the CS/A CRTC video board. The clock is divided into 3 clock ticks low, then 4 clock ticks high - except for every fourth cycle, where the high phase is only 3 clocks ticks. This way, a (unused) 4Phi2 would have 6+7 and 7+7 ticks, resulting in the 2Phi2 timing.2 would have 6+7 and 7+7 ticks, resulting in the 2Phi2 timing, keeping them in sync.
 
-This means, that the pixel width in the CS/A CRTC board is not uniform. Real effects have not been tested (yet), and it remains to be seen how far this is visible. As a fallback, 8Phi2 may at some point be created by a PLL inside the FPGA.
+This means, if you would use an old CRTC-based CS/A video board on the expansion bus, that the pixel width in the output is not uniform. Real effects have not been tested (yet), and it remains to be seen how far this is visible. As a fallback, 8Phi2 may at some point be created by a PLL inside the FPGA.
 
 #### Controlling bus access
 
@@ -52,10 +52,10 @@ At the end of a bus access cycle, 'chold' signals the last dotclk (half memclk) 
 
 Unfortunately, the end of the 1 MHz cycle does not always fall onto a high to low transition of the fast CPU clock, as 1 MHz cycle has 13,5 CPU cycles in it. Therefore, if chold is detected when the memclk is low (instead of high), 'is_bus_a' is asserted, and this replaces the CPU phi with the invert of 'csetup' for a full memclk cycle, so it has a falling edge on the falling edge of the bus clock. On the next memclk low phase this is reverted again.
 
-#### Write Setup Time
+#### Write Data Hold Time
 
 The CPU is running at 13.5 MHz, and after finishing a bus transaction (at falling bus 'cphi2') the address (and data) lines are quickly changed. This has proven to be too fast
-for slower bus devices that require some hold time after the falling bus phi2. Therefore, if the bus is used, a write happens, the bus clock is shortened by the 'chold' signal.
+for slower bus devices that require some hold time after the falling bus phi2. Therefore, if the bus is used, and a write happens, then the bus clock is shortened by the 'chold' signal.
 This signals the bus device to take over the data, and keeps the CPU still on hold until the following dotclk cycle.
 
 ### Slowing the CPU

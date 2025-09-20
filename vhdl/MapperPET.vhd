@@ -284,7 +284,7 @@ begin
 			A(12) when screenwin = '0' else
 			vidblock(1);
 	RA_int(11) <= 
-			A(11) when screenwin = '0' or is8296 = '1' else
+			A(11) when screenwin = '0' or isnocolmap = '1' else
 			vidblock(0); 
 			
 	-- map 1:1, in 2k blocks

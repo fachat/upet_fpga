@@ -308,7 +308,7 @@ architecture Behavioral of Video is
 	signal new_line_attr: std_logic;
 	signal new_line_vaddr: std_logic;
 	--signal new_line_attr_d: std_logic;
-	signal new_line_vaddr_d: std_logic;
+	--signal new_line_vaddr_d: std_logic;
 	
 	signal fetch_int: std_logic;
 	signal fetch_sprite_en: std_logic;
@@ -829,7 +829,7 @@ begin
 					end if;
 				end if;
 				--new_line_attr_d <= new_line_attr;
-				new_line_vaddr_d <= new_line_vaddr;
+				--new_line_vaddr_d <= new_line_vaddr;
 			end if;
 		end if;
 	end process;

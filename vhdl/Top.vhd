@@ -196,6 +196,7 @@ architecture Behavioral of Top is
 	signal is8296 : std_logic;
 	signal lowbank : std_logic_vector(3 downto 0);
 	signal vidblock : std_logic_vector(2 downto 0);
+	signal vsize : std_logic_vector(1 downto 0);
 	signal lockb0 : std_logic;
 	signal forceb0 : std_logic;
 	signal m_dbg_out: std_logic;
@@ -322,6 +323,8 @@ architecture Behavioral of Top is
 	   boot: in std_logic;
 	   lowbank: in std_logic_vector(3 downto 0);
 	   vidblock: in std_logic_vector(2 downto 0);
+	   vsize: in std_logic_vector(1 downto 0);	-- 0=1k, 1=2k, 2=4k, 3=8k
+		
 	   wp_rom9: in std_logic;
 	   wp_romA: in std_logic;
 	   wp_romB: in std_logic;
@@ -612,6 +615,7 @@ begin
 	   boot,
 	   lowbank,
 	   vidblock,
+		vsize,
 	   wp_rom9,
 	   wp_romA,
 	   wp_romB,
@@ -841,6 +845,7 @@ begin
 			mode <= "00";
 			screenb0 <= '1';
 			isnocolmap <= '0';
+			vsize <= "10";	-- 4k
 			wp_rom9 <= '0';
 			wp_romA <= '0';
 			wp_romPET <= '0';
@@ -863,6 +868,7 @@ begin
 				vis_80_in <= D(1);
 				screenb0 <= not(D(2));
 				isnocolmap <= D(3);
+				vsize <= D(6 downto 5);
 				vis_enable <= not(D(7));
 			when "001" =>
 				-- memory map controls
@@ -918,6 +924,7 @@ begin
 				s0_d(1) <= vis_80_in;
 				s0_d(2) <= not(screenb0);
 				s0_d(3) <= isnocolmap;
+				s0_d(6 downto 5) <= vsize;
 				s0_d(7) <= not(vis_enable);
 			when "001" =>
 				-- memory map controls

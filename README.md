@@ -82,8 +82,11 @@ This is an overview on the register set:
 - Bit 2: 0= screen character memory in bank 0, 1= character memory only in video bank (see memory map)
 - Bit 3: 0= map char/colour RAM in $8xxx, 1= map only character memory
 - Bit 4: unused - must be 0
-- Bit 5: unused - must be 0
-- Bit 6: unused - must be 0
+- Bit 6-5: video window size
+   - 00 = 1k
+   - 01 = 2k
+   - 10 = 4k
+   - 11 = 8k (2nd 4k write only)
 - Bit 7: 0= video enabled; 1= video disabled
 
 Note that if you use 80 columns, AND double pixel rows (+interlace), you get the 80x50 character resolution.

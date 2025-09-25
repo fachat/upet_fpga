@@ -58,6 +58,7 @@ entity Mapper is
 	   
 	   boot: in std_logic;
 	   lowbank: in std_logic_vector(3 downto 0);
+	   hibank: in std_logic_vector(3 downto 0);
 	   vidblock: in std_logic_vector(2 downto 0);
 	   vsize: in std_logic_vector(1 downto 0);	-- 0=1k, 1=2k, 2=4k, 3=8k
 		
@@ -73,7 +74,7 @@ entity Mapper is
 	   bus_win_c_is_io: in std_logic;
 		-- page 9/a maps
 		page9_map: in std_logic_vector(7 downto 0);
-		pageA_map: in std_logic_vector(7 downto 0);
+		--pageA_map: in std_logic_vector(7 downto 0);
 		
 	   -- force bank0 (used in emulation mode)
 	   forceb0: in std_logic;
@@ -203,7 +204,12 @@ begin
 	isblockC <= '1' when A(15 downto 12) = x"C"
 			else '0';
 
-	screen <= '1' when A(15 downto 12) = x"8" 
+	screen <= '1' when A(15 downto 13) = "100" and (
+					(vsize = "00" and A(12 downto 10) = "000")
+					or (vsize = "01" and A(12 downto 11) = "00")
+					or (vsize = "10" and A(12) = '0')
+					or (vsize = "11" and (A(12) = '0' or rwb = '0'))
+					)
 			else '0';
 
 	-- 8296 specifics. *peek allow using the IO and screen memory windows despite mapping RAM
@@ -242,46 +248,88 @@ begin
 			 
 	-- page 9/A mapping
 	do_page_map <= '1' when low64k = '1' 
-								and ((isblock9 = '1' and page9_map(7) = '1') or (isblockA = '1' and pageA_map(7) = '1'))
+								and ((isblock9 = '1' and page9_map(7) = '1') )--or (isblockA = '1' and pageA_map(7) = '1'))
 								and c8296ram = '0'
 				else '0';
 				
-	page_map <= page9_map when isblock9 = '1'
-					else pageA_map;
+	page_map <= page9_map; --when isblock9 = '1'
+					--else '0'; --pageA_map;
 					
 	-----------------------------------------------------------------------
 	-- physical address space generation
 	--
 	
+	ra_p: process(page_map, do_page_map, A, screenwin, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, vram9, rwb, is8296)
+	begin
+	
+		-- map upper address bits (18-15)
+		RA_int(19 downto 16) <=	bank(3 downto 0);
+		RA_int(15) <= A(15);
+		if (low64k = '1') then
+			if (A(15) = '0') then
+				-- lower 32k in bank 0
+				RA_int(18 downto 15) <= lowbank(3 downto 0);
+			else
+				-- upper 32k in bank 0
+				if (c8296ram = '0') then
+					if (screenwin = '1') then
+						-- video bank
+						RA_int(18 downto 15) <= "0001";
+					else
+						-- mapped fram bank
+						RA_int(18 downto 15) <= hibank(3 downto 0);
+						-- overwrite for page_map ($9xxx)
+						if (do_page_map = '1') then 
+							RA_int(18 downto 15) <= page_map(6 downto 3);
+						end if;
+					end if;
+				else
+					if (A(14) = '0') then
+						-- 8296 map block $8000-$bfff -> $18000-1bfff / 10000-13fff
+						RA_int(15) <= cfg_mp(2);
+					else
+						-- 8296 map block $c000-$ffff -> $1c000-1ffff / 14000-17fff
+						RA_int(15) <= cfg_mp(3);
+					end if;
+					RA_int(18 downto 16) <= "001";
+				end if;
+			end if;
+		end if;
+		
 	-- banks 2-15
-	RA_int(19) <=	
-			bank(3);
-	
-	RA_int(18 downto 17) <= 
-			lowbank(3 downto 2) when low64k = '1' and A(15) = '0' else
-			page_map(6 downto 5) when do_page_map = '1' else
-			bank(2 downto 1);			-- just map
-	
-	-- bank 0/1
-	RA_int(16) <= 
-			bank(0) when low64k = '0' else  	-- CPU is not in low 64k
-			lowbank(1) when A(15) = '0' else
-			page_map(4) when do_page_map = '1' else
-			'1' 	when c8296ram = '1' 		-- 8296 enabled,
-					and A(15) = '1' 	-- upper half of bank0
-					else  			 
-			'0';
-			
-	-- within bank0
-	RA_int(15) <= 
-			A(15) when low64k = '0' else		-- some upper bank
-			lowbank(0) when A(15) = '0' else-- lower half of bank0
-			page_map(3) when do_page_map = '1' else
-			'1' when c8296ram = '0' else	-- upper half of bank0, no 8296 mapping
-			cfg_mp(3) when A(14) = '1' else	-- 8296 map block $c000-$ffff -> $1c000-1ffff / 14000-17fff
-			cfg_mp(2);			-- 8296 map block $8000-$bfff -> $18000-1bfff / 10000-13fff
+--	RA_int(19) <=	
+--			bank(3);
+--	
+--	RA_int(18 downto 17) <= 
+--			lowbank(3 downto 2) when low64k = '1' and A(15) = '0' else
+--			page_map(6 downto 5) when do_page_map = '1' else
+--			bank(2 downto 1);			-- just map
+--	
+--	-- bank 0/1
+--	RA_int(16) <= 
+--			bank(0) when low64k = '0' else  	-- CPU is not in low 64k
+--			lowbank(1) when A(15) = '0' else
+--			page_map(4) when do_page_map = '1' else
+--			'1' 	when c8296ram = '1' 		-- 8296 enabled,
+--					and A(15) = '1' 	-- upper half of bank0
+--					else  			 
+--			'0';
+--			
+--	-- within bank0
+--	RA_int(15) <= 
+--			A(15) when low64k = '0' else		-- some upper bank
+--			lowbank(0) when A(15) = '0' else-- lower half of bank0
+--			page_map(3) when do_page_map = '1' else
+--			'1' when c8296ram = '0' else	-- upper half of bank0, no 8296 mapping
+--			cfg_mp(3) when A(14) = '1' else	-- 8296 map block $c000-$ffff -> $1c000-1ffff / 14000-17fff
+--			cfg_mp(2);			-- 8296 map block $8000-$bfff -> $18000-1bfff / 10000-13fff
 
 	
+	-- map screen memory
+	--
+	-- note that this is only relevant for VRAM, as FRAM has A0-14 connected to the CPU
+	-- directly, without mapping.
+	--
 	-- lower half of 4k screenwin is mapped to char memory $8xxx-Bxxx
 	-- upper half of 4k screenwin is mapped into color memory $Cxxx-$Fxxx
 	-- Note: vidblock maps in 2k steps; 8 positions are possible, so we
@@ -289,62 +337,56 @@ begin
 	-- BUT: in 8296 mode, we directly map to video RAM, as the 8296 CRTC
 	-- has 8k video RAM, using isnocolmap
 	
-	ra_p: process(page_map, do_page_map, A, screenwin, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, vram9, rwb, is8296)
-	begin
+		-- outside bank 0 -> don't map
 		RA_int(14 downto 11) <= A(14 downto 11);
-		if (low64k = '1' and screenb0 = '1') then
-			case(A(15 downto 11)) is
-			when "10000" =>
-				-- $8000-$87ff video map
-				-- either 8296 off, or screen peek through
-				if (cfg_mp(7) = '0' or cfg_mp(5) = '1') then
-					RA_int(14) <= '0';	-- vid ram
-					RA_int(13 downto 11) <= vidblock0;
-				end if;
-			when "10001" =>
-				-- $8800-$8fff video map
-				-- either 8296 off, or screen peek through
-				if (cfg_mp(7) = '0' or cfg_mp(5) = '1') then
-					if (isnocolmap = '1') then
-						RA_int(14) <= '0';	-- vid ram 
-						RA_int(13 downto 11) <= vidblock1;
-					else
-						RA_int(14) <= '1';	-- col ram
+		if (low64k = '1') then
+			if (screenb0 = '1') then
+				case(A(15 downto 11)) is
+				when "10000" =>
+					-- $8000-$87ff video map
+					-- either 8296 off, or screen peek through
+					if (cfg_mp(7) = '0' or cfg_mp(5) = '1') then
+						RA_int(14) <= '0';	-- vid ram
 						RA_int(13 downto 11) <= vidblock0;
 					end if;
-				end if;
-			when "10010" =>
-				-- $9000-$97ff video map
-				if (rwb = '0' and is8296 = '1') then
-					RA_int(14) <= '0';	-- vid ram
-					RA_int(13 downto 11) <= vidblock2;
-				end if;
-			when "10011" =>
-				-- $9800-$9fff video map
-				if (rwb = '0' and is8296 = '1') then
-					RA_int(14) <= '0';	-- vid ram
-					RA_int(13 downto 11) <= vidblock3;
-				end if;
-			when others =>
-			end case;
+				when "10001" =>
+					-- $8800-$8fff video map
+					-- either 8296 off, or screen peek through
+					if (cfg_mp(7) = '0' or cfg_mp(5) = '1') then
+						if (isnocolmap = '1') then
+							RA_int(14) <= '0';	-- vid ram 
+							RA_int(13 downto 11) <= vidblock1;
+						else
+							RA_int(14) <= '1';	-- col ram
+							RA_int(13 downto 11) <= vidblock0;
+						end if;
+					end if;
+				when "10010" =>
+					-- $9000-$97ff video map
+					if (rwb = '0' and is8296 = '1') then
+						RA_int(14) <= '0';	-- vid ram
+						RA_int(13 downto 11) <= vidblock2;
+					end if;
+					if (do_page_map = '1') then
+						RA_int(14 downto 12) <= page_map(2 downto 0);
+						RA_int(11) <= '0';
+					end if;
+				when "10011" =>
+					-- $9800-$9fff video map
+					if (rwb = '0' and is8296 = '1') then
+						RA_int(14) <= '0';	-- vid ram
+						RA_int(13 downto 11) <= vidblock3;
+					end if;
+					if (do_page_map = '1') then
+						RA_int(14 downto 12) <= page_map(2 downto 0);
+						RA_int(11) <= '1';
+					end if;
+				when others =>
+				end case;
+			end if;
 		end if;
 	end process;
 	
---	RA_int(14) <= 
---			page_map(2) when do_page_map = '1' else
---			A(14) when screenwin = '0' or isnocolmap = '1' else
---			A(11);
---	RA_int(13) <= 
---			page_map(1) when do_page_map = '1' else
---			A(13) when screenwin = '0' else
---			vidblock(2);
---	RA_int(12) <= 
---			page_map(0) when do_page_map = '1' else
---			A(12) when screenwin = '0' and vram9 = '0' else
---			vidblock(1) xor vram9;
---	RA_int(11) <= 
---			A(11) when screenwin = '0' or isnocolmap = '1' else
---			vidblock(0); 
 			
 	-- map 1:1, in 2k blocks
 	RA_int(10 downto 8) <= 
@@ -395,14 +437,14 @@ begin
 	vramsel_int <= '0' when avalid = '0' else
 			'1' when screenwin = '1' or vram9 = '1' else
 --			'1' when screenwin = '1' else
-			'1' when (do_page_map = '1' and page_map(7) = '1') else
+			'1' when do_page_map = '1' else
 			boota19;			-- second 512k (or 1st 512k on boot)
 
 	framsel_int <= '0' when avalid='0' 
 					or boota19 = '1' else	-- not in upper half of 1M address space is ROM (4-7 are ignored, only 1M addr space)
 			'1' when low64k = '0' or A(15) = '0' else	-- lowest 32k or 64k-512k is RAM, i.e. all above 64k besides ROM
 			'0' when screenwin = '1' or iowin_int = '1' or buswin = '1' or wprot = '1' 
-					or (do_page_map ='1' and page_map(7) = '1') else	-- not in screen window
+					or do_page_map ='1' else	-- not in screen window
 			'1' when c8296ram = '1' else	-- upper half mapped (except peek through)
 			'0' when petio = '1' else	-- not in I/O space
 			'1';

@@ -111,7 +111,8 @@ architecture Behavioral of Mapper is
 	signal scrpeek: std_logic;
 	signal boota19: std_logic;
 	signal avalid: std_logic;
-	signal screenwin: std_logic;
+	--signal screenwin: std_logic;
+	signal screenon: std_logic;
 	signal buswin: std_logic;
 	signal iowin_int: std_logic;
 	signal vram9: std_logic;		-- write only to vram under ROM at $9xxx
@@ -204,6 +205,9 @@ begin
 	isblockC <= '1' when A(15 downto 12) = x"C"
 			else '0';
 
+	isblock8 <= '1' when A(15 downto 12) = x"8"
+			else '0';
+			
 	screen <= '1' when A(15 downto 13) = "100" and (
 					(vsize = "00" and A(12 downto 10) = "000")
 					or (vsize = "01" and A(12 downto 11) = "00")
@@ -225,26 +229,6 @@ begin
 				and scrpeek = '0'
 				else '0';
 
-	-- write should not happen (only evaluated in upper half of bank 0)
-	wprot <= '0' when rwb = '1' else			-- read access are ok
-			'0' when cfg_mp(7) = '1' and		-- ignore I/O window
-				petio = '1' and iopeek = '1' 
-				else
-			'1' when cfg_mp(7) = '1' and		-- 8296 enabled
-				((A(14)='1' and cfg_mp(1)='1')	-- upper 16k write protected
-				or (A(14)='0' and cfg_mp(0)='1')) -- lower 16k write protected
-				else 
-			'0' when cfg_mp(7) = '1' 		-- 8296 RAM but no wp
-				else
-			'1' when isblockCtoF = '1' and wp_romPET = '1'
-				else
-			'1' when isblock9 = '1' and wp_rom9 = '1'
-				else
-			'1' when isblockA = '1' and wp_romA = '1'
-				else
-			'1' when isblockB = '1' and wp_romB = '1'
-				else
-			'0';
 			 
 	-- page 9/A mapping
 	do_page_map <= '1' when low64k = '1' 
@@ -254,14 +238,70 @@ begin
 				
 	page_map <= page9_map; --when isblock9 = '1'
 					--else '0'; --pageA_map;
+
+	-----------------------------------------------------------------------
+	-- write protect calculation
+
+
+       -- write should not happen (only evaluated in upper half of bank 0)
+       wprot <= '0' when rwb = '1' else                        -- read access are ok
+                       '0' when cfg_mp(7) = '1' and            -- ignore I/O window
+                               petio = '1' and iopeek = '1' 
+                               else
+                       '1' when cfg_mp(7) = '1' and            -- 8296 enabled
+                               ((A(14)='1' and cfg_mp(1)='1')  -- upper 16k write protected
+                               or (A(14)='0' and cfg_mp(0)='1')) -- lower 16k write protected
+                               else 
+                       '0' when cfg_mp(7) = '1'                -- 8296 RAM but no wp
+                               else
+                       '1' when (isblockCtoF = '1' and wp_romPET = '1')
+										or (isblock9 = '1' and wp_rom9 = '1')
+                              or (isblockA = '1' and wp_romA = '1')
+                              or (isblockB = '1' and wp_romB = '1')
+                               else
+							  '1' when (screenon = '1' and low64k = '1' and isblock8 = '1' and screen = '0')
+									else
+                       '0';
+
+	ra_p: process(page_map, do_page_map, A, screenon, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, vram9, rwb, is8296)
+	begin
+
+--		wprot <= '0';
+--		if (rwb = '0') then
+--			-- only active if write is actually attempted
+--			if (cfg_mp(7) = '1') then
+--				-- 8296 memory expansion
+--				if (petio = '0' or iopeek = '0') then
+--					-- outside io/screen
+--					if (A(14) = '0') then
+--						wprot <= cfg_mp(0);
+--					else
+--						wprot <= cfg_mp(1);
+--					end if;
+--				end if;
+--			else
+--				-- standard memory mapping
+--				if (isblock8 = '1') then
+----					-- block 8 but outside actual screen area
+----					if (screen = '0') then
+----						wprot <= '1';
+----					end if;
+--				else
+----					if ((isblock9 = '1' and wp_rom9 = '1')
+----						or (isblockA = '1' and wp_romA = '1')
+----						or (isblockB = '1' and wp_romB = '1')
+----						or (isblockCtoF = '1' and wp_romPET = '1' and petio = '0')
+----						) then
+----						wprot <= '1';
+----					end if;
+--				end if;
+--			end if;
+--		end if;
 					
 	-----------------------------------------------------------------------
 	-- physical address space generation
 	--
-	
-	ra_p: process(page_map, do_page_map, A, screenwin, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, vram9, rwb, is8296)
-	begin
-	
+		
 		-- map upper address bits (18-15)
 		RA_int(19 downto 16) <=	bank(3 downto 0);
 		RA_int(15) <= A(15);
@@ -272,7 +312,7 @@ begin
 			else
 				-- upper 32k in bank 0
 				if (c8296ram = '0') then
-					if (screenwin = '1') then
+					if (screenon = '1' and screen = '1') then
 						-- video bank
 						RA_int(18 downto 15) <= "0001";
 					else
@@ -295,36 +335,7 @@ begin
 				end if;
 			end if;
 		end if;
-		
-	-- banks 2-15
---	RA_int(19) <=	
---			bank(3);
---	
---	RA_int(18 downto 17) <= 
---			lowbank(3 downto 2) when low64k = '1' and A(15) = '0' else
---			page_map(6 downto 5) when do_page_map = '1' else
---			bank(2 downto 1);			-- just map
---	
---	-- bank 0/1
---	RA_int(16) <= 
---			bank(0) when low64k = '0' else  	-- CPU is not in low 64k
---			lowbank(1) when A(15) = '0' else
---			page_map(4) when do_page_map = '1' else
---			'1' 	when c8296ram = '1' 		-- 8296 enabled,
---					and A(15) = '1' 	-- upper half of bank0
---					else  			 
---			'0';
---			
---	-- within bank0
---	RA_int(15) <= 
---			A(15) when low64k = '0' else		-- some upper bank
---			lowbank(0) when A(15) = '0' else-- lower half of bank0
---			page_map(3) when do_page_map = '1' else
---			'1' when c8296ram = '0' else	-- upper half of bank0, no 8296 mapping
---			cfg_mp(3) when A(14) = '1' else	-- 8296 map block $c000-$ffff -> $1c000-1ffff / 14000-17fff
---			cfg_mp(2);			-- 8296 map block $8000-$bfff -> $18000-1bfff / 10000-13fff
-
-	
+			
 	-- map screen memory
 	--
 	-- note that this is only relevant for VRAM, as FRAM has A0-14 connected to the CPU
@@ -397,9 +408,10 @@ begin
 	
 	
 	-- VRAM is second 512k of CPU, plus 4k read/write-window on $008000 ($088000 in VRAM) if screenb0 is set
-	screenwin <= '1' when low64k = '1'
-				and screen = '1'
-				and screenb0 = '1'
+	screenon <= '1' when --low64k = '1'
+				--and screen = '1'
+				--and 
+				screenb0 = '1'
 				-- either 8296 off, or screen peek through
 				and (cfg_mp(7) = '0' or cfg_mp(5) = '1')
 			else '0';
@@ -418,7 +430,7 @@ begin
 				and bus_window_c = '1'
 				and bus_win_c_is_io = '0')
 			or
-				(A(15 downto 12) = "1001"
+				(isblock9 = '1'
 				and bus_window_9 = '1'
 				and bus_win_9_is_io = '0')
 			else '0';
@@ -429,27 +441,26 @@ begin
 --				and bus_window_c = '1'
 --				and bus_win_c_is_io = '1')
 --			or
-				(A(15 downto 12) = "1001"	-- addresses $9xxx
+				(isblock9 = '1'	-- addresses $9xxx
 				and bus_window_9 = '1'
 				and bus_win_9_is_io = '1')
 			else '0';
 			
 	vramsel_int <= '0' when avalid = '0' else
-			'1' when screenwin = '1' or vram9 = '1' else
---			'1' when screenwin = '1' else
+			'1' when (low64k = '1' and screenon = '1' and screen = '1') else
 			'1' when do_page_map = '1' else
 			boota19;			-- second 512k (or 1st 512k on boot)
 
 	framsel_int <= '0' when avalid='0' 
 					or boota19 = '1' else	-- not in upper half of 1M address space is ROM (4-7 are ignored, only 1M addr space)
 			'1' when low64k = '0' or A(15) = '0' else	-- lowest 32k or 64k-512k is RAM, i.e. all above 64k besides ROM
-			'0' when screenwin = '1' or iowin_int = '1' or buswin = '1' or wprot = '1' 
+			'0' when (screenon = '1' and screen = '1') or iowin_int = '1' or buswin = '1' or wprot = '1' 
 					or do_page_map ='1' else	-- not in screen window
 			'1' when c8296ram = '1' else	-- upper half mapped (except peek through)
 			'0' when petio = '1' else	-- not in I/O space
 			'1';
 			
-	ram_p: process(phi2, avalid, boota19, low64k, A, screenwin, iowin_int2, buswin, wprot, c8296ram, petio) 
+	ram_p: process(phi2, avalid, boota19, low64k, A, screenon, iowin_int2, buswin, wprot, c8296ram, petio) 
 	begin
 		if (rising_edge(phi2)) then
 		end if;

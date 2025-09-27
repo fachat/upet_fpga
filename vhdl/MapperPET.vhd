@@ -220,7 +220,7 @@ begin
 					)
 			else '0';
 
-	screen <= screen8; -- or screen9;
+	screen <= screen8 or screen9;
 	
 	-- 8296 specifics. *peek allow using the IO and screen memory windows despite mapping RAM
 	
@@ -243,87 +243,41 @@ begin
 				
 	-----------------------------------------------------------------------
 	-- write protect calculation
-
-
-       -- write should not happen (only evaluated in upper half of bank 0)
-       wprot <= '0' when rwb = '1' else                        -- read access are ok
-                       '0' when cfg_mp(7) = '1' and            -- ignore I/O window
-                               petio = '1' and iopeek = '1' 
-                               else
-                       '1' when cfg_mp(7) = '1' 	            -- 8296 enabled
-										 and A(15) = '1' 
-                               and ((A(14)='1' and cfg_mp(1)='1')  -- upper 16k write protected
-											or (A(14)='0' and cfg_mp(0)='1')  -- lower 16k write protected
-										 )
-                               else 
-                       '0' when cfg_mp(7) = '1'                -- 8296 RAM but no wp
-                               else
-                       '1' when (isblockCtoF = '1' and wp_romPET = '1')
-										or (isblock9 = '1' and wp_rom9 = '1')
-                              or (isblockA = '1' and wp_romA = '1')
-                              or (isblockB = '1' and wp_romB = '1')
-                               else
-							  '1' when (screenon = '1' and low64k = '1' and isblock8 = '1' and screen = '0')
-									else
-                       '0';
-
-
---	RA_int(19) <= 
---			bank(3);
---	RA_int(18 downto 17) <=
---			lowbank(3 downto 2) when low64k='1' and A(15)='0' else
---			page9_map(6 downto 5) when do_page9_map = '1' else
---			bank(2 downto 1);
---			
---	RA_int(16) <= 
---			bank(0) when low64k = '0' else
---			lowbank(1) when A(15) = '0' else
---			page9_map(4) when do_page9_map = '1' else
---			'1' when c8296ram = '1' and A(15) = '1' else
---			'0';
---			
---	RA_int(15) <=
---			A(15) when low64k = '0' else
---			lowbank(0) when A(15) = '0' else
---			page9_map(3) when do_page9_map = '1' else
---			'1' when c8296ram = '0' else
---			cfg_mp(3) when A(14) = '1' else
---			cfg_mp(2);
-			
+	
 	ra_p: process(page9_map, do_page9_map, A, screenon, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, rwb, is8296)
 	begin
 
---		wprot <= '0';
---		if (rwb = '0') then
---			-- only active if write is actually attempted
---			if (cfg_mp(7) = '1') then
---				-- 8296 memory expansion
---				if (petio = '0' or iopeek = '0') then
---					-- outside io/screen
---					if (A(14) = '0') then
---						wprot <= cfg_mp(0);
---					else
---						wprot <= cfg_mp(1);
---					end if;
---				end if;
---			else
---				-- standard memory mapping
---				if (isblock8 = '1') then
-----					-- block 8 but outside actual screen area
-----					if (screen = '0') then
-----						wprot <= '1';
-----					end if;
---				else
-----					if ((isblock9 = '1' and wp_rom9 = '1')
-----						or (isblockA = '1' and wp_romA = '1')
-----						or (isblockB = '1' and wp_romB = '1')
-----						or (isblockCtoF = '1' and wp_romPET = '1' and petio = '0')
-----						) then
-----						wprot <= '1';
-----					end if;
---				end if;
---			end if;
---		end if;
+		wprot <= '0';
+		if (rwb = '0') then
+			-- only active if write is actually attempted
+			if (cfg_mp(7) = '1') then
+				-- 8296 memory expansion
+				if (petio = '0' or iopeek = '0') then
+					-- outside io/screen
+					if (A(14) = '0') then
+						wprot <= cfg_mp(0);
+					else
+						wprot <= cfg_mp(1);
+					end if;
+				end if;
+			else
+				-- standard memory mapping
+				if (isblock8 = '1') then
+					-- block 8 but outside actual screen area
+					if (screen8 = '0') then
+						wprot <= '1';
+					end if;
+				else
+					if ((isblock9 = '1' and wp_rom9 = '1')
+						or (isblockA = '1' and wp_romA = '1')
+						or (isblockB = '1' and wp_romB = '1')
+						or (isblockCtoF = '1' and wp_romPET = '1' and petio = '0')
+						) then
+						wprot <= '1';
+					end if;
+				end if;
+			end if;
+		end if;
 					
 	-----------------------------------------------------------------------
 	-- physical address space generation
@@ -340,7 +294,7 @@ begin
 				-- upper 32k in bank 0
 				if (cfg_mp(7) = '0') then
 					-- no 8296 memory
-					if (screenb0 = '1' and screen = '1') then
+					if (screenb0 = '1' and screen8 = '1') then
 						-- video bank
 						RA_int(18 downto 15) <= "0001";
 					else
@@ -391,7 +345,6 @@ begin
 					-- $8000-$87ff video map
 					-- either 8296 off, or screen peek through
 					if (cfg_mp(7) = '0' or cfg_mp(5) = '1') then
-						RA_int(14) <= '0';	-- vid ram
 						RA_int(13 downto 11) <= vidblock0;
 					end if;
 				when "10001" =>
@@ -399,7 +352,6 @@ begin
 					-- either 8296 off, or screen peek through
 					if (cfg_mp(7) = '0' or cfg_mp(5) = '1') then
 						if (isnocolmap = '1') then
-							RA_int(14) <= '0';	-- vid ram 
 							RA_int(13 downto 11) <= vidblock1;
 						else
 							RA_int(14) <= '1';	-- col ram
@@ -408,8 +360,7 @@ begin
 					end if;
 				when "10010" =>
 					-- $9000-$97ff video map
-					if (rwb = '0' and is8296 = '1') then
-						RA_int(14) <= '0';	-- vid ram
+					if (screen9 = '1') then
 						RA_int(13 downto 11) <= vidblock2;
 					end if;
 					if (do_page9_map = '1') then
@@ -418,8 +369,7 @@ begin
 					end if;
 				when "10011" =>
 					-- $9800-$9fff video map
-					if (rwb = '0' and is8296 = '1') then
-						RA_int(14) <= '0';	-- vid ram
+					if (screen9 = '1') then
 						RA_int(13 downto 11) <= vidblock3;
 					end if;
 					if (do_page9_map = '1') then
@@ -478,7 +428,8 @@ begin
 	framsel_int <= '0' when avalid='0' 
 					or boota19 = '1' else	-- not in upper half of 1M address space is ROM (4-7 are ignored, only 1M addr space)
 			'1' when low64k = '0' or A(15) = '0' else	-- lowest 32k or 64k-512k is RAM, i.e. all above 64k besides ROM
-			'0' when (screenon = '1' and screen = '1') or iowin_int = '1' or buswin = '1' or wprot = '1' 
+			'0' when (screenon = '1' and screen8 = '1') -- only disable in $8xxx to allow write to $9xxx
+					or iowin_int = '1' or buswin = '1' or wprot = '1' 
 					or do_page9_map ='1' else	-- not in screen window
 			'1' when c8296ram = '1' else	-- upper half mapped (except peek through)
 			'0' when petio = '1' else	-- not in I/O space

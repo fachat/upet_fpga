@@ -73,7 +73,7 @@ This is an overview on the register set:
 - $e804 (59396)  [bus window](#e804-59396-bus-window)
 - $e805 (59397)  [video window map](#e805-59397-video-window)
 - $e806 (59398)  [page 9 map](#e806-59398-page9-map)
-- $e807 (59399)  [page a map](#e807-59399-pagea-map)
+- $e807 (59399)  [Hi32k bank](#e807-59399-low32k-bank)
 
 ### $e800 (59392) Video Control
 
@@ -100,7 +100,7 @@ in the video bank.
 Note that the 40/80 column switch is only there for Micro-PET 2.x compatibility, that is using a CPLD with very 
 restricted video output capabilities. In the newer versions 40/80 columns should be set in the [Viccy](VIDEO.md) registers.
 
-#### Screen mirror in bank 0
+#### Screen mirror in bank 0 (bit 2)
 
 The CRTC reads its video data from the video bank in VRAM.
 This is not mapped to bank 0 in the CPU address space, as it is "slow" memory, because
@@ -114,23 +114,7 @@ can be changed (while it stays at $8xxx in the CPU memory bank 0). This allows
 for easy switching between multiple screens beyond the 4k limit of the PET video memory
 window at $8xxx.
 
-#### Interlace and 50 row mode
-
-After reset, the VGA video circuit runs in normal mode,
-i.e. only every second raster line is displayed with video data.
-Writing a "1" into Viccy register 8, bit 1, interlace is switched on, and every
-single line is displayed with video data. 
-
-As long as Viccy r8 bit 0 is 0, every rasterline is 
-displayed twice, to get to the same height as in interlace mode.
-If r8 bit 0 is 1, then every rasterline is a new rasterline.
-So, setting bit 0=1 and bit 1=1 gives double the number of character rows
-(or raster rows in bitmap mode). I.e. with this you can enable 50 character row
-screens.
-
-See the [Viccy registers](VIDEO.md) for more details.
-
-#### Colour RAM mapping
+#### Colour RAM mapping (bit 3)
 
 In normal mode (bit 3 = 0), the memory window at $8xxx is split into 2k of character memory
 and 2k of colour memory. 
@@ -140,8 +124,16 @@ Set bit 3 to 1, to disable the colour memory map in $8800-$8fff.
 
 Note, that the 8296 has another 4k of write only (!) video memory at $9xxx.
 In this area, reads come from an option ROM (when used), while writes go to the
-video memory. Due to timing constraints it is currently not possible to 
-have the write-only map at $9xxx, which thus remains an incompatibility to the 8296.
+video memory. 
+
+#### Video window size (bit 5/6)
+
+These two bits define the size of the video mapping window. Options are
+
+- 1k: for 40 column video without colour, the rest (3k) of the window are write-protected
+- 2k: for 80 column video without colour, the rest (2k) of the window are write-protected
+- 4k: for 40/80 column video with colour
+- 8k: for 40/80 column video with colour, and enabling write-through to video RAM in $9xxx for 8296 compatibility
 
 ### $e801 (59393) Memory Map Control
 
@@ -154,7 +146,7 @@ have the write-only map at $9xxx, which thus remains an incompatibility to the 8
 - Bit 6: 0= $00Bxxx is writable, 1= write protected
 - Bit 7: 0= $00C000-$00FFFF is writable, 1=write protected (except I/O window at $e8xx)
 
-### $e802 (59394) Bank Control
+### $e802 (59394) Low32k Bank Control
 
 - Bit 0-3: number of 32k bank in 512k Fast RAM (banks 0-7), for the lowest 32k of system
 - Bit 4-7: unused, must be 0
@@ -171,7 +163,6 @@ areas between multiple locations in fast RAM.
   - 11 = 12.5 MHz with wait states for video access to VRAM
 - Bit 2-7: unused, must be 0
 
-
 ### $e804 (59396) Bus window
 
 The board uses all CPU banks between and including 0 and F, i.e. 1 MByte of RAM.
@@ -186,6 +177,10 @@ in bank 0 of the CPU, two windows of the CS/A bus can be mapped into bank 0 of t
 - Bit 2: if bit 0=1, when set, maps $9xxx to CS/A I/O instead of memory
 - Bit 3: n/a (if bit 1=1, when set, maps $cxxx to CS/A I/O instead of memory)
 - Bit 4-7: unused, must be 0
+
+Note that when using I/O instead of memory (i.e. /IOSEL instead of /MEMSEL on the expansion bus),
+the window at $x8xx is reserved and will have the on-board I/O mapped to it.
+That includes the PIAs, VIAs, UARTs, I2C, and SIDs.
 
 ### $e805 (59397) Video window
 
@@ -224,11 +219,14 @@ Bit 7: enable mapping of page 9 ($9xxx) into the media RAM
 Bit 0-6: A12-A18 for memory that is mapped from the low Megabyte of memory into the
 window at $9xxx.
 
-### $e807 (59399) Page A Map (preliminary)
+(TODO: define which has precedence)
 
-Bit 7: enable mapping of page 9 ($9xxx) into the media RAM
-Bit 0-6: A12-A18 for memory that is mapped from the low Megabyte of memory into the
-window at $Axxx.
+### $e807 (59399) Hi32k Bank Control
+
+- Bit 0-3: number of 32k bank in 512k Fast RAM (banks 0-7), for the upper 32k of bank 0
+- Bit 4-7: unused, must be 0
+
+This allows re-mapping the upper 32k of bank 0 between multiple locations in fast RAM.
 
 ### 8296 control port
 

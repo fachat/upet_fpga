@@ -220,7 +220,7 @@ begin
 					)
 			else '0';
 
-	screen <= screen8 or screen9;
+	screen <= screen8; -- or screen9;
 	
 	-- 8296 specifics. *peek allow using the IO and screen memory windows despite mapping RAM
 	
@@ -267,6 +267,29 @@ begin
 									else
                        '0';
 
+
+--	RA_int(19) <= 
+--			bank(3);
+--	RA_int(18 downto 17) <=
+--			lowbank(3 downto 2) when low64k='1' and A(15)='0' else
+--			page9_map(6 downto 5) when do_page9_map = '1' else
+--			bank(2 downto 1);
+--			
+--	RA_int(16) <= 
+--			bank(0) when low64k = '0' else
+--			lowbank(1) when A(15) = '0' else
+--			page9_map(4) when do_page9_map = '1' else
+--			'1' when c8296ram = '1' and A(15) = '1' else
+--			'0';
+--			
+--	RA_int(15) <=
+--			A(15) when low64k = '0' else
+--			lowbank(0) when A(15) = '0' else
+--			page9_map(3) when do_page9_map = '1' else
+--			'1' when c8296ram = '0' else
+--			cfg_mp(3) when A(14) = '1' else
+--			cfg_mp(2);
+			
 	ra_p: process(page9_map, do_page9_map, A, screenon, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, rwb, is8296)
 	begin
 
@@ -317,7 +340,7 @@ begin
 				-- upper 32k in bank 0
 				if (cfg_mp(7) = '0') then
 					-- no 8296 memory
-					if (screenon = '1' and screen = '1') then
+					if (screenb0 = '1' and screen = '1') then
 						-- video bank
 						RA_int(18 downto 15) <= "0001";
 					else
@@ -330,9 +353,10 @@ begin
 					end if;
 				else
 					-- 8296 memory mapping
+					
 					if (scrpeek = '0' and iopeek = '0') then
 						-- bank 1
-						RA_int(18 downto 16) <= "001";
+						RA_int(16) <= '1';
 						-- upper or lower half
 						if (A(14) = '0') then
 							-- 8296 map block $8000-$bfff -> $18000-1bfff / 10000-13fff
@@ -340,11 +364,6 @@ begin
 						else
 							-- 8296 map block $c000-$ffff -> $1c000-1ffff / 14000-17fff
 							RA_int(15) <= cfg_mp(3);
-						end if;
-					else
-						if (scrpeek = '1') then
-							-- video bank
-							RA_int(18 downto 15) <= "0001";
 						end if;
 					end if;
 				end if;

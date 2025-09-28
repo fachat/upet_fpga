@@ -195,7 +195,9 @@ architecture Behavioral of Top is
 	signal wp_romPET : std_logic;
 	signal is8296 : std_logic;
 	signal lowbank : std_logic_vector(3 downto 0);
+	signal hibank : std_logic_vector(3 downto 0);
 	signal vidblock : std_logic_vector(2 downto 0);
+	signal vsize : std_logic_vector(1 downto 0);
 	signal lockb0 : std_logic;
 	signal forceb0 : std_logic;
 	signal m_dbg_out: std_logic;
@@ -253,7 +255,7 @@ architecture Behavioral of Top is
 	signal bus_win_9_is_io: std_logic;
 	signal bus_win_c_is_io: std_logic;
 	signal page9_map: std_logic_vector(7 downto 0);
-	signal pageA_map: std_logic_vector(7 downto 0);
+	--signal pageA_map: std_logic_vector(7 downto 0);
 	
 	signal bus_state: T_BUS_STATE;
 	signal bus_state_d: T_BUS_STATE;
@@ -321,7 +323,10 @@ architecture Behavioral of Top is
 
 	   boot: in std_logic;
 	   lowbank: in std_logic_vector(3 downto 0);
+		hibank : in std_logic_vector(3 downto 0);
 	   vidblock: in std_logic_vector(2 downto 0);
+	   vsize: in std_logic_vector(1 downto 0);	-- 0=1k, 1=2k, 2=4k, 3=8k
+		
 	   wp_rom9: in std_logic;
 	   wp_romA: in std_logic;
 	   wp_romB: in std_logic;
@@ -333,7 +338,7 @@ architecture Behavioral of Top is
 	   bus_win_c_is_io: in std_logic;
 		-- page 9/a maps
 		page9_map: in std_logic_vector(7 downto 0);
-		pageA_map: in std_logic_vector(7 downto 0);
+		--pageA_map: in std_logic_vector(7 downto 0);
 
 	   forceb0: in std_logic;
 	   screenb0: in std_logic;
@@ -611,7 +616,9 @@ begin
 	   m_framsel_out,
 	   boot,
 	   lowbank,
+		hibank,
 	   vidblock,
+		vsize,
 	   wp_rom9,
 	   wp_romA,
 	   wp_romB,
@@ -621,7 +628,7 @@ begin
 		bus_win_9_is_io,
 		bus_win_c_is_io,
 		page9_map,
-		pageA_map,
+		--pageA_map,
 	   forceb0,
 	   screenb0,
 		is8296,
@@ -841,11 +848,13 @@ begin
 			mode <= "00";
 			screenb0 <= '1';
 			isnocolmap <= '0';
+			vsize <= "10";	-- 4k
 			wp_rom9 <= '0';
 			wp_romA <= '0';
 			wp_romPET <= '0';
 			is8296 <= '0';
 			lowbank <= (others => '0');
+			hibank <= "0001";
 			vidblock <= "010";
 			boot <= '1';
 			lockb0 <= '0';
@@ -854,7 +863,7 @@ begin
 			bus_win_c_is_io <= '0';
 			bus_win_9_is_io <= '0';
 			page9_map <= "00001001";
-			pageA_map <= "00001010";
+			--pageA_map <= "00001010";
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0' and ca_in(3) = '0') then
 			-- Write to $E80x
 			case (ca_in(2 downto 0)) is
@@ -863,6 +872,7 @@ begin
 				vis_80_in <= D(1);
 				screenb0 <= not(D(2));
 				isnocolmap <= D(3);
+				vsize <= D(6 downto 5);
 				vis_enable <= not(D(7));
 			when "001" =>
 				-- memory map controls
@@ -892,8 +902,8 @@ begin
 				-- page 9 map
 				page9_map <= D;
 			when "111" =>
-				-- page A map
-				pageA_map <= D;
+				-- upper 32k bank map
+				hibank <= D(3 downto 0);
 			when others =>
 				null;
 			end case;
@@ -902,9 +912,9 @@ begin
 
 	Ctrl_Rd: process(sel0, phi2_int, rwb, reset, ca_in, D,
 		vis_80_in, screenb0, isnocolmap, vis_enable, lockb0, boot, is8296, 
-		wp_rom9, wp_roma, wp_romb, wp_rompet, lowbank, mode,
+		wp_rom9, wp_roma, wp_romb, wp_rompet, lowbank, hibank, mode,
 		bus_window_9, bus_window_c, bus_win_9_is_io, bus_win_c_is_io,
-		vidblock, page9_map, pageA_map
+		vidblock, page9_map--, pageA_map
 	)
 	begin
 	
@@ -918,6 +928,7 @@ begin
 				s0_d(1) <= vis_80_in;
 				s0_d(2) <= not(screenb0);
 				s0_d(3) <= isnocolmap;
+				s0_d(6 downto 5) <= vsize;
 				s0_d(7) <= not(vis_enable);
 			when "001" =>
 				-- memory map controls
@@ -947,8 +958,8 @@ begin
 				-- page 9 map
 				s0_d <= page9_map;
 			when "111" =>
-				-- page A map
-				s0_d <= pageA_map;
+				-- hi 32k bank map
+				s0_d(3 downto 0) <= hibank;
 			when others =>
 				s0_d <= (others => '0');
 			end case;

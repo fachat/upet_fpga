@@ -196,7 +196,9 @@ architecture Behavioral of Top is
 	signal is8296 : std_logic;
 	signal lowbank : std_logic_vector(3 downto 0);
 	signal hibank : std_logic_vector(3 downto 0);
+	signal hibank_user : std_logic_vector(3 downto 0);
 	signal vidblock : std_logic_vector(2 downto 0);
+	signal is_user_reg: std_logic;
 	signal vsize : std_logic_vector(1 downto 0);
 	signal lockb0 : std_logic;
 	signal forceb0 : std_logic;
@@ -855,7 +857,9 @@ begin
 			is8296 <= '0';
 			lowbank <= (others => '0');
 			hibank <= "0001";
+			hibank_user <= "0001";
 			vidblock <= "010";
+			is_user_reg <= '0';
 			boot <= '1';
 			lockb0 <= '0';
 			bus_window_c <= '0';
@@ -872,6 +876,7 @@ begin
 				vis_80_in <= D(1);
 				screenb0 <= not(D(2));
 				isnocolmap <= D(3);
+				is_user_reg <= D(4);
 				vsize <= D(6 downto 5);
 				vis_enable <= not(D(7));
 			when "001" =>
@@ -903,7 +908,11 @@ begin
 				page9_map <= D;
 			when "111" =>
 				-- upper 32k bank map
-				hibank <= D(3 downto 0);
+				if (is_user_reg = '1') then
+					hibank_user <= D(3 downto 0);
+				else
+					hibank <= D(3 downto 0);
+				end if;
 			when others =>
 				null;
 			end case;
@@ -928,6 +937,7 @@ begin
 				s0_d(1) <= vis_80_in;
 				s0_d(2) <= not(screenb0);
 				s0_d(3) <= isnocolmap;
+				s0_d(4) <= is_user_reg;
 				s0_d(6 downto 5) <= vsize;
 				s0_d(7) <= not(vis_enable);
 			when "001" =>
@@ -959,7 +969,11 @@ begin
 				s0_d <= page9_map;
 			when "111" =>
 				-- hi 32k bank map
-				s0_d(3 downto 0) <= hibank;
+				if (is_user_reg = '1') then
+					s0_d(3 downto 0) <= hibank_user;
+				else
+					s0_d(3 downto 0) <= hibank;
+				end if;
 			when others =>
 				s0_d <= (others => '0');
 			end case;

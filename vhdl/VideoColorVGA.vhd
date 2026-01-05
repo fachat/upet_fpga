@@ -2510,7 +2510,7 @@ begin
 
 	--- blinker
 
-	blink_p: process(v_sync_int, reset, blink_cnt)
+	blink_p: process(v_sync_int, reset, blink_cnt, v_zero)
 	begin
 		if (reset = '1') then
 			blink_cnt <= (others => '0');

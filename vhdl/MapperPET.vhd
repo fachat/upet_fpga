@@ -244,7 +244,9 @@ begin
 	-----------------------------------------------------------------------
 	-- write protect calculation
 	
-	ra_p: process(page9_map, do_page9_map, A, screenon, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, rwb, is8296)
+	ra_p: process(page9_map, do_page9_map, A, screenon, isnocolmap, vidblock0, vidblock1, vidblock2, vidblock3, rwb, is8296,
+				cfg_mp, petio, isblock8, screen8, isblock9, isblocka, isblockb, isblockctof, bank,
+				low64k, lowbank,screenb0, hibank,scrpeek, wp_rom9, wp_roma, wp_romb, wp_rompet, iopeek, screen9)
 	begin
 
 		wprot <= '0';

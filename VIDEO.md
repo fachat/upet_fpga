@@ -227,11 +227,11 @@ The following video modes are supported
 
 ### Text modes
 
-For all the text modes, the hires bit in r25.7 must be zero.
+For all the text modes, the hires bit in r32.1 must be zero.
 
 1. single colour text mode (VDC/CRTC)
 
-In this mode, extended mode and attribute memory are disabled in R33 and R25 respectively.
+In this mode, extended mode and attribute memory are disabled in R32.2 and R32.0 respectively.
 
 Each character data is read from character memory, and used as index in the character generator memory.
 The data from the character generator memory is shifted out, using foreground (1-pixels) or background (0-pixels) colours
@@ -241,7 +241,7 @@ This basically emulates a simple b/w screen, just with colours adjustable via R2
 
 2. attribute colour text mode (VDC)
 
-This is the VDC's attribute colour mode. To achieve this, extended mode bit r33.2 must be 0, and attribute enable bit r25.6 must be 1.
+This is the VDC's attribute colour mode. To achieve this, extended mode bit r32.0 must be 0, and attribute enable bit r32.2 must be 1.
 
 Together with the character value an attribute value is being read from video memory.
 This attribute byte contains the following bits:
@@ -259,7 +259,7 @@ Note, that the alternate character set bit and the graphics output from the VIA 
 
 3. full colour text mode (ColourPET)
 
-This is the Colour-PET video mode. To achieve it, the extended mode bit r33.2 must be set, and the attribute enable bit r25.6 must be 0.
+This is the Colour-PET video mode. To achieve it, the extended mode bit r32.2 must be set, and the attribute enable bit r32.0 must be 0.
 
 In this mode, again character value and attributes are loaded from memory. The attribute byte contains the following information:
 
@@ -273,6 +273,7 @@ background colour (for the 0-bits) from the attribute byte.
 4. multicolour mode (partly VIC-II, partly VDC)
 
 This mode is an extension to the C64's multicolour text mode, utilizing the additional bits in the attribute memory compared to the VIC-II's 4-bit video memory.
+For this mode, extended bit r32.2 and attribute bit r32.0 must be set.
 
 Character data and attribute data are being fetched. The attribute byte contains the following bits:
 
@@ -300,7 +301,7 @@ For all the hires modes, the hires bit in r25.7 must be set.
 
 In this mode the bitmap is displayed in the two colours from r26.
 
-To use this mode, extended mode bit r33.2 and attribute enable bit r25.6 must be zero.
+To use this mode, extended mode bit r32.2 and attribute enable bit r32.0 must be zero.
 
 2. attribute colour hires mode (VDC)
 
@@ -310,14 +311,14 @@ but pixel data. The background colour is taken from r26. The foreground colour i
 Note that the attribute byte is read for a full character cell with 8 pixels width and height as defined with r9.
 All bitmap pixels in that cell share the same colour information.
 
-To use this mode, extended mode bit r33.2 is zero, and attribute enable bit r25.6 must be set.
+To use this mode, extended mode bit r32.2 is zero, and attribute enable bit r32.0 must be set.
 
 3. full colour hires mode
 
 Similar to the full colour text mode, the attribute byte provides both foreground and background colours
 for all bitmap pixels in the attribute colour cell.
 
-To use this mode, extended mode bit r33.2 is set, and attribute enable bit r25.6 must be clear.
+To use this mode, extended mode bit r32.2 is set, and attribute enable bit r32.0 must be clear.
 
 4. multicolour hires mode
 
@@ -334,7 +335,7 @@ From the bit map data, every two bits of the pixel data are lumped together and 
 - 10: background colour 2 register r34
 - 11: foreground colour from attribute byte
  
-To use this mode, extended mode bit r33.2 is set, and attribute enable bit r25.6 must be set as well.
+To use this mode, extended mode bit r32.2 is set, and attribute enable bit r32.0 must be set as well.
 
 
 ## Control Ports

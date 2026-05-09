@@ -203,6 +203,7 @@ architecture Behavioral of Top is
 	signal lockb0 : std_logic;
 	signal forceb0 : std_logic;
 	signal m_dbg_out: std_logic;
+	signal dobogus: std_logic;
 	
 	-- video
 	signal va_out: std_logic_vector(15 downto 0);
@@ -312,7 +313,10 @@ architecture Behavioral of Top is
 	   
 	   qclk : in std_logic;
 	   
-      cfgld : in  STD_LOGIC;	-- set when loading the cfg
+		-- set when loading the cfg
+      cfgld : in  STD_LOGIC;
+		-- when set, do not hide 65xx bogus CPU cycles
+		dobogus: in std_logic;
 	   
       RA : out std_logic_vector (19 downto 8);	-- mapped CPU address (FRAM)
 
@@ -472,7 +476,9 @@ begin
 
 	-- shorten bus phi2 a tad bit on write cycles, to keep bus hold time
 	-- for slightly slower devices.
-	cphi2 <= cphi2_int and (chold or rwb or not(is_bus));
+	--cphi2 <= cphi2_int and (chold or rwb or not(is_bus));
+	-- shorten bus phi2 a bit for all bus cycles, to keep bus hold times
+	cphi2 <= cphi2_int and (chold or not(is_bus));
 	
 	reset <= not(nres);
 	
@@ -607,7 +613,8 @@ begin
 	   vpb,
 	   rwb,
 	   q50m,
-           cfgld_in,
+      cfgld_in,
+		dobogus,
 	   ma_out,
 	   --ma_vout,
 	   m_ffsel_out,
@@ -868,6 +875,7 @@ begin
 			bus_win_9_is_io <= '0';
 			page9_map <= "00001001";
 			--pageA_map <= "00001010";
+			dobogus <= '0';
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0' and ca_in(3) = '0') then
 			-- Write to $E80x
 			case (ca_in(2 downto 0)) is
@@ -894,6 +902,7 @@ begin
 			when "011" =>
 				-- speed controls
 				mode(1 downto 0) <= D(1 downto 0); -- speed bits
+				dobogus <= D(7);
 			when "100" =>
 				-- bus controls
 				bus_window_9 <= D(0);
@@ -955,6 +964,7 @@ begin
 			when "011" =>
 				-- speed controls
 				s0_d(1 downto 0) <= mode(1 downto 0); -- speed bits
+				s0_d(7) <= dobogus;
 			when "100" =>
 				-- bus controls
 				s0_d(0) <= bus_window_9;

@@ -43,8 +43,11 @@ entity Mapper is
 	   
 	   qclk: in std_logic;
 	   
-      cfgld : in  STD_LOGIC;	-- set when loading the cfg
-	   
+		-- set when loading the cfg
+      cfgld : in  STD_LOGIC;
+		-- when stt, do not hide 65xx bogus CPU cycles
+		dobogus: in std_logic;
+		
 	   -- mapped address lines
       RA : out std_logic_vector (19 downto 8);	-- mapped FRAM address
 		
@@ -148,7 +151,7 @@ begin
 
 	dbgout <= '0';
 	
-	avalid <= vda or vpa;
+	avalid <= vda or vpa or dobogus;
 	
 	vidblock0 <= vidblock;
 	vidblock1 <= vidblock + 1;

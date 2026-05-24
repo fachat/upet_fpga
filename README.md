@@ -162,7 +162,7 @@ areas between multiple locations in fast RAM.
   - 10 = 4 MHz
   - 11 = 12.5 MHz with wait states for video access to VRAM
 - Bit 2-6: unused, must be 0
-- Bit 7: when set, do not hide bogus CPU cycles (VPA=VDA=0) inside phi1 if not on full speed
+- Bit 7: when set, do hide bogus CPU cycles (VPA=VDA=0) inside phi1 if not on full speed
 
 ### $e804 (59396) Bus window
 

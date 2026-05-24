@@ -45,8 +45,8 @@ entity Mapper is
 	   
 		-- set when loading the cfg
       cfgld : in  STD_LOGIC;
-		-- when stt, do not hide 65xx bogus CPU cycles
-		dobogus: in std_logic;
+		-- when set, address is valid
+		is_valid_cycle: out std_logic;
 		
 	   -- mapped address lines
       RA : out std_logic_vector (19 downto 8);	-- mapped FRAM address
@@ -151,7 +151,8 @@ begin
 
 	dbgout <= '0';
 	
-	avalid <= vda or vpa or dobogus;
+	avalid <= vda or vpa;		-- internal address valid
+	is_valid_cycle <= avalid; 	-- to external
 	
 	vidblock0 <= vidblock;
 	vidblock1 <= vidblock + 1;

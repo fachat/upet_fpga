@@ -203,7 +203,7 @@ architecture Behavioral of Top is
 	signal lockb0 : std_logic;
 	signal forceb0 : std_logic;
 	signal m_dbg_out: std_logic;
-	signal dobogus: std_logic;
+	signal hide_bogus: std_logic;
 	
 	-- video
 	signal va_out: std_logic_vector(15 downto 0);
@@ -231,6 +231,7 @@ architecture Behavioral of Top is
 	signal wait_int: std_logic;
 	signal ramrwb_int: std_logic;
 	signal do_cpu : std_logic;
+	signal is_valid_cycle : std_logic;	-- true when CPU needs memory access
 
 	-- video RAMarbiter
 	signal vreq_video: std_logic;
@@ -315,8 +316,8 @@ architecture Behavioral of Top is
 	   
 		-- set when loading the cfg
       cfgld : in  STD_LOGIC;
-		-- when set, do not hide 65xx bogus CPU cycles
-		dobogus: in std_logic;
+		-- when set, address is valid
+		is_valid_cycle: out std_logic;
 	   
       RA : out std_logic_vector (19 downto 8);	-- mapped CPU address (FRAM)
 
@@ -453,7 +454,7 @@ architecture Behavioral of Top is
 begin
 
 	cpu_nbe <= '0';
-	
+		
 	clocky: Clock
 	port map (
 	   q50m,
@@ -499,10 +500,11 @@ begin
 		if (reset = '1') then
 			is_cpu <= '0';
 		elsif (rising_edge(q50m) and dotclk(1 downto 0) = "11") then
-		--elsif (falling_edge(q50m) and cp10 = '1') then
 			if (mode = "11") then
 				is_cpu <= '1';
  			elsif (is_cpu_trigger = '1') then
+				is_cpu <= '1';
+			elsif (is_valid_cycle = '0' and hide_bogus = '1') then
 				is_cpu <= '1';
 			elsif (do_cpu = '1') then
 				is_cpu <= '0';
@@ -512,7 +514,7 @@ begin
 
 	-- vreq_cpu is sampled at falling edge of phi2 (phi2to1)
 	-- so using is_cpu directly is a race condition, as it falls with falling phi2.
-	vreq_cpu <= is_cpu_trigger or is_cpu;
+	vreq_cpu <= is_cpu; --is_cpu_trigger or is_cpu;
 	
 	
 	-- stretch clock such that we approx. one cycle per is_cpu_trigger (1, 2, 4MHz)
@@ -525,7 +527,6 @@ begin
 	begin
 		if (reset = '1') then
 			do_cpu <= '0';
-		--elsif (rising_edge(q50m) and dotclk(1 downto 0) = "11") then
 		elsif (falling_edge(q50m) and cp11 = '1') then
 			if (	(is_bus = '0' 
 					and wait_int = '0' and wait_ram = '0')
@@ -614,7 +615,7 @@ begin
 	   rwb,
 	   q50m,
       cfgld_in,
-		dobogus,
+		is_valid_cycle,
 	   ma_out,
 	   --ma_vout,
 	   m_ffsel_out,
@@ -875,7 +876,7 @@ begin
 			bus_win_9_is_io <= '0';
 			page9_map <= "00001001";
 			--pageA_map <= "00001010";
-			dobogus <= '0';
+			hide_bogus <= '0';
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0' and ca_in(3) = '0') then
 			-- Write to $E80x
 			case (ca_in(2 downto 0)) is
@@ -902,7 +903,7 @@ begin
 			when "011" =>
 				-- speed controls
 				mode(1 downto 0) <= D(1 downto 0); -- speed bits
-				dobogus <= D(7);
+				hide_bogus <= D(7);
 			when "100" =>
 				-- bus controls
 				bus_window_9 <= D(0);
@@ -964,7 +965,7 @@ begin
 			when "011" =>
 				-- speed controls
 				s0_d(1 downto 0) <= mode(1 downto 0); -- speed bits
-				s0_d(7) <= dobogus;
+				s0_d(7) <= hide_bogus;
 			when "100" =>
 				-- bus controls
 				s0_d(0) <= bus_window_9;
@@ -1075,13 +1076,7 @@ begin
 
 		end if;
 				
-		if (rising_edge(q50m)) then
---			if (VA_select = VRA_CPU) then
---				va_is_cpu_d <= '1';
---			else
---				va_is_cpu_d <= '0';
---			end if;
-			
+		if (rising_edge(q50m)) then		
 			VA_select_d <= VA_select;
 		end if;
 		

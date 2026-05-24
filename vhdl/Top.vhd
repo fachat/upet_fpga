@@ -228,7 +228,6 @@ architecture Behavioral of Top is
 	signal wait_setup: std_logic;	-- when CPU needs to wait for setup time
 	signal is_bus: std_logic;
 	signal is_bus_a: std_logic;	-- bus access where memclk is on wrong phase with phi2 going down
-	signal wait_int: std_logic;
 	signal ramrwb_int: std_logic;
 	signal do_cpu : std_logic;
 	signal is_valid_cycle : std_logic;	-- true when CPU needs memory access
@@ -495,11 +494,12 @@ begin
 	
 	-- depending on mode, goes high when we have a CPU access pending,
 	-- and else low when a CPU access is done
-	is_cpu_p: process(reset, q50m, dotclk, is_cpu_trigger, is_cpu, do_cpu, mode, cp10)
+	is_cpu_p: process(reset, q50m, dotclk, is_cpu_trigger, is_cpu, do_cpu, mode, cp01)
 	begin
 		if (reset = '1') then
 			is_cpu <= '0';
-		elsif (rising_edge(q50m) and dotclk(1 downto 0) = "11") then
+		--elsif (rising_edge(q50m) and dotclk(1 downto 0) = "11") then
+		elsif (falling_edge(q50m) and cp01 = '1') then
 			if (mode = "11") then
 				is_cpu <= '1';
  			elsif (is_cpu_trigger = '1') then
@@ -517,11 +517,6 @@ begin
 	vreq_cpu <= is_cpu; --is_cpu_trigger or is_cpu;
 	
 	
-	-- stretch clock such that we approx. one cycle per is_cpu_trigger (1, 2, 4MHz)
-	-- wait_int rises with falling edge of memclk (see trigger above), or is 
-	-- constant low (full speed)
-	wait_int <= not(is_cpu);
-		
 	-- do_cpu is set when the coming falling edge of memclk should be active for the CPU
 	release2_p: process(q50m, reset, cp11) 
 	begin
@@ -529,7 +524,7 @@ begin
 			do_cpu <= '0';
 		elsif (falling_edge(q50m) and cp11 = '1') then
 			if (	(is_bus = '0' 
-					and wait_int = '0' and wait_ram = '0')
+					and is_cpu = '1' and wait_ram = '0')
 				or (is_bus = '1' 
 					and wait_setup = '0' and wait_bus = '0')
 				) then

@@ -217,6 +217,8 @@ architecture Behavioral of Top is
 	signal v_out: std_logic_vector(5 downto 0);
 	signal vis_regmap: std_logic;		-- when set, Viccy occupies not 4, but 96 addresses due to register-to-memory mapping
 	signal v_dbg_out: std_logic;
+	signal vga_hsync: std_logic;
+	signal vga_vsync: std_logic;
 	
 	-- cpu
 	signal ca_in: std_logic_vector(15 downto 0);
@@ -439,6 +441,24 @@ architecture Behavioral of Top is
 	   ipl: in std_logic;
 	   reset : in std_logic
 	 );
+	end component;
+
+	component HdmiOut is
+		Port (
+			qclk       : in  std_logic;
+			reset      : in  std_logic;
+			pix_in     : in  std_logic_vector(5 downto 0);
+			hsync_in   : in  std_logic;
+			vsync_in   : in  std_logic;
+			tmds_clk_p : out std_logic;
+			tmds_clk_n : out std_logic;
+			tmds_d0_p  : out std_logic;
+			tmds_d0_n  : out std_logic;
+			tmds_d1_p  : out std_logic;
+			tmds_d1_n  : out std_logic;
+			tmds_d2_p  : out std_logic;
+			tmds_d2_n  : out std_logic
+		);
 	end component;
 
 	function To_Std_Logic(L: BOOLEAN) return std_ulogic is
@@ -734,8 +754,8 @@ begin
 		vd_in,
 		vd_out,
 		phi2_int,
-		vsync,
-		hsync,
+		vga_vsync,
+		vga_hsync,
 		pet_vsync,
 		vis_enable,
 		vis_80_in,
@@ -755,8 +775,23 @@ begin
 	);
 
 	vgraphic <= not(graphic);
-	
-	pxl_out <= v_out;
+
+	hdmi_out: HdmiOut
+	port map (
+		q50m,
+		reset,
+		v_out,
+		vga_hsync,
+		vga_vsync,
+		hsync,
+		vsync,
+		pxl_out(1),
+		pxl_out(0),
+		pxl_out(3),
+		pxl_out(2),
+		pxl_out(5),
+		pxl_out(4)
+	);
 
 	------------------------------------------------------
 	-- DAC interface

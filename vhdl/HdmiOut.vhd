@@ -11,6 +11,7 @@ use UNISIM.VComponents.all;
 entity HdmiOut is
     Port (
         qclk        : in  std_logic;                      -- 2x pixel clock
+        pix_clk     : in  std_logic;                      -- pixel clock (qclk / 2)
         reset       : in  std_logic;
         pix_in      : in  std_logic_vector(7 downto 0);   -- RRRGGGBB
         hsync_in    : in  std_logic;
@@ -192,7 +193,7 @@ begin
                 rd_d1 <= 0;
                 rd_d2 <= 0;
             else
-                pix_hs_d1 <= qclk;
+                pix_hs_d1 <= pix_clk;
                 pix_hs_d2 <= pix_hs_d1;
                 load_sym <= '0';
                 load_sym_v := '0';

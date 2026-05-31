@@ -446,6 +446,7 @@ architecture Behavioral of Top is
 	component HdmiOut is
 		Port (
 			qclk       : in  std_logic;
+			pix_clk    : in  std_logic;
 			reset      : in  std_logic;
 			pix_in     : in  std_logic_vector(7 downto 0);
 			hsync_in   : in  std_logic;
@@ -779,6 +780,7 @@ begin
 	hdmi_out: HdmiOut
 	port map (
 		q50m,
+		dotclk(0),
 		reset,
 		v_out(5 downto 4) & '0' & v_out(3 downto 2) & '0' & v_out(1 downto 0),
 		vga_hsync,

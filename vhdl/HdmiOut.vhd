@@ -56,7 +56,7 @@ architecture Behavioral of HdmiOut is
         return cnt;
     end function;
 
-    function control_code(c1: std_logic; c0: std_logic) return std_logic_vector(9 downto 0) is
+    function control_code(c1: std_logic; c0: std_logic) return std_logic_vector is
     begin
         if c1 = '0' and c0 = '0' then
             return "1101010100";

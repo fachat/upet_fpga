@@ -146,10 +146,10 @@ begin
     pll_hdmi: PLL_BASE
     generic map (
         BANDWIDTH          => "OPTIMIZED",
-        CLKFBOUT_MULT      => 5,
+        CLKFBOUT_MULT      => 10,
         CLKFBOUT_PHASE     => 0.0,
-        CLKIN_PERIOD       => 18.518,    -- 54 MHz nominal
-        CLKOUT0_DIVIDE     => 1,
+        CLKIN_PERIOD       => 18.518,    -- 54 MHz nominal; VCO = 540 MHz, output = 270 MHz (5x qclk)
+        CLKOUT0_DIVIDE     => 2,
         CLKOUT0_DUTY_CYCLE => 0.5,
         CLKOUT0_PHASE      => 0.0,
         DIVCLK_DIVIDE      => 1,

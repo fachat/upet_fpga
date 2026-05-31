@@ -12,7 +12,7 @@ entity HdmiOut is
     Port (
         qclk        : in  std_logic;                      -- 2x pixel clock
         reset       : in  std_logic;
-        pix_in      : in  std_logic_vector(5 downto 0);   -- RRGGBB (2 bits each)
+        pix_in      : in  std_logic_vector(7 downto 0);   -- RRRGGGBB
         hsync_in    : in  std_logic;
         vsync_in    : in  std_logic;
         tmds_clk_p  : out std_logic;
@@ -203,8 +203,8 @@ begin
                 end if;
 
                 if load_sym_v = '1' then
-                    data_r := pix_in(5 downto 4) & pix_in(5 downto 4) & pix_in(5 downto 4) & pix_in(5 downto 4);
-                    data_g := pix_in(3 downto 2) & pix_in(3 downto 2) & pix_in(3 downto 2) & pix_in(3 downto 2);
+                    data_r := pix_in(7 downto 5) & pix_in(7 downto 5) & pix_in(7 downto 6);
+                    data_g := pix_in(4 downto 2) & pix_in(4 downto 2) & pix_in(4 downto 3);
                     data_b := pix_in(1 downto 0) & pix_in(1 downto 0) & pix_in(1 downto 0) & pix_in(1 downto 0);
 
                     if hsync_in = '0' or vsync_in = '0' then

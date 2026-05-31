@@ -447,7 +447,7 @@ architecture Behavioral of Top is
 		Port (
 			qclk       : in  std_logic;
 			reset      : in  std_logic;
-			pix_in     : in  std_logic_vector(5 downto 0);
+			pix_in     : in  std_logic_vector(7 downto 0);
 			hsync_in   : in  std_logic;
 			vsync_in   : in  std_logic;
 			tmds_clk_p : out std_logic;
@@ -780,7 +780,7 @@ begin
 	port map (
 		q50m,
 		reset,
-		v_out,
+		v_out(5 downto 4) & '0' & v_out(3 downto 2) & '0' & v_out(1 downto 0),
 		vga_hsync,
 		vga_vsync,
 		vsync,

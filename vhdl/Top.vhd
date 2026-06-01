@@ -219,6 +219,8 @@ architecture Behavioral of Top is
 	signal v_dbg_out: std_logic;
 	signal vga_hsync: std_logic;
 	signal vga_vsync: std_logic;
+	signal vga_hsync_int: std_logic;
+	signal vga_vsync_int: std_logic;
 	
 	-- cpu
 	signal ca_in: std_logic_vector(15 downto 0);
@@ -368,6 +370,8 @@ architecture Behavioral of Top is
 	   --dena   : out std_logic;	-- display enable
       v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
+	   vsync_int: out std_logic;
+	   hsync_int: out std_logic;
 	   pet_vsync: out std_logic;	-- for the PET screen interrupt
 
 	   is_enable: in std_logic;	-- is display enabled
@@ -757,6 +761,8 @@ begin
 		phi2_int,
 		vga_vsync,
 		vga_hsync,
+		vga_vsync_int,
+		vga_hsync_int,
 		pet_vsync,
 		vis_enable,
 		vis_80_in,
@@ -783,8 +789,8 @@ begin
 		dotclk(0),
 		reset,
 		v_out(5 downto 4) & '0' & v_out(3 downto 2) & '0' & v_out(1 downto 0),
-		vga_hsync,
-		vga_vsync,
+		vga_hsync_int,
+		vga_vsync_int,
 		vsync,
 		hsync,
 		pxl_out(1),

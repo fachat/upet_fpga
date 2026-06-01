@@ -41,6 +41,8 @@ entity Video is
 	   --dena   : out std_logic;	-- display enable
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
+	   vsync_int : out std_logic;
+	   hsync_int : out std_logic;
 	   pet_vsync: out std_logic;	-- for the PET screen interrupt
 
 	   is_enable: in std_logic;
@@ -769,10 +771,12 @@ begin
 	alt_do_set_rc <= is_raster_match and alt_set_rc;
 	
 	h_sync <= h_sync_ext;
+	hsync_int <= h_sync_int;
 	
 	is_80 <= mode_80col or is_80_in;
 	
 	v_sync <= v_sync_ext;
+	vsync_int <= v_sync_int;
 	
 	-- PET vsync is always positive pulse
 	pet_vsync <= v_sync_int;
@@ -2569,4 +2573,3 @@ begin
 	end process;
 	
 end Behavioral;
-

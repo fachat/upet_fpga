@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------------------
 -- Module:      HdmiTestTop
 -- Description: Standalone 720x480p60 HDMI colour-bar test image generator.
---              Requires only a 27 MHz input clock; no other project files needed.
+--              Requires only a 54 MHz input clock; no other project files needed.
 --
 -- Video format: 720x480p 59.94/60 Hz (CEA-861 format 2/3)
 --   ModeLine: 27.00 720 736 798 858 480 489 495 525 -HSync -VSync
@@ -30,7 +30,7 @@ use UNISIM.VComponents.all;
 
 entity HdmiTestTop is
     Port (
-        clk27      : in  std_logic;   -- 27 MHz board clock
+        clk54      : in  std_logic;   -- 54 MHz board clock
         reset_n    : in  std_logic;   -- active-low reset
         tmds_clk_p : out std_logic;
         tmds_clk_n : out std_logic;
@@ -72,8 +72,8 @@ architecture Behavioral of HdmiTestTop is
 
     ---------------------------------------------------------------------------
     -- PLL / clock signals
-    --   PLL input  : 27 MHz
-    --   VCO        : 27 * 20 = 540 MHz  (within Spartan-6 PLL VCO range 400-1000 MHz)
+    --   PLL input  : 54 MHz
+    --   VCO        : 54 * 10 = 540 MHz  (within Spartan-6 PLL VCO range 400-1000 MHz)
     --   CLKOUT0/2  : 540 / 2 = 270 MHz  (10x pixel clock, TMDS serial clock)
     ---------------------------------------------------------------------------
     signal pll_fb      : std_logic;
@@ -196,16 +196,16 @@ begin
     reset <= not reset_n;
 
     ---------------------------------------------------------------------------
-    -- PLL: 27 MHz → 270 MHz serial clock
-    --   CLKFBOUT_MULT=20, DIVCLK_DIVIDE=1 → VCO = 540 MHz
+    -- PLL: 54 MHz → 270 MHz serial clock
+    --   CLKFBOUT_MULT=10, DIVCLK_DIVIDE=1 → VCO = 540 MHz
     --   CLKOUT0_DIVIDE=2                  → 270 MHz
     ---------------------------------------------------------------------------
     pll_inst : PLL_BASE
     generic map (
         BANDWIDTH          => "OPTIMIZED",
-        CLKFBOUT_MULT      => 20,
+        CLKFBOUT_MULT      => 10,
         CLKFBOUT_PHASE     => 0.0,
-        CLKIN_PERIOD       => 37.037,   -- 27 MHz
+        CLKIN_PERIOD       => 18.519,   -- 54 MHz
         CLKOUT0_DIVIDE     => 2,        -- 270 MHz
         CLKOUT0_DUTY_CYCLE => 0.5,
         CLKOUT0_PHASE      => 0.0,
@@ -214,7 +214,7 @@ begin
     )
     port map (
         CLKFBIN  => pll_fb,
-        CLKIN    => clk27,
+        CLKIN    => clk54,
         RST      => reset,
         CLKFBOUT => pll_fb,
         CLKOUT0  => clk_ser_raw,

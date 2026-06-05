@@ -1,16 +1,15 @@
 ----------------------------------------------------------------------------------
 -- Module:      HdmiTestTop
--- Description: Standalone 720x480p60 HDMI colour-bar test image generator.
---              Requires only a 54 MHz input clock; no other project files needed.
+-- Description: 720x480p60 HDMI TMDS encoder / serialiser.
+--              Requires only a 54 MHz input clock; accepts pixel video signals
+--              (de, hsync, vsync, r, g, b) from the caller and outputs the TMDS
+--              serial stream.  Pixel position (h_out, v_out) is exported so
+--              the caller can generate the correct video signals for each pixel.
 --
 -- Video format: 720x480p 59.94/60 Hz (CEA-861 format 2/3)
 --   ModeLine: 27.00 720 736 798 858 480 489 495 525 -HSync -VSync
 --   Pixel clock : 27 MHz
 --   TMDS serial : 270 MHz  (10x pixel clock, generated internally by PLL)
---
--- Test image: SMPTE/EBU 8-colour bars
---   White | Yellow | Cyan | Green | Magenta | Red | Blue | Black
---   (90 pixels wide each)
 --
 -- TMDS channel assignment (HDMI):
 --   D0 = Blue  — carries VSYNC/HSYNC control codes during blanking
@@ -32,6 +31,17 @@ entity HdmiTestTop is
     Port (
         clk54      : in  std_logic;   -- 54 MHz board clock
         reset_n    : in  std_logic;   -- active-low reset
+        -- Video inputs (driven combinatorially by caller based on h_out/v_out)
+        de         : in  std_logic;                      -- data enable
+        hsync      : in  std_logic;                      -- horizontal sync
+        vsync      : in  std_logic;                      -- vertical sync
+        r          : in  std_logic_vector(7 downto 0);   -- red channel
+        g          : in  std_logic_vector(7 downto 0);   -- green channel
+        b          : in  std_logic_vector(7 downto 0);   -- blue channel
+        -- Pixel position outputs (for caller to generate video signals)
+        h_out      : out std_logic_vector(9 downto 0);   -- horizontal pixel index
+        v_out      : out std_logic_vector(9 downto 0);   -- vertical line index
+        -- TMDS differential outputs
         tmds_clk_p : out std_logic;
         tmds_clk_n : out std_logic;
         tmds_d0_p  : out std_logic;
@@ -46,29 +56,13 @@ end HdmiTestTop;
 architecture Behavioral of HdmiTestTop is
 
     ---------------------------------------------------------------------------
-    -- 720x480p60 timing (all counts are 0-based pixel/line indices)
-    --
-    --  Horizontal (858 total):
-    --    [  0 .. 719] display
-    --    [720 .. 735] front porch  (16)
-    --    [736 .. 797] sync pulse   (62, negative)
-    --    [798 .. 857] back porch   (60)
-    --
-    --  Vertical (525 total):
-    --    [  0 .. 479] display
-    --    [480 .. 488] front porch  ( 9)
-    --    [489 .. 494] sync pulse   ( 6, negative)
-    --    [495 .. 524] back porch   (30)
+    -- 720x480p60 frame dimensions.
+    -- Only the total counts are needed here; the caller supplies timing signals.
+    --   H_TOTAL = H_DISPLAY(720) + H_FP(16) + H_SYNC_W(62) + H_BP(60) = 858
+    --   V_TOTAL = V_DISPLAY(480) + V_FP(9)  + V_SYNC_W(6)  + V_BP(30) = 525
     ---------------------------------------------------------------------------
-    constant H_DISPLAY : integer := 720;
-    constant H_FP      : integer := 16;
-    constant H_SYNC_W  : integer := 62;
-    constant H_TOTAL   : integer := 858;  -- H_DISPLAY + H_FP + H_SYNC_W + H_BP
-
-    constant V_DISPLAY : integer := 480;
-    constant V_FP      : integer := 9;
-    constant V_SYNC_W  : integer := 6;
-    constant V_TOTAL   : integer := 525;  -- V_DISPLAY + V_FP + V_SYNC_W + V_BP
+    constant H_TOTAL   : integer := 858;
+    constant V_TOTAL   : integer := 525;
 
     ---------------------------------------------------------------------------
     -- PLL / clock signals
@@ -195,6 +189,10 @@ begin
 
     reset <= not reset_n;
 
+    -- Export pixel position so the caller can compute video signals.
+    h_out <= std_logic_vector(to_unsigned(h_cnt, 10));
+    v_out <= std_logic_vector(to_unsigned(v_cnt, 10));
+
     ---------------------------------------------------------------------------
     -- PLL: 54 MHz → 270 MHz serial clock
     --   CLKFBOUT_MULT=10, DIVCLK_DIVIDE=1 → VCO = 540 MHz
@@ -245,12 +243,6 @@ begin
     ---------------------------------------------------------------------------
     main_p : process(clk_ser)
         -- Pixel-domain variables (evaluated once per pixel at the load cycle)
-        variable r_v      : std_logic_vector(7 downto 0);
-        variable g_v      : std_logic_vector(7 downto 0);
-        variable b_v      : std_logic_vector(7 downto 0);
-        variable de_v     : std_logic;
-        variable hsync_v  : std_logic;
-        variable vsync_v  : std_logic;
         variable code_d0  : std_logic_vector(9 downto 0);
         variable code_d1  : std_logic_vector(9 downto 0);
         variable code_d2  : std_logic_vector(9 downto 0);
@@ -273,57 +265,21 @@ begin
             elsif ser_cnt = 9 then
                 ---------------------------------------------------------------
                 -- Load cycle: encode the pixel at the current position.
+                -- de/hsync/vsync/r/g/b are driven combinatorially by the
+                -- caller based on h_out/v_out and are stable by this edge.
                 ---------------------------------------------------------------
                 ser_cnt <= 0;
 
-                -- Data-enable: high only inside the active display window.
-                if h_cnt < H_DISPLAY and v_cnt < V_DISPLAY then
-                    de_v := '1';
-                else
-                    de_v := '0';
-                end if;
-
-                -- Horizontal sync (negative polarity — low during pulse).
-                if h_cnt >= H_DISPLAY + H_FP and
-                   h_cnt <  H_DISPLAY + H_FP + H_SYNC_W then
-                    hsync_v := '0';
-                else
-                    hsync_v := '1';
-                end if;
-
-                -- Vertical sync (negative polarity — low during pulse).
-                if v_cnt >= V_DISPLAY + V_FP and
-                   v_cnt <  V_DISPLAY + V_FP + V_SYNC_W then
-                    vsync_v := '0';
-                else
-                    vsync_v := '1';
-                end if;
-
-                -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
-                if de_v = '1' then
-                    if    h_cnt <  90 then r_v:=x"FF"; g_v:=x"FF"; b_v:=x"FF"; -- White
-                    elsif h_cnt < 180 then r_v:=x"FF"; g_v:=x"FF"; b_v:=x"00"; -- Yellow
-                    elsif h_cnt < 270 then r_v:=x"00"; g_v:=x"FF"; b_v:=x"FF"; -- Cyan
-                    elsif h_cnt < 360 then r_v:=x"00"; g_v:=x"FF"; b_v:=x"00"; -- Green
-                    elsif h_cnt < 450 then r_v:=x"FF"; g_v:=x"00"; b_v:=x"FF"; -- Magenta
-                    elsif h_cnt < 540 then r_v:=x"FF"; g_v:=x"00"; b_v:=x"00"; -- Red
-                    elsif h_cnt < 630 then r_v:=x"00"; g_v:=x"00"; b_v:=x"FF"; -- Blue
-                    else                   r_v:=x"00"; g_v:=x"00"; b_v:=x"00"; -- Black
-                    end if;
-                else
-                    r_v := x"00"; g_v := x"00"; b_v := x"00";
-                end if;
-
                 -- TMDS encoding.
-                if de_v = '1' then
+                if de = '1' then
                     -- Active pixels: encode RGB data.
                     -- D0 = Blue, D1 = Green, D2 = Red  (HDMI channel mapping).
-                    code_d0 := tmds_encode(b_v, rd_d0);
-                    code_d1 := tmds_encode(g_v, rd_d1);
-                    code_d2 := tmds_encode(r_v, rd_d2);
+                    code_d0 := tmds_encode(b, rd_d0);
+                    code_d1 := tmds_encode(g, rd_d1);
+                    code_d2 := tmds_encode(r, rd_d2);
                 else
                     -- Blanking: carry sync polarity in D0 control codes.
-                    code_d0 := control_code(vsync_v, hsync_v);
+                    code_d0 := control_code(vsync, hsync);
                     code_d1 := control_code('0', '0');
                     code_d2 := control_code('0', '0');
                 end if;
@@ -335,9 +291,9 @@ begin
                 sr_d2  <= code_d2;
 
                 -- Update running disparity.
-                rd_d0 <= next_rd(rd_d0, code_d0, de_v);
-                rd_d1 <= next_rd(rd_d1, code_d1, de_v);
-                rd_d2 <= next_rd(rd_d2, code_d2, de_v);
+                rd_d0 <= next_rd(rd_d0, code_d0, de);
+                rd_d1 <= next_rd(rd_d1, code_d1, de);
+                rd_d2 <= next_rd(rd_d2, code_d2, de);
 
                 -- Advance pixel / line counters.
                 if h_cnt = H_TOTAL - 1 then

@@ -85,6 +85,16 @@ architecture Behavioral of HdmiTestShell is
     signal g_s     : std_logic_vector(7 downto 0);
     signal b_s     : std_logic_vector(7 downto 0);
 
+	 -- HDMI output signals
+	 signal tmds_clk_p : std_logic;
+    signal tmds_clk_n : std_logic;
+    signal tmds_d0_p  : std_logic;
+    signal tmds_d0_n  : std_logic;
+    signal tmds_d1_p  : std_logic;
+    signal tmds_d1_n  : std_logic;
+    signal tmds_d2_p  : std_logic;
+    signal tmds_d2_n  : std_logic;
+
 begin
 
     ---------------------------------------------------------------------------
@@ -103,14 +113,14 @@ begin
         b          => b_s,
         h_out      => h_s,
         v_out      => v_s,
-        tmds_clk_p => open,
-        tmds_clk_n => open,
-        tmds_d0_p  => open,
-        tmds_d0_n  => open,
-        tmds_d1_p  => open,
-        tmds_d1_n  => open,
-        tmds_d2_p  => open,
-        tmds_d2_n  => open
+        tmds_clk_p => tmds_clk_p,
+        tmds_clk_n => tmds_clk_n,
+        tmds_d0_p  => tmds_d0_p,
+        tmds_d0_n  => tmds_d0_n,
+        tmds_d1_p  => tmds_d1_p,
+        tmds_d1_n  => tmds_d1_n,
+        tmds_d2_p  => tmds_d2_p,
+        tmds_d2_n  => tmds_d2_n
     );
 
     ---------------------------------------------------------------------------
@@ -166,15 +176,16 @@ begin
     end process;
 
     ---------------------------------------------------------------------------
-    -- Board-level parallel video outputs.
-    -- pxl_out maps the two MSBs of each 8-bit channel to the 2:2:2 RGB bus:
-    --   pxl_out(5) = R[7]  (ROUT)    pxl_out(4) = R[6]  (IROUT)
-    --   pxl_out(3) = G[7]  (GOUT)    pxl_out(2) = G[6]  (IGOUT)
-    --   pxl_out(1) = B[7]  (BOUT)    pxl_out(0) = B[6]  (IBOUT)
+    -- Board-level HDMI video output mapping
     ---------------------------------------------------------------------------
-    vsync   <= vsync_s;
-    hsync   <= hsync_s;
-    pxl_out <= r_s(7) & r_s(6) & g_s(7) & g_s(6) & b_s(7) & b_s(6);
+    vsync   <= tmds_clk_p;
+    hsync   <= tmds_clk_n;
+    pxl_out(5) <= tmds_d2_p;
+	 pxl_out(4) <= tmds_d2_n;
+	 pxl_out(3) <= tmds_d1_p;
+	 pxl_out(2) <= tmds_d1_n;
+	 pxl_out(1)	<= tmds_d0_p;
+	 pxl_out(0) <= tmds_d0_n;
 
 end Behavioral;
 

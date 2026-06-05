@@ -63,13 +63,13 @@ architecture Behavioral of HdmiTestShell is
             h_out      : out std_logic_vector(9 downto 0);
             v_out      : out std_logic_vector(9 downto 0);
             tmds_clk_p : out std_logic;
-            tmds_clk_n : out std_logic;
+--            tmds_clk_n : out std_logic;
             tmds_d0_p  : out std_logic;
-            tmds_d0_n  : out std_logic;
+--            tmds_d0_n  : out std_logic;
             tmds_d1_p  : out std_logic;
-            tmds_d1_n  : out std_logic;
-            tmds_d2_p  : out std_logic;
-            tmds_d2_n  : out std_logic
+--            tmds_d1_n  : out std_logic;
+            tmds_d2_p  : out std_logic
+--            tmds_d2_n  : out std_logic
         );
     end component;
 
@@ -87,13 +87,13 @@ architecture Behavioral of HdmiTestShell is
 
 	 -- HDMI output signals
 	 signal tmds_clk_p : std_logic;
-    signal tmds_clk_n : std_logic;
+--    signal tmds_clk_n : std_logic;
     signal tmds_d0_p  : std_logic;
-    signal tmds_d0_n  : std_logic;
+--    signal tmds_d0_n  : std_logic;
     signal tmds_d1_p  : std_logic;
-    signal tmds_d1_n  : std_logic;
+--    signal tmds_d1_n  : std_logic;
     signal tmds_d2_p  : std_logic;
-    signal tmds_d2_n  : std_logic;
+--    signal tmds_d2_n  : std_logic;
 
 begin
 
@@ -114,13 +114,13 @@ begin
         h_out      => h_s,
         v_out      => v_s,
         tmds_clk_p => tmds_clk_p,
-        tmds_clk_n => tmds_clk_n,
+--        tmds_clk_n => tmds_clk_n,
         tmds_d0_p  => tmds_d0_p,
-        tmds_d0_n  => tmds_d0_n,
+--        tmds_d0_n  => tmds_d0_n,
         tmds_d1_p  => tmds_d1_p,
-        tmds_d1_n  => tmds_d1_n,
-        tmds_d2_p  => tmds_d2_p,
-        tmds_d2_n  => tmds_d2_n
+--        tmds_d1_n  => tmds_d1_n,
+        tmds_d2_p  => tmds_d2_p
+--        tmds_d2_n  => tmds_d2_n
     );
 
     ---------------------------------------------------------------------------

@@ -43,13 +43,13 @@ entity HdmiTestTop is
         v_out      : out std_logic_vector(9 downto 0);   -- vertical line index
         -- TMDS differential outputs
         tmds_clk_p : out std_logic;
-        tmds_clk_n : out std_logic;
+        --tmds_clk_n : out std_logic;
         tmds_d0_p  : out std_logic;
-        tmds_d0_n  : out std_logic;
+        --tmds_d0_n  : out std_logic;
         tmds_d1_p  : out std_logic;
-        tmds_d1_n  : out std_logic;
-        tmds_d2_p  : out std_logic;
-        tmds_d2_n  : out std_logic
+        --tmds_d1_n  : out std_logic;
+        tmds_d2_p  : out std_logic
+        --tmds_d2_n  : out std_logic
     );
 end HdmiTestTop;
 

@@ -17,13 +17,9 @@ entity HdmiOut is
         hsync_in    : in  std_logic;
         vsync_in    : in  std_logic;
         tmds_clk_p  : out std_logic;
-        tmds_clk_n  : out std_logic;
         tmds_d0_p   : out std_logic;
-        tmds_d0_n   : out std_logic;
         tmds_d1_p   : out std_logic;
-        tmds_d1_n   : out std_logic;
-        tmds_d2_p   : out std_logic;
-        tmds_d2_n   : out std_logic
+        tmds_d2_p   : out std_logic
     );
 end HdmiOut;
 
@@ -244,12 +240,8 @@ begin
 
     -- Re-use existing 8 single-ended VGA outputs as 4 differential HDMI pairs.
     tmds_clk_p <= sr_clk(0);
-    tmds_clk_n <= not sr_clk(0);
     tmds_d0_p <= sr_d0(0);
-    tmds_d0_n <= not sr_d0(0);
     tmds_d1_p <= sr_d1(0);
-    tmds_d1_n <= not sr_d1(0);
     tmds_d2_p <= sr_d2(0);
-    tmds_d2_n <= not sr_d2(0);
 
 end Behavioral;

@@ -275,7 +275,13 @@ architecture Behavioral of Top is
 	signal dac_dout: std_logic_vector(7 downto 0);
 	signal dac_irq: std_logic;
 	signal nldac_int: std_logic;
-	
+
+	-- HDMI
+	signal tmds_clk_p :  std_logic;
+	signal tmds_d0_p  :  std_logic;
+	signal tmds_d1_p  :  std_logic;
+	signal tmds_d2_p  :  std_logic;
+
 	-- components
 	
 	component Clock is
@@ -456,13 +462,9 @@ architecture Behavioral of Top is
 			hsync_in   : in  std_logic;
 			vsync_in   : in  std_logic;
 			tmds_clk_p : out std_logic;
-			tmds_clk_n : out std_logic;
 			tmds_d0_p  : out std_logic;
-			tmds_d0_n  : out std_logic;
 			tmds_d1_p  : out std_logic;
-			tmds_d1_n  : out std_logic;
-			tmds_d2_p  : out std_logic;
-			tmds_d2_n  : out std_logic
+			tmds_d2_p  : out std_logic
 		);
 	end component;
 
@@ -789,18 +791,23 @@ begin
 		dotclk(0),
 		reset,
 		v_out(5 downto 4) & '0' & v_out(3 downto 2) & '0' & v_out(1 downto 0),
-		vga_hsync_int,
-		vga_vsync_int,
-		vsync,
-		hsync,
-		pxl_out(1),
-		pxl_out(0),
-		pxl_out(3),
-		pxl_out(2),
-		pxl_out(5),
-		pxl_out(4)
+		not(vga_hsync_int),
+		not(vga_vsync_int),
+		tmds_clk_p,
+		tmds_d0_p,
+		tmds_d1_p,
+		tmds_d2_p
 	);
 
+	vsync <= tmds_clk_p;
+	hsync <= not(tmds_clk_p);
+	pxl_out(1) <= tmds_d0_p;
+	pxl_out(0) <= not(tmds_d0_p);
+	pxl_out(3) <= tmds_d1_p;
+	pxl_out(2) <= not(tmds_d1_p);
+	pxl_out(5) <= tmds_d2_p;
+	pxl_out(4) <= not(tmds_d2_p);
+	
 	------------------------------------------------------
 	-- DAC interface
 

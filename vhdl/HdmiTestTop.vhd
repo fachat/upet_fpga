@@ -327,12 +327,12 @@ begin
     -- Constrain both members of each pair to TMDS_33 in the UCF file.
     ---------------------------------------------------------------------------
     tmds_clk_p <= sr_clk(0);
-    tmds_clk_n <= not sr_clk(0);
+--    tmds_clk_n <= not sr_clk(0);
     tmds_d0_p  <= sr_d0(0);
-    tmds_d0_n  <= not sr_d0(0);
+--    tmds_d0_n  <= not sr_d0(0);
     tmds_d1_p  <= sr_d1(0);
-    tmds_d1_n  <= not sr_d1(0);
+--    tmds_d1_n  <= not sr_d1(0);
     tmds_d2_p  <= sr_d2(0);
-    tmds_d2_n  <= not sr_d2(0);
+--    tmds_d2_n  <= not sr_d2(0);
 
 end Behavioral;

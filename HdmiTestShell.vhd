@@ -161,11 +161,11 @@ begin
 
         -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
         if h < H_DISPLAY and v < V_DISPLAY then
-            if    h <  90 then r_s <= x"FF"; g_s <= x"FF"; b_s <= x"FF"; -- White
-            elsif h < 180 then r_s <= x"FF"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
+            if    h <  90 then r_s <= x"FF"; g_s <= x"F7"; b_s <= x"FF"; -- White
+            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
             elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
-            elsif h < 360 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"00"; -- Green
-            elsif h < 450 then r_s <= x"FF"; g_s <= x"00"; b_s <= x"FF"; -- Magenta
+            elsif h < 360 then r_s <= x"00"; g_s <= x"F7"; b_s <= x"00"; -- Green
+            elsif h < 450 then r_s <= x"7F"; g_s <= x"00"; b_s <= x"FF"; -- Magenta
             elsif h < 540 then r_s <= x"FF"; g_s <= x"00"; b_s <= x"00"; -- Red
             elsif h < 630 then r_s <= x"00"; g_s <= x"00"; b_s <= x"FF"; -- Blue
             else                r_s <= x"00"; g_s <= x"00"; b_s <= x"00"; -- Black
@@ -179,13 +179,13 @@ begin
     -- Board-level HDMI video output mapping
     ---------------------------------------------------------------------------
     vsync   <= tmds_clk_p;
-    hsync   <= tmds_clk_n;
+    hsync   <= not(tmds_clk_p);
     pxl_out(5) <= tmds_d2_p;
-	 pxl_out(4) <= tmds_d2_n;
+	 pxl_out(4) <= not(tmds_d2_p);
 	 pxl_out(3) <= tmds_d1_p;
-	 pxl_out(2) <= tmds_d1_n;
+	 pxl_out(2) <= not(tmds_d1_p);
 	 pxl_out(1)	<= tmds_d0_p;
-	 pxl_out(0) <= tmds_d0_n;
+	 pxl_out(0) <= not(tmds_d0_p);
 
 end Behavioral;
 

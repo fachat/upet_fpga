@@ -87,11 +87,16 @@ entity ShellUltra is
 	   nframsel : out STD_LOGIC;
 	   ramrwb : out std_logic;
 	   
-	   vsync : out  STD_LOGIC;
-	   hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
 
-	   pxl_out: out std_logic_vector(5 downto 0);
+		hdmi_ck_n: out std_logic;
+		hdmi_ck_p: out std_logic;
+		hdmi_d0_n: out std_logic;
+		hdmi_d0_p: out std_logic;
+		hdmi_d1_n: out std_logic;
+		hdmi_d1_p: out std_logic;
+		hdmi_d2_n: out std_logic;
+		hdmi_d2_p: out std_logic;
 	   
 	-- SPI
 	   spi_out : out std_logic;
@@ -117,6 +122,16 @@ architecture Behavioral of ShellUltra is
 	signal nsel1: std_logic;
 	signal nsel2: std_logic;
 	signal nsel4: std_logic;
+	
+	signal vga_hsync_int: std_logic;
+	signal vga_vsync_int: std_logic;
+	signal v_out: std_logic_vector(5 downto 0);
+	signal dotclk0: std_logic;
+	
+	signal tmds_ck: std_logic;
+	signal tmds_d0: std_logic;
+	signal tmds_d1: std_logic;
+	signal tmds_d2: std_logic;
 	
 	component Top is
     	Port ( 
@@ -174,6 +189,7 @@ architecture Behavioral of ShellUltra is
 	   nframsel : out STD_LOGIC;
 	   ramrwb : out std_logic;
 	   
+		dotclk0 : out std_logic;
 	   vsync : out  STD_LOGIC;
  	   hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
@@ -200,6 +216,21 @@ architecture Behavioral of ShellUltra is
 	 );
 	end component;
 	   
+	component HdmiOut is
+		Port (
+			qclk       : in  std_logic;
+			pix_clk    : in  std_logic;
+			reset      : in  std_logic;
+			pix_in     : in  std_logic_vector(7 downto 0);
+			hsync_in   : in  std_logic;
+			vsync_in   : in  std_logic;
+			tmds_clk_p : out std_logic;
+			tmds_d0_p  : out std_logic;
+			tmds_d1_p  : out std_logic;
+			tmds_d2_p  : out std_logic
+		);
+	end component;
+
 begin
 
     top_c: Top
@@ -258,11 +289,12 @@ begin
 	nframsel,
 	ramrwb,
 	   
-	vsync,
-	hsync,
+	dotclk0,
+	vga_vsync_int,
+	vga_hsync_int,
 	pet_vsync,
 
-	pxl_out,
+	v_out,
 	   
 	-- SPI
 	spi_out,
@@ -281,5 +313,29 @@ begin
 	spi_amosi,
 	nldac
 	);
+
+	hdmi_out: HdmiOut
+	port map (
+		q50m,
+		dotclk0,
+		not(nres),
+		v_out(5 downto 4) & '0' & v_out(3 downto 2) & '0' & v_out(1 downto 0),
+		not(vga_hsync_int),
+		not(vga_vsync_int),
+		tmds_ck,
+		tmds_d0,
+		tmds_d1,
+		tmds_d2
+	);
+
+	hdmi_ck_p <= tmds_ck;
+	hdmi_ck_n <= not(tmds_ck);
+
+	hdmi_d0_p <= tmds_d0;
+	hdmi_d0_n <= not(tmds_d0);
+	hdmi_d1_p <= tmds_d1;
+	hdmi_d1_n <= not(tmds_d1);
+	hdmi_d2_p <= tmds_d2;
+	hdmi_d2_n <= not(tmds_d2);
 
 end Behavioral;

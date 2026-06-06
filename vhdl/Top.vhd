@@ -87,6 +87,7 @@ entity Top is
 	   nframsel : out STD_LOGIC;
 	   ramrwb : out std_logic;
 	   
+		dotclk0 : out std_logic;
       vsync : out  STD_LOGIC;
       hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
@@ -453,21 +454,6 @@ architecture Behavioral of Top is
 	 );
 	end component;
 
-	component HdmiOut is
-		Port (
-			qclk       : in  std_logic;
-			pix_clk    : in  std_logic;
-			reset      : in  std_logic;
-			pix_in     : in  std_logic_vector(7 downto 0);
-			hsync_in   : in  std_logic;
-			vsync_in   : in  std_logic;
-			tmds_clk_p : out std_logic;
-			tmds_d0_p  : out std_logic;
-			tmds_d1_p  : out std_logic;
-			tmds_d2_p  : out std_logic
-		);
-	end component;
-
 	function To_Std_Logic(L: BOOLEAN) return std_ulogic is
 	begin
 		if L then
@@ -783,30 +769,14 @@ begin
 		reset
 	);
 
+	dotclk0 <= dotclk(0);
+	
 	vgraphic <= not(graphic);
 
-	hdmi_out: HdmiOut
-	port map (
-		q50m,
-		dotclk(0),
-		reset,
-		v_out(5 downto 4) & '0' & v_out(3 downto 2) & '0' & v_out(1 downto 0),
-		not(vga_hsync_int),
-		not(vga_vsync_int),
-		tmds_clk_p,
-		tmds_d0_p,
-		tmds_d1_p,
-		tmds_d2_p
-	);
-
-	vsync <= tmds_clk_p;
-	hsync <= not(tmds_clk_p);
-	pxl_out(1) <= tmds_d0_p;
-	pxl_out(0) <= not(tmds_d0_p);
-	pxl_out(3) <= tmds_d1_p;
-	pxl_out(2) <= not(tmds_d1_p);
-	pxl_out(5) <= tmds_d2_p;
-	pxl_out(4) <= not(tmds_d2_p);
+	pxl_out <= v_out;
+	vsync <= vga_vsync_int;
+	hsync <= vga_hsync_int;
+	
 	
 	------------------------------------------------------
 	-- DAC interface

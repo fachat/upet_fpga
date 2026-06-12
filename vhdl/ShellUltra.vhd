@@ -276,10 +276,10 @@ architecture Behavioral of ShellUltra is
     constant V_SYNC_W  : integer := 6;
 
     -- Pixel position exported by HdmiTestTop (combinatorial, 270 MHz domain).
-    signal h_s     : std_logic_vector(9 downto 0);
-    signal v_s     : std_logic_vector(9 downto 0);
+    signal h_cnt     : std_logic_vector(9 downto 0);
+    signal v_cnt     : std_logic_vector(9 downto 0);
 
-    -- Generated video signals (combinatorial, based on h_s / v_s).
+    -- Generated video signals (combinatorial, based on h_cnt / v_cnt).
     signal de_s    : std_logic;
     signal hsync_s : std_logic;
     signal vsync_s : std_logic;
@@ -380,20 +380,20 @@ begin
         r          => r_s,
         g          => g_s,
         b          => b_s,
-        h_out      => h_s,
-        v_out      => v_s,
+        h_out      => h_cnt,
+        v_out      => v_cnt,
         tmds_clk_p => tmds_ck,
         tmds_d0_p  => tmds_d0,
         tmds_d1_p  => tmds_d1,
         tmds_d2_p  => tmds_d2
     );
 
-    video_gen_p : process(h_s, v_s)
+    video_gen_p : process(h_cnt, v_cnt, v_out)
         variable h : integer;
         variable v : integer;
     begin
-        h := to_integer(unsigned(h_s));
-        v := to_integer(unsigned(v_s));
+        h := to_integer(unsigned(h_cnt));
+        v := to_integer(unsigned(v_cnt));
 
         -- Data enable: high inside active display window.
         if h < H_DISPLAY and v < V_DISPLAY then
@@ -418,17 +418,26 @@ begin
 		  
         -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
         if h < H_DISPLAY and v < V_DISPLAY then
-            if    h <  90 then r_s <= x"FF"; b_s <= x"FF"; -- White
-            elsif h < 180 then r_s <= x"F7"; b_s <= x"00"; -- Yellow
-            elsif h < 270 then r_s <= x"00"; b_s <= x"FF"; -- Cyan
-            elsif h < 360 then r_s <= x"00"; b_s <= x"00"; -- Green
-            elsif h < 450 then r_s <= x"7F"; b_s <= x"FF"; -- Magenta
-            elsif h < 540 then r_s <= x"FF"; b_s <= x"00"; -- Red
-            elsif h < 630 then r_s <= x"00"; b_s <= x"FF"; -- Blue
-            else      			 r_s <= x"00"; b_s <= x"00"; -- Black
+            if    h <  90 then r_s <= x"FF"; g_s <= x"FF"; b_s <= x"FF"; -- White
+            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
+            elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
+            elsif h < 360 then r_s <= x"00"; g_s <= x"F7"; b_s <= x"00"; -- Green
+            elsif h < 450 then r_s <= x"7F"; g_s <= x"00"; b_s <= x"FF"; -- Magenta
+            elsif h < 540 then r_s <= x"FF"; g_s <= x"00"; b_s <= x"00"; -- Red
+            elsif h < 630 then r_s <= x"00"; g_s <= x"00"; b_s <= x"FF"; -- Blue
+            else      			 r_s <= x"00"; g_s <= x"00"; b_s <= x"00"; -- Black
             end if;
+--            if    h <  90 then r_s <= x"FF"; b_s <= x"FF"; -- White
+--            elsif h < 180 then r_s <= x"F7"; b_s <= x"00"; -- Yellow
+--            elsif h < 270 then r_s <= x"00"; b_s <= x"FF"; -- Cyan
+--            elsif h < 360 then r_s <= x"00"; b_s <= x"00"; -- Green
+--            elsif h < 450 then r_s <= x"7F"; b_s <= x"FF"; -- Magenta
+--            elsif h < 540 then r_s <= x"FF"; b_s <= x"00"; -- Red
+--            elsif h < 630 then r_s <= x"00"; b_s <= x"FF"; -- Blue
+--            else      			 r_s <= x"00"; b_s <= x"00"; -- Black
+--            end if;
 --				r_s <= v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4);
-				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
+--				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
 --				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
         else
             r_s <= x"00"; g_s <= x"00"; b_s <= x"00";

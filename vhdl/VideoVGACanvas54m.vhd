@@ -237,6 +237,38 @@ architecture Behavioral of Canvas is
 	signal x_addr_int: std_logic_vector(10 downto 0);
 	signal y_addr_int: std_logic_vector(9 downto 0);
 	
+    ---------------------------------------------------------------------------
+    -- 720x480p60 timing constants
+    --   These must be consistent with the H_TOTAL / V_TOTAL used inside
+    --   HdmiTestTop to ensure the video signals align with the TMDS stream.
+    --
+    --  Horizontal (858 total):
+    --    [  0 .. 719] display
+    --    [720 .. 735] front porch  (16)
+    --    [736 .. 797] sync pulse   (62, negative)
+    --    [798 .. 857] back porch   (60)
+    --
+    --  Vertical (525 total):
+    --    [  0 .. 479] display
+    --    [480 .. 488] front porch  ( 9)
+    --    [489 .. 494] sync pulse   ( 6, negative)
+    --    [495 .. 524] back porch   (30)
+    ---------------------------------------------------------------------------
+    constant H_DISPLAY : integer := 720;
+    constant H_FP      : integer := 16;
+    constant H_SYNC_W  : integer := 62;
+
+    constant V_DISPLAY : integer := 480;
+    constant V_FP      : integer := 9;
+    constant V_SYNC_W  : integer := 6;
+
+    constant H_TOTAL   : integer := 858;
+    constant V_TOTAL   : integer := 525;
+	 signal frame_h_cnt   : integer range 0 to H_TOTAL  - 1;
+    signal frame_v_cnt   : integer range 0 to V_TOTAL  - 1;
+	 signal de_s		: std_logic;
+	 signal hsync_s	: std_logic;
+	 signal vsync_s	: std_logic;
 begin
 
 	-- passed through to the actual output; some modes inverted, others not
@@ -330,6 +362,64 @@ begin
 			x_default_offset_val	<= x_default_offset_50;
 			y_default_offset_val	<= y_default_offset_50;
 		end if;
+	end process;
+
+	-----------------------------------------------------------------------------
+	-- frame generation
+
+    frame_p : process(qclk, dotclk)
+    begin
+        if (rising_edge(qclk) and dotclk(0) = '0') then
+            if reset = '1' then
+                -- Hold everything in reset; start with ser_cnt=9 so the first
+                -- active cycle immediately executes the load path.
+                frame_h_cnt   <= 0;
+                frame_v_cnt   <= 0;
+            else
+				
+                -- Advance pixel / line counters.
+                if (frame_h_cnt = H_TOTAL - 1) then
+                    frame_h_cnt <= 0;
+                    if (frame_v_cnt = V_TOTAL - 1) then
+                        frame_v_cnt <= 0;
+                    else
+                        frame_v_cnt <= frame_v_cnt + 1;
+                    end if;
+                else
+                    frame_h_cnt <= frame_h_cnt + 1;
+                end if;
+				end if;
+        end if;
+    end process;
+
+    video_gen_p : process(h_cnt, v_cnt)
+        variable h : integer;
+        variable v : integer;
+    begin
+        h := frame_h_cnt;
+        v := frame_v_cnt;
+
+        -- Data enable: high inside active display window.
+        if h < H_DISPLAY and v < V_DISPLAY then
+            de_s <= '1';
+        else
+            de_s <= '0';
+        end if;
+
+        -- Horizontal sync (negative polarity - low during pulse).
+        if h >= H_DISPLAY + H_FP and h < H_DISPLAY + H_FP + H_SYNC_W then
+            hsync_s <= '0';
+        else
+            hsync_s <= '1';
+        end if;
+
+        -- Vertical sync (negative polarity - low during pulse).
+        if v >= V_DISPLAY + V_FP and v < V_DISPLAY + V_FP + V_SYNC_W then
+            vsync_s <= '0';
+        else
+            vsync_s <= '1';
+        end if;
+		  
 	end process;
 
 	-----------------------------------------------------------------------------

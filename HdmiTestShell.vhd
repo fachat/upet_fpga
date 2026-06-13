@@ -87,13 +87,9 @@ architecture Behavioral of HdmiTestShell is
 
 	 -- HDMI output signals
 	 signal tmds_clk_p : std_logic;
---    signal tmds_clk_n : std_logic;
     signal tmds_d0_p  : std_logic;
---    signal tmds_d0_n  : std_logic;
     signal tmds_d1_p  : std_logic;
---    signal tmds_d1_n  : std_logic;
     signal tmds_d2_p  : std_logic;
---    signal tmds_d2_n  : std_logic;
 
 begin
 
@@ -131,7 +127,7 @@ begin
     -- Runs combinatorially on h_s/v_s so that the generated signals are valid
     -- at the 270 MHz load cycle when HdmiTestTop samples them.
     ---------------------------------------------------------------------------
-    video_gen_p : process(h_s, v_s)
+    video_gen_p : process(h_s, v_s, v_out)
         variable h : integer;
         variable v : integer;
     begin
@@ -161,15 +157,26 @@ begin
 
         -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
         if h < H_DISPLAY and v < V_DISPLAY then
-            if    h <  90 then r_s <= x"FF"; g_s <= x"F7"; b_s <= x"FF"; -- White
-            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
-            elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
-            elsif h < 360 then r_s <= x"00"; g_s <= x"F7"; b_s <= x"00"; -- Green
-            elsif h < 450 then r_s <= x"7F"; g_s <= x"00"; b_s <= x"FF"; -- Magenta
-            elsif h < 540 then r_s <= x"FF"; g_s <= x"00"; b_s <= x"00"; -- Red
-            elsif h < 630 then r_s <= x"00"; g_s <= x"00"; b_s <= x"FF"; -- Blue
-            else                r_s <= x"00"; g_s <= x"00"; b_s <= x"00"; -- Black
+--            if    h <  90 then r_s <= x"FF"; g_s <= x"F7"; b_s <= x"FF"; -- White
+--            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
+--            elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
+--            elsif h < 360 then r_s <= x"00"; g_s <= x"F7"; b_s <= x"00"; -- Green
+--            elsif h < 450 then r_s <= x"7F"; g_s <= x"00"; b_s <= x"FF"; -- Magenta
+--            elsif h < 540 then r_s <= x"FF"; g_s <= x"00"; b_s <= x"00"; -- Red
+--            elsif h < 630 then r_s <= x"00"; g_s <= x"00"; b_s <= x"FF"; -- Blue
+--            else                r_s <= x"00"; g_s <= x"00"; b_s <= x"00"; -- Black
+--            end if;
+            if    h <  90 then r_s <= x"FF"; g_s <= x"F7"; 
+            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; 
+            elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; 
+            elsif h < 360 then r_s <= x"00"; g_s <= x"F7"; 
+            elsif h < 450 then r_s <= x"7F"; g_s <= x"00"; 
+            elsif h < 540 then r_s <= x"FF"; g_s <= x"00"; 
+            elsif h < 630 then r_s <= x"00"; g_s <= x"00"; 
+            else                r_s <= x"00"; g_s <= x"00"; 
             end if;
+				
+				b_s <= '0' & '0' & v_out;
         else
             r_s <= x"00"; g_s <= x"00"; b_s <= x"00";
         end if;

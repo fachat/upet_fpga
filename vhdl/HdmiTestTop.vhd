@@ -38,18 +38,16 @@ entity HdmiTestTop is
         r          : in  std_logic_vector(7 downto 0);   -- red channel
         g          : in  std_logic_vector(7 downto 0);   -- green channel
         b          : in  std_logic_vector(7 downto 0);   -- blue channel
+		  pixel0		 : in  std_logic;								-- when first display pixel is there
+		  
         -- Pixel position outputs (for caller to generate video signals)
         h_out      : out std_logic_vector(9 downto 0);   -- horizontal pixel index
         v_out      : out std_logic_vector(9 downto 0);   -- vertical line index
         -- TMDS differential outputs
         tmds_clk_p : out std_logic;
-        --tmds_clk_n : out std_logic;
         tmds_d0_p  : out std_logic;
-        --tmds_d0_n  : out std_logic;
         tmds_d1_p  : out std_logic;
-        --tmds_d1_n  : out std_logic;
         tmds_d2_p  : out std_logic
-        --tmds_d2_n  : out std_logic
     );
 end HdmiTestTop;
 
@@ -296,9 +294,9 @@ begin
                 rd_d2 <= next_rd(rd_d2, code_d2, de);
 
                 -- Advance pixel / line counters.
-                if h_cnt = H_TOTAL - 1 then
+                if (h_cnt = H_TOTAL - 1) then
                     h_cnt <= 0;
-                    if v_cnt = V_TOTAL - 1 then
+                    if (v_cnt = V_TOTAL - 1) then
                         v_cnt <= 0;
                     else
                         v_cnt <= v_cnt + 1;

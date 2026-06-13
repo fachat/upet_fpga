@@ -190,6 +190,7 @@ architecture Behavioral of ShellUltra is
 	   ramrwb : out std_logic;
 	   
 		dotclk0 : out std_logic;
+		pixel0: out std_logic;
 	   vsync : out  STD_LOGIC;
  	   hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
@@ -241,6 +242,7 @@ architecture Behavioral of ShellUltra is
             r          : in  std_logic_vector(7 downto 0);
             g          : in  std_logic_vector(7 downto 0);
             b          : in  std_logic_vector(7 downto 0);
+				pixel0	  : in  std_logic;
             h_out      : out std_logic_vector(9 downto 0);
             v_out      : out std_logic_vector(9 downto 0);
             tmds_clk_p : out std_logic;
@@ -287,6 +289,8 @@ architecture Behavioral of ShellUltra is
     signal g_s     : std_logic_vector(7 downto 0);
     signal b_s     : std_logic_vector(7 downto 0);
 
+	 signal pixel0	 : std_logic;
+	 
 begin
 
     top_c: Top
@@ -346,6 +350,7 @@ begin
 	ramrwb,
 	   
 	dotclk0,
+	pixel0,
 	vga_vsync_int,
 	vga_hsync_int,
 	pet_vsync,
@@ -380,6 +385,7 @@ begin
         r          => r_s,
         g          => g_s,
         b          => b_s,
+		  pixel0		 => pixel0,
         h_out      => h_cnt,
         v_out      => v_cnt,
         tmds_clk_p => tmds_ck,
@@ -388,7 +394,7 @@ begin
         tmds_d2_p  => tmds_d2
     );
 
-    video_gen_p : process(h_cnt, v_cnt, v_out)
+    video_gen_p : process(h_cnt, v_cnt, v_out, dotclk0)
         variable h : integer;
         variable v : integer;
     begin
@@ -417,7 +423,8 @@ begin
         end if;
 		  
         -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
-        if h < H_DISPLAY and v < V_DISPLAY then
+		  if (rising_edge(dotclk0)) then
+          if h < H_DISPLAY and v < V_DISPLAY then
             if    h <  90 then r_s <= x"FF"; g_s <= x"FF"; b_s <= x"FF"; -- White
             elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
             elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
@@ -437,10 +444,11 @@ begin
 --            else      			 r_s <= x"00"; b_s <= x"00"; -- Black
 --            end if;
 --				r_s <= v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4);
---				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
+				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
 --				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
-        else
+          else
             r_s <= x"00"; g_s <= x"00"; b_s <= x"00";
+			 end if;
         end if;
 	end process;
 	

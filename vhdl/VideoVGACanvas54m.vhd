@@ -43,6 +43,7 @@ entity Canvas is
 		mode_tv: in std_logic;
  	   mode_out: in std_logic;
 		
+		pixel0 : out std_logic;
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 
@@ -530,6 +531,8 @@ begin
 	end process;
 
 	v_zero <= v_zero_int;
+	
+	pixel0 <= v_zero_int and h_zero_int;
 	
 	ya: process(qclk, dotclk, v_zero_int, y_addr_int, h_sync_int)
 	begin

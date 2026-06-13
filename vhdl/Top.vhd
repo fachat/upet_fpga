@@ -88,6 +88,7 @@ entity Top is
 	   ramrwb : out std_logic;
 	   
 		dotclk0 : out std_logic;
+		pixel0: out std_logic;
       vsync : out  STD_LOGIC;
       hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
@@ -375,6 +376,7 @@ architecture Behavioral of Top is
 	   phi2 : in std_logic;
 	   
 	   --dena   : out std_logic;	-- display enable
+		pixel0: out std_logic;
       v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 	   vsync_int: out std_logic;
@@ -747,6 +749,7 @@ begin
 		vd_in,
 		vd_out,
 		phi2_int,
+		pixel0,
 		vga_vsync,
 		vga_hsync,
 		vga_vsync_int,

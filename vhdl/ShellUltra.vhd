@@ -380,8 +380,8 @@ begin
         clk54      => q50m,
         reset_n    => nres,
         de         => de_s,
-        hsync      => not(vga_hsync_int),
-        vsync      => not(vga_vsync_int),
+        hsync      => hsync_s,	--not(vga_hsync_int),
+        vsync      => vsync_s,	--not(vga_vsync_int),
         r          => r_s,
         g          => g_s,
         b          => b_s,
@@ -425,15 +425,15 @@ begin
         -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
 		  if (rising_edge(dotclk0)) then
           if h < H_DISPLAY and v < V_DISPLAY then
-            if    h <  90 then r_s <= x"FF"; g_s <= x"FF"; b_s <= x"FF"; -- White
-            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
-            elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
-            elsif h < 360 then r_s <= x"00"; g_s <= x"F7"; b_s <= x"00"; -- Green
-            elsif h < 450 then r_s <= x"7F"; g_s <= x"00"; b_s <= x"FF"; -- Magenta
-            elsif h < 540 then r_s <= x"FF"; g_s <= x"00"; b_s <= x"00"; -- Red
-            elsif h < 630 then r_s <= x"00"; g_s <= x"00"; b_s <= x"FF"; -- Blue
-            else      			 r_s <= x"00"; g_s <= x"00"; b_s <= x"00"; -- Black
-            end if;
+--            if    h <  90 then r_s <= x"FF"; g_s <= x"FF"; b_s <= x"FF"; -- White
+--            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
+--            elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
+--            elsif h < 360 then r_s <= x"00"; g_s <= x"F7"; b_s <= x"00"; -- Green
+--            elsif h < 450 then r_s <= x"7F"; g_s <= x"00"; b_s <= x"FF"; -- Magenta
+--            elsif h < 540 then r_s <= x"FF"; g_s <= x"00"; b_s <= x"00"; -- Red
+--            elsif h < 630 then r_s <= x"00"; g_s <= x"00"; b_s <= x"FF"; -- Blue
+--            else      			 r_s <= x"00"; g_s <= x"00"; b_s <= x"00"; -- Black
+--            end if;
 --            if    h <  90 then r_s <= x"FF"; b_s <= x"FF"; -- White
 --            elsif h < 180 then r_s <= x"F7"; b_s <= x"00"; -- Yellow
 --            elsif h < 270 then r_s <= x"00"; b_s <= x"FF"; -- Cyan
@@ -443,9 +443,9 @@ begin
 --            elsif h < 630 then r_s <= x"00"; b_s <= x"FF"; -- Blue
 --            else      			 r_s <= x"00"; b_s <= x"00"; -- Black
 --            end if;
---				r_s <= v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4);
+				r_s <= v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4);
 				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
---				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
+				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
           else
             r_s <= x"00"; g_s <= x"00"; b_s <= x"00";
 			 end if;

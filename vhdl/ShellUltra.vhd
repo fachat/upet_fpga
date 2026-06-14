@@ -123,8 +123,8 @@ architecture Behavioral of ShellUltra is
 	signal nsel2: std_logic;
 	signal nsel4: std_logic;
 	
-	signal vga_hsync_int: std_logic;
-	signal vga_vsync_int: std_logic;
+	signal vga_hsync: std_logic;
+	signal vga_vsync: std_logic;
 	signal v_out: std_logic_vector(5 downto 0);
 	signal dotclk0: std_logic;
 	
@@ -190,7 +190,7 @@ architecture Behavioral of ShellUltra is
 	   ramrwb : out std_logic;
 	   
 		dotclk0 : out std_logic;
-		pixel0: out std_logic;
+		dispen: out std_logic;
 	   vsync : out  STD_LOGIC;
  	   hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
@@ -242,7 +242,6 @@ architecture Behavioral of ShellUltra is
             r          : in  std_logic_vector(7 downto 0);
             g          : in  std_logic_vector(7 downto 0);
             b          : in  std_logic_vector(7 downto 0);
-				pixel0	  : in  std_logic;
             h_out      : out std_logic_vector(9 downto 0);
             v_out      : out std_logic_vector(9 downto 0);
             tmds_clk_p : out std_logic;
@@ -289,7 +288,7 @@ architecture Behavioral of ShellUltra is
     signal g_s     : std_logic_vector(7 downto 0);
     signal b_s     : std_logic_vector(7 downto 0);
 
-	 signal pixel0	 : std_logic;
+	 signal dispen	 : std_logic;
 	 
 begin
 
@@ -350,9 +349,9 @@ begin
 	ramrwb,
 	   
 	dotclk0,
-	pixel0,
-	vga_vsync_int,
-	vga_hsync_int,
+	dispen,
+	vga_vsync,
+	vga_hsync,
 	pet_vsync,
 
 	v_out,
@@ -380,12 +379,11 @@ begin
         clk54      => q50m,
         reset_n    => nres,
         de         => de_s,
-        hsync      => hsync_s,	--not(vga_hsync_int),
-        vsync      => vsync_s,	--not(vga_vsync_int),
+        hsync      => not(vga_hsync),
+        vsync      => not(vga_vsync),
         r          => r_s,
         g          => g_s,
         b          => b_s,
-		  pixel0		 => pixel0,
         h_out      => h_cnt,
         v_out      => v_cnt,
         tmds_clk_p => tmds_ck,
@@ -394,6 +392,8 @@ begin
         tmds_d2_p  => tmds_d2
     );
 
+	de_s <= dispen;
+	
     video_gen_p : process(h_cnt, v_cnt, v_out, dotclk0)
         variable h : integer;
         variable v : integer;
@@ -401,26 +401,27 @@ begin
         h := to_integer(unsigned(h_cnt));
         v := to_integer(unsigned(v_cnt));
 
-        -- Data enable: high inside active display window.
-        if h < H_DISPLAY and v < V_DISPLAY then
-            de_s <= '1';
-        else
-            de_s <= '0';
-        end if;
+			
+--        -- Data enable: high inside active display window.
+--        if h < H_DISPLAY and v < V_DISPLAY then
+--            de_s <= '1';
+--        else
+--            de_s <= '0';
+--        end if;
 
-        -- Horizontal sync (negative polarity - low during pulse).
-        if h >= H_DISPLAY + H_FP and h < H_DISPLAY + H_FP + H_SYNC_W then
-            hsync_s <= '0';
-        else
-            hsync_s <= '1';
-        end if;
-
-        -- Vertical sync (negative polarity - low during pulse).
-        if v >= V_DISPLAY + V_FP and v < V_DISPLAY + V_FP + V_SYNC_W then
-            vsync_s <= '0';
-        else
-            vsync_s <= '1';
-        end if;
+--        -- Horizontal sync (negative polarity - low during pulse).
+--        if h >= H_DISPLAY + H_FP and h < H_DISPLAY + H_FP + H_SYNC_W then
+--            hsync_s <= '0';
+--        else
+--            hsync_s <= '1';
+--        end if;
+--
+--        -- Vertical sync (negative polarity - low during pulse).
+--        if v >= V_DISPLAY + V_FP and v < V_DISPLAY + V_FP + V_SYNC_W then
+--            vsync_s <= '0';
+--        else
+--            vsync_s <= '1';
+--        end if;
 		  
         -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
 		  if (rising_edge(dotclk0)) then
@@ -452,19 +453,6 @@ begin
         end if;
 	end process;
 	
---	hdmi_out: HdmiOut
---	port map (
---		q50m,
---		dotclk0,
---		not(nres),
---		v_out(5 downto 4) & '0' & v_out(3 downto 2) & '0' & v_out(1 downto 0),
---		not(vga_hsync_int),
---		not(vga_vsync_int),
---		tmds_ck,
---		tmds_d0,
---		tmds_d1,
---		tmds_d2
---	);
 
 	hdmi_ck_p <= tmds_ck;
 	hdmi_ck_n <= not(tmds_ck);

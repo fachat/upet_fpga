@@ -43,7 +43,7 @@ entity Canvas is
 		mode_tv: in std_logic;
  	   mode_out: in std_logic;
 		
-		pixel0 : out std_logic;
+		dispen : out std_logic;
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 
@@ -257,18 +257,25 @@ architecture Behavioral of Canvas is
     constant H_DISPLAY : integer := 720;
     constant H_FP      : integer := 16;
     constant H_SYNC_W  : integer := 62;
-
+    constant H_TOTAL   : integer := 858;
+	 constant H_ZERO_P  : integer := 824;
+	 
     constant V_DISPLAY : integer := 480;
     constant V_FP      : integer := 9;
     constant V_SYNC_W  : integer := 6;
-
-    constant H_TOTAL   : integer := 858;
     constant V_TOTAL   : integer := 525;
+	 constant V_ZERO_P  : integer := 480;
+	 
 	 signal frame_h_cnt   : integer range 0 to H_TOTAL  - 1;
     signal frame_v_cnt   : integer range 0 to V_TOTAL  - 1;
 	 signal de_s		: std_logic;
+	 signal hde_s		: std_logic;
+	 signal vde_s		: std_logic;
 	 signal hsync_s	: std_logic;
 	 signal vsync_s	: std_logic;
+	 signal hzero_s   : std_logic;
+	 signal vzero_s   : std_logic;
+	 
 begin
 
 	-- passed through to the actual output; some modes inverted, others not
@@ -405,119 +412,146 @@ begin
         else
             de_s <= '0';
         end if;
+		  if (h < H_DISPLAY) then
+				hde_s <= '1';
+		  else
+				hde_s <= '0';
+		  end if;
+		  if (v < V_DISPLAY) then
+				vde_s <= '1';
+		  else
+				vde_s <= '0';
+		  end if;
 
-        -- Horizontal sync (negative polarity - low during pulse).
+        -- Horizontal sync (positive polarity - note: ext is negative = low during pulse).
         if h >= H_DISPLAY + H_FP and h < H_DISPLAY + H_FP + H_SYNC_W then
-            hsync_s <= '0';
-        else
             hsync_s <= '1';
+        else
+            hsync_s <= '0';
         end if;
 
-        -- Vertical sync (negative polarity - low during pulse).
+        -- Vertical sync (positive polarity - note: ext is negative = low during pulse).
         if v >= V_DISPLAY + V_FP and v < V_DISPLAY + V_FP + V_SYNC_W then
-            vsync_s <= '0';
-        else
             vsync_s <= '1';
+        else
+            vsync_s <= '0';
         end if;
+
+		  -- vertical origin of coordinate system
+		  if v = V_ZERO_P then
+				vzero_s <= '1';
+		  else
+				vzero_s <= '0';
+		  end if;
 		  
+		  -- vertical origin of coordinate system
+		  if h = H_ZERO_P then
+				hzero_s <= '1';
+		  else
+				hzero_s <= '0';
+		  end if;
+
 	end process;
 
 	-----------------------------------------------------------------------------
 	-- horizontal geometry calculation
 
-	--h_cnt(2 downto 0) <= dotclk(2 downto 0);
-	
-	pxl: process(qclk, dotclk, h_cnt, h_limit, h_state, reset)
-	begin 
-		if (reset = '1') then
-			h_cnt <= (others => '0');
-			h_state <= "00";
-			h_sync_int <= '0';
-			h_enable_int <= '0';
-		elsif (falling_edge(qclk) and dotclk(0) = '1') then
-		
-			if (h_zero_int = '0' or dotclk(3 downto 1) = "111") then
-					h_cnt <= h_cnt + 1;
-			end if;
-			
-			if (h_limit = '1') then
-				if (h_state = "11") then
-					h_state <= "00";
-					h_enable_int <= '1';
-					h_cnt <= (others => '0');
-				else
-					h_state <= h_state + 1;
-					h_enable_int <= '0';
-				end if;
-			end if;
-
-		end if;
-		
+--	--h_cnt(2 downto 0) <= dotclk(2 downto 0);
+--	
+--	pxl: process(qclk, dotclk, h_cnt, h_limit, h_state, reset)
+--	begin 
+--		if (reset = '1') then
+--			h_cnt <= (others => '0');
+--			h_state <= "00";
+--			h_sync_int <= '0';
 --			h_enable_int <= '0';
---			if (h_state = "00") then
---				h_enable_int <= '1';
+--		elsif (falling_edge(qclk) and dotclk(0) = '1') then
+--		
+--			if (h_zero_int = '0' or dotclk(3 downto 1) = "111") then
+--					h_cnt <= h_cnt + 1;
 --			end if;
-			
-			h_sync_int <= '0';
-			if (h_state = "10") then
-				h_sync_int <= '1';
-			end if;
-	end process;
-
-	h_sync <= not(h_sync_int);
+--			
+--			if (h_limit = '1') then
+--				if (h_state = "11") then
+--					h_state <= "00";
+--					h_enable_int <= '1';
+--					h_cnt <= (others => '0');
+--				else
+--					h_state <= h_state + 1;
+--					h_enable_int <= '0';
+--				end if;
+--			end if;
+--
+--		end if;
+--		
+----			h_enable_int <= '0';
+----			if (h_state = "00") then
+----				h_enable_int <= '1';
+----			end if;
+--			
+--			h_sync_int <= '0';
+--			if (h_state = "10") then
+--				h_sync_int <= '1';
+--			end if;
+--	end process;
+--
+--	h_sync <= not(h_sync_int);
+--	
+--	h_limit_p: process(qclk, dotclk, h_cnt, reset)
+--	begin 
+--		if (reset = '1') then
+--			h_limit <= '0';
+--		elsif (falling_edge(qclk) and dotclk(0)='0') then
+--
+--			h_limit <= '0';
+--
+--			case h_state is
+--				when "00" =>	-- visible
+--					if (h_cnt = hh_display) then
+--						h_limit <= '1';
+--					end if;
+--				when "01" =>	-- front porch
+--					if (h_cnt = hh_sync_pos) then
+--						h_limit <= '1';
+--					end if;
+--				when "10" =>	-- sync
+--					if (h_cnt = hh_sync_end) then
+--						h_limit <= '1';
+--					end if;
+--				when "11" =>	-- back porch
+--					if (h_cnt = hh_total) then
+--						h_limit <= '1';
+--					end if;
+--				when others =>
+--					null;
+--			end case;
+--		end if;
+--	end process;
+--
+--	hz: process(qclk, dotclk, h_cnt, reset)
+--	begin 
+--		if (reset = '1') then
+--			h_zero_int <= '0';
+--		elsif (falling_edge(qclk) and dotclk(0) = '0') then
+--			if (h_cnt = hh_zero) then
+--				h_zero_int <= '1';
+--			else 
+--				h_zero_int <= '0';
+--			end if;
+--		end if;
+--		
+--	end process;
+--
+--	h_out_p: process(h_enable_int, h_zero_int, qclk) 
+--	begin
+--		--if (rising_edge(qclk)) then
+--			h_enable <= h_enable_int;
+--		--end if;
+--		h_zero <= h_zero_int;
+--	end process;
 	
-	h_limit_p: process(qclk, dotclk, h_cnt, reset)
-	begin 
-		if (reset = '1') then
-			h_limit <= '0';
-		elsif (falling_edge(qclk) and dotclk(0)='0') then
-
-			h_limit <= '0';
-
-			case h_state is
-				when "00" =>	-- visible
-					if (h_cnt = hh_display) then
-						h_limit <= '1';
-					end if;
-				when "01" =>	-- front porch
-					if (h_cnt = hh_sync_pos) then
-						h_limit <= '1';
-					end if;
-				when "10" =>	-- sync
-					if (h_cnt = hh_sync_end) then
-						h_limit <= '1';
-					end if;
-				when "11" =>	-- back porch
-					if (h_cnt = hh_total) then
-						h_limit <= '1';
-					end if;
-				when others =>
-					null;
-			end case;
-		end if;
-	end process;
-
-	hz: process(qclk, dotclk, h_cnt, reset)
-	begin 
-		if (reset = '1') then
-			h_zero_int <= '0';
-		elsif (falling_edge(qclk) and dotclk(0) = '0') then
-			if (h_cnt = hh_zero) then
-				h_zero_int <= '1';
-			else 
-				h_zero_int <= '0';
-			end if;
-		end if;
-		
-	end process;
-
-	h_out_p: process(h_enable_int, h_zero_int, qclk) 
-	begin
-		--if (rising_edge(qclk)) then
-			h_enable <= h_enable_int;
-		--end if;
-		h_zero <= h_zero_int;
-	end process;
+	h_sync_int <= hsync_s;
+	h_zero_int <= hzero_s;
 	
 	xa: process(qclk, dotclk, h_zero_int, x_addr_int)
 	begin
@@ -530,99 +564,107 @@ begin
 		end if;
 	end process;
 	
+	h_enable <= hde_s;
+	h_zero <= hzero_s;
+	h_sync <= hsync_s;
+	
 	x_addr <= x_addr_int;
-
+	
 	-----------------------------------------------------------------------------
 	-- vertical geometry calculation
 
-	rline: process(h_enable_int, dotclk, v_cnt, v_state, v_limit, reset)
-	begin 
-		if (reset = '1') then
-			v_cnt <= (others => '0');
-			v_state <= "00";
-			v_sync_int <= '0';
-			v_enable <= '0';
-		elsif (rising_edge(h_enable_int)) then
+--	rline: process(h_enable_int, dotclk, v_cnt, v_state, v_limit, reset)
+--	begin 
+--		if (reset = '1') then
+--			v_cnt <= (others => '0');
+--			v_state <= "00";
+--			v_sync_int <= '0';
+--			v_enable <= '0';
+--		elsif (rising_edge(h_enable_int)) then
+--
+--			if (v_limit = '1' and v_state = "11") then
+--				v_cnt <= (others => '0');
+--			else
+--				if (mode_tv = '1') then
+--					v_cnt <= v_cnt + 2;
+--				else
+--					v_cnt <= v_cnt + 1;
+--				end if;
+--			end if;
+--
+--			if (v_limit = '1') then
+--				v_state <= v_state + 1;
+--			end if;
+--
+--			if (v_limit = '1') then
+--				v_state <= v_state + 1;
+--			end if;
+--		end if;
+--		
+--			v_enable <= '0';
+--			if (v_state = "00") then
+--				v_enable <= '1';
+--			end if;
+--
+--			v_sync_int <= '0';
+--			if (v_state = "10") then
+--				v_sync_int <= '1';
+--			end if;
+--
+--	end process;
+--
+--	v_sync <= v_sync_int;
+--
+--
+--	v_limit_p: process(h_enable_int, v_cnt, reset)
+--	begin 
+--		if (reset = '1') then
+--			v_limit <= '0';
+--		elsif (falling_edge(h_enable_int)) then
+--
+--			v_limit <= '0';
+--
+--			case v_state is
+--				when "00" =>	-- diaplay
+--					if ((v_cnt(9 downto 1) = vv_display(9 downto 1))
+--						and (mode_tv = '1' or v_cnt(0) = vv_display(0))) then
+--						v_limit <= '1';
+--					end if;
+--				when "01" =>	-- back porch
+--					if ((v_cnt(9 downto 1) = vv_sync_pos(9 downto 1)) 
+--						and (mode_tv = '1' or v_cnt(0) = vv_sync_pos(0))) then
+--						v_limit <= '1';
+--					end if;
+--				when "10" =>	-- sync
+--					if ((v_cnt(9 downto 1) = vv_sync_end(9 downto 1)) 
+--						and (mode_tv = '1' or v_cnt(0) = vv_sync_end(0))) then
+--						v_limit <= '1';
+--					end if;
+--				when "11" =>	-- total
+--					if ((v_cnt(9 downto 1) = vv_total(9 downto 1)) 
+--						and (mode_tv = '1' or v_cnt(0) = vv_total(0))) then
+--						v_limit <= '1';
+--					end if;
+--				when others =>
+--					null;
+--			end case;
+--			
+--			if (v_cnt = vv_zero) then
+--				v_zero_int <= '1';
+--			else 
+--				v_zero_int <= '0';
+--			end if;
+--			
+--		end if;
+--	end process;
+--
+--	v_zero <= v_zero_int;
+--	
+--	pixel0 <= v_zero_int and h_zero_int;
 
-			if (v_limit = '1' and v_state = "11") then
-				v_cnt <= (others => '0');
-			else
-				if (mode_tv = '1') then
-					v_cnt <= v_cnt + 2;
-				else
-					v_cnt <= v_cnt + 1;
-				end if;
-			end if;
-
-			if (v_limit = '1') then
-				v_state <= v_state + 1;
-			end if;
-
-			if (v_limit = '1') then
-				v_state <= v_state + 1;
-			end if;
-		end if;
-		
-			v_enable <= '0';
-			if (v_state = "00") then
-				v_enable <= '1';
-			end if;
-
-			v_sync_int <= '0';
-			if (v_state = "10") then
-				v_sync_int <= '1';
-			end if;
-
-	end process;
-
-	v_sync <= v_sync_int;
-
-
-	v_limit_p: process(h_enable_int, v_cnt, reset)
-	begin 
-		if (reset = '1') then
-			v_limit <= '0';
-		elsif (falling_edge(h_enable_int)) then
-
-			v_limit <= '0';
-
-			case v_state is
-				when "00" =>	-- diaplay
-					if ((v_cnt(9 downto 1) = vv_display(9 downto 1))
-						and (mode_tv = '1' or v_cnt(0) = vv_display(0))) then
-						v_limit <= '1';
-					end if;
-				when "01" =>	-- back porch
-					if ((v_cnt(9 downto 1) = vv_sync_pos(9 downto 1)) 
-						and (mode_tv = '1' or v_cnt(0) = vv_sync_pos(0))) then
-						v_limit <= '1';
-					end if;
-				when "10" =>	-- sync
-					if ((v_cnt(9 downto 1) = vv_sync_end(9 downto 1)) 
-						and (mode_tv = '1' or v_cnt(0) = vv_sync_end(0))) then
-						v_limit <= '1';
-					end if;
-				when "11" =>	-- total
-					if ((v_cnt(9 downto 1) = vv_total(9 downto 1)) 
-						and (mode_tv = '1' or v_cnt(0) = vv_total(0))) then
-						v_limit <= '1';
-					end if;
-				when others =>
-					null;
-			end case;
-			
-			if (v_cnt = vv_zero) then
-				v_zero_int <= '1';
-			else 
-				v_zero_int <= '0';
-			end if;
-			
-		end if;
-	end process;
-
-	v_zero <= v_zero_int;
-	
-	pixel0 <= v_zero_int and h_zero_int;
+	v_zero_int <= vzero_s;
+	v_sync_int <= vsync_s;
+	v_sync <= vsync_s;
 	
 	ya: process(qclk, dotclk, v_zero_int, y_addr_int, h_sync_int)
 	begin
@@ -634,8 +676,12 @@ begin
 			end if;
 		end if;
 	end process;
-	
+
+	v_enable <= vde_s;
+	v_zero <= vzero_s;
 	y_addr <= y_addr_int;
+	
+	dispen <= de_s;
 	
 end Behavioral;
 

@@ -38,7 +38,6 @@ entity HdmiTestTop is
         r          : in  std_logic_vector(7 downto 0);   -- red channel
         g          : in  std_logic_vector(7 downto 0);   -- green channel
         b          : in  std_logic_vector(7 downto 0);   -- blue channel
-		  pixel0		 : in  std_logic;								-- when first display pixel is there
 		  
         -- Pixel position outputs (for caller to generate video signals)
         h_out      : out std_logic_vector(9 downto 0);   -- horizontal pixel index

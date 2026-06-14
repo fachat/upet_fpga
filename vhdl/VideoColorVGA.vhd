@@ -39,7 +39,7 @@ entity Video is
 	   phi2: in std_logic;
 	   
 	   --dena   : out std_logic;	-- display enable
-		pixel0 : out std_logic;
+		de : out std_logic;
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 	   vsync_int : out std_logic;
@@ -429,7 +429,7 @@ architecture Behavioral of Video is
 			  mode_tv: in std_logic;
 			  mode_out: in std_logic;
 			  
-			  pixel0 : out std_logic;
+			  dispen : out std_logic;
 			  
            v_sync : out  STD_LOGIC;
            h_sync : out  STD_LOGIC;
@@ -699,7 +699,7 @@ begin
 		mode_60hz,
 		mode_tv,
 		mode_out,
-		pixel0,
+		de,
 		v_sync_int,
 		h_sync_int,
 		v_sync_ext,

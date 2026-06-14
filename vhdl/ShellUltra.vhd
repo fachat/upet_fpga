@@ -425,7 +425,7 @@ begin
 		  
         -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
 		  if (rising_edge(dotclk0)) then
-          if h < H_DISPLAY and v < V_DISPLAY then
+--          if h < H_DISPLAY and v < V_DISPLAY then
 --            if    h <  90 then r_s <= x"FF"; g_s <= x"FF"; b_s <= x"FF"; -- White
 --            elsif h < 180 then r_s <= x"F7"; g_s <= x"FF"; b_s <= x"00"; -- Yellow
 --            elsif h < 270 then r_s <= x"00"; g_s <= x"FF"; b_s <= x"FF"; -- Cyan
@@ -447,9 +447,9 @@ begin
 				r_s <= v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4);
 				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
 				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
-          else
-            r_s <= x"00"; g_s <= x"00"; b_s <= x"00";
-			 end if;
+--          else
+--            r_s <= x"00"; g_s <= x"00"; b_s <= x"00";
+--			   end if;
         end if;
 	end process;
 	

@@ -36,8 +36,8 @@ use ieee.numeric_std.all;
 
 entity Canvas is
     Port ( 
-	   qclk: in std_logic;		-- Q clock (50MHz)
-	   dotclk: in std_logic_vector(3 downto 0);	-- 25Mhz, 1/2, 1/4, 1/8, 1/16
+	   qclk: in std_logic;		-- Q clock (54MHz)
+	   dotclk0: in std_logic; 	-- 27Mhz
 
 		mode_60hz: in std_logic;
 		mode_tv: in std_logic;
@@ -374,9 +374,9 @@ begin
 	-----------------------------------------------------------------------------
 	-- frame generation
 
-    frame_p : process(qclk, dotclk)
+    frame_p : process(qclk, dotclk0)
     begin
-        if (rising_edge(qclk) and dotclk(0) = '0') then
+        if (rising_edge(qclk) and dotclk0 = '0') then
             if reset = '1' then
                 -- Hold everything in reset; start with ser_cnt=9 so the first
                 -- active cycle immediately executes the load path.
@@ -399,7 +399,7 @@ begin
         end if;
     end process;
 
-    video_gen_p : process(h_cnt, v_cnt)
+    video_gen_p : process(frame_h_cnt, frame_v_cnt)
         variable h : integer;
         variable v : integer;
     begin
@@ -456,106 +456,13 @@ begin
 	-----------------------------------------------------------------------------
 	-- horizontal geometry calculation
 
---	--h_cnt(2 downto 0) <= dotclk(2 downto 0);
---	
---	pxl: process(qclk, dotclk, h_cnt, h_limit, h_state, reset)
---	begin 
---		if (reset = '1') then
---			h_cnt <= (others => '0');
---			h_state <= "00";
---			h_sync_int <= '0';
---			h_enable_int <= '0';
---		elsif (falling_edge(qclk) and dotclk(0) = '1') then
---		
---			if (h_zero_int = '0' or dotclk(3 downto 1) = "111") then
---					h_cnt <= h_cnt + 1;
---			end if;
---			
---			if (h_limit = '1') then
---				if (h_state = "11") then
---					h_state <= "00";
---					h_enable_int <= '1';
---					h_cnt <= (others => '0');
---				else
---					h_state <= h_state + 1;
---					h_enable_int <= '0';
---				end if;
---			end if;
---
---		end if;
---		
-----			h_enable_int <= '0';
-----			if (h_state = "00") then
-----				h_enable_int <= '1';
-----			end if;
---			
---			h_sync_int <= '0';
---			if (h_state = "10") then
---				h_sync_int <= '1';
---			end if;
---	end process;
---
---	h_sync <= not(h_sync_int);
---	
---	h_limit_p: process(qclk, dotclk, h_cnt, reset)
---	begin 
---		if (reset = '1') then
---			h_limit <= '0';
---		elsif (falling_edge(qclk) and dotclk(0)='0') then
---
---			h_limit <= '0';
---
---			case h_state is
---				when "00" =>	-- visible
---					if (h_cnt = hh_display) then
---						h_limit <= '1';
---					end if;
---				when "01" =>	-- front porch
---					if (h_cnt = hh_sync_pos) then
---						h_limit <= '1';
---					end if;
---				when "10" =>	-- sync
---					if (h_cnt = hh_sync_end) then
---						h_limit <= '1';
---					end if;
---				when "11" =>	-- back porch
---					if (h_cnt = hh_total) then
---						h_limit <= '1';
---					end if;
---				when others =>
---					null;
---			end case;
---		end if;
---	end process;
---
---	hz: process(qclk, dotclk, h_cnt, reset)
---	begin 
---		if (reset = '1') then
---			h_zero_int <= '0';
---		elsif (falling_edge(qclk) and dotclk(0) = '0') then
---			if (h_cnt = hh_zero) then
---				h_zero_int <= '1';
---			else 
---				h_zero_int <= '0';
---			end if;
---		end if;
---		
---	end process;
---
---	h_out_p: process(h_enable_int, h_zero_int, qclk) 
---	begin
---		--if (rising_edge(qclk)) then
---			h_enable <= h_enable_int;
---		--end if;
---		h_zero <= h_zero_int;
---	end process;
 	
 	h_sync_int <= hsync_s;
 	h_zero_int <= hzero_s;
 	
-	xa: process(qclk, dotclk, h_zero_int, x_addr_int)
+	xa: process(qclk, dotclk0, h_zero_int, x_addr_int)
 	begin
-		if (rising_edge(qclk) and dotclk(0) = '1') then
+		if (rising_edge(qclk) and dotclk0 = '1') then
 			if (h_zero_int = '1') then
 				x_addr_int <= (others => '0');
 			else
@@ -573,100 +480,12 @@ begin
 	-----------------------------------------------------------------------------
 	-- vertical geometry calculation
 
---	rline: process(h_enable_int, dotclk, v_cnt, v_state, v_limit, reset)
---	begin 
---		if (reset = '1') then
---			v_cnt <= (others => '0');
---			v_state <= "00";
---			v_sync_int <= '0';
---			v_enable <= '0';
---		elsif (rising_edge(h_enable_int)) then
---
---			if (v_limit = '1' and v_state = "11") then
---				v_cnt <= (others => '0');
---			else
---				if (mode_tv = '1') then
---					v_cnt <= v_cnt + 2;
---				else
---					v_cnt <= v_cnt + 1;
---				end if;
---			end if;
---
---			if (v_limit = '1') then
---				v_state <= v_state + 1;
---			end if;
---
---			if (v_limit = '1') then
---				v_state <= v_state + 1;
---			end if;
---		end if;
---		
---			v_enable <= '0';
---			if (v_state = "00") then
---				v_enable <= '1';
---			end if;
---
---			v_sync_int <= '0';
---			if (v_state = "10") then
---				v_sync_int <= '1';
---			end if;
---
---	end process;
---
---	v_sync <= v_sync_int;
---
---
---	v_limit_p: process(h_enable_int, v_cnt, reset)
---	begin 
---		if (reset = '1') then
---			v_limit <= '0';
---		elsif (falling_edge(h_enable_int)) then
---
---			v_limit <= '0';
---
---			case v_state is
---				when "00" =>	-- diaplay
---					if ((v_cnt(9 downto 1) = vv_display(9 downto 1))
---						and (mode_tv = '1' or v_cnt(0) = vv_display(0))) then
---						v_limit <= '1';
---					end if;
---				when "01" =>	-- back porch
---					if ((v_cnt(9 downto 1) = vv_sync_pos(9 downto 1)) 
---						and (mode_tv = '1' or v_cnt(0) = vv_sync_pos(0))) then
---						v_limit <= '1';
---					end if;
---				when "10" =>	-- sync
---					if ((v_cnt(9 downto 1) = vv_sync_end(9 downto 1)) 
---						and (mode_tv = '1' or v_cnt(0) = vv_sync_end(0))) then
---						v_limit <= '1';
---					end if;
---				when "11" =>	-- total
---					if ((v_cnt(9 downto 1) = vv_total(9 downto 1)) 
---						and (mode_tv = '1' or v_cnt(0) = vv_total(0))) then
---						v_limit <= '1';
---					end if;
---				when others =>
---					null;
---			end case;
---			
---			if (v_cnt = vv_zero) then
---				v_zero_int <= '1';
---			else 
---				v_zero_int <= '0';
---			end if;
---			
---		end if;
---	end process;
---
---	v_zero <= v_zero_int;
---	
---	pixel0 <= v_zero_int and h_zero_int;
 
 	v_zero_int <= vzero_s;
 	v_sync_int <= vsync_s;
 	v_sync <= vsync_s;
 	
-	ya: process(qclk, dotclk, v_zero_int, y_addr_int, h_sync_int)
+	ya: process(qclk, v_zero_int, y_addr_int, h_sync_int)
 	begin
 		if (rising_edge(h_sync_int)) then
 			if (v_zero_int = '1') then

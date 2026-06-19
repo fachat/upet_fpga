@@ -38,8 +38,9 @@ use ieee.numeric_std.all;
 entity HBorder is
 		Port (
 			qclk: in std_logic;
-			dotclk: in std_logic_vector(3 downto 0);
-			
+			dotclk: in std_logic_vector(1 downto 0);
+			c_phase: in std_logic_vector(3 downto 2);
+
 			-- one on last pxl before pxl addr should be zeroed
 			h_zero: in std_logic;
 			
@@ -85,9 +86,9 @@ architecture Behavioral of HBorder is
 	-- VGA 40: 8 cycles
 	-- TV  80: 8 cycles
 	-- TV  40: 16cycles
-	signal slot_len: std_logic_vector(3 downto 0);
+	signal slot_accesses: std_logic_vector(3 downto 0);
 	-- count mem-cycles
-	signal slot_len_cnt: std_logic_vector(3 downto 0);
+	signal access_cnt: std_logic_vector(3 downto 0);
 	
 	signal is_hsync: std_logic;
 	signal is_slots: std_logic;
@@ -100,30 +101,30 @@ architecture Behavioral of HBorder is
 	
 
 begin
-
+	
 	-- length of slot (=8 pixel) in memory accesses -1
 	slot_len_p: process(mode_tv, is_80)
 	begin
 		if (mode_tv = '0') then
 			if (is_80 = '1') then
 				-- 80 cols VGA mode is fastest
-				slot_len <= "0011";
+				slot_accesses <= "0011";
 			else
 				-- 40 col VGA mode
-				slot_len <= "0111";
+				slot_accesses <= "0111";
 			end if;
 		else
 			if (is_80 = '1') then
 				-- 80 col TV mode
-				slot_len <= "0111";
+				slot_accesses <= "0111";
 			else
 				-- 40 col TV mode
-				slot_len <= "1111";
+				slot_accesses <= "1111";
 			end if;
 		end if;
 	end process;
 	
-	slot_p: process(qclk, dotclk, slot_len, slot_cnt, reset)
+	slot_p: process(qclk, dotclk, c_phase, slot_accesses, slot_cnt, reset)
 	begin
 		if (reset = '1') then
 			slot_state <= "00";
@@ -133,10 +134,11 @@ begin
 			-- every memclk
 			-- output (is_border) is evaluated at falling qclk and dotclk(0)=1
 			-- should this be phase shifted?
-			if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
+			if (falling_edge(qclk) and dotclk(1) = '1' and dotclk(0) = '1') then
 				phase0 <= '0';
 				is_preload <= '0';
 				is_last_vis <= '0';
+				
 				if (h_zero = '1') then
 					if (mode_tv = '1') then
 						slot_cnt <= "000000000";
@@ -147,24 +149,26 @@ begin
 					is_border_1 <= '1';
 					is_border_2 <= '1';
 					is_border_3 <= '1';
+				
 				else
 				
+					-- end of slot (number of accesses reached)
 					if (is_slot_len = '1') then
-						slot_len_cnt <= "0000";
+						access_cnt <= "0000";
 						-- counts number of chars / slots
 						slot_cnt <= slot_cnt + 1;
 						-- shifted border
 						is_border_2 <= is_border_1;
 					else
 						-- counts memclks per char / slot
-						slot_len_cnt <= slot_len_cnt + 1;
+						access_cnt <= access_cnt + 1;
 					end if;
 				
 					case (slot_state) is
 					when "00" =>
 						-- counts number of chars / slots
 						-- until horizontal start of raster position is reached
-						slot_len_cnt <= "0000";
+						access_cnt <= "0000";
 						slot_cnt <= slot_cnt + 1;
 						if (is_hsync = '1') then
 							slot_state <= "01";
@@ -172,8 +176,8 @@ begin
 					when "01" =>
 						-- sync start of raster with shift / slot phase, so
 						-- that first fetch starts immediately
-						slot_len_cnt <= "0000";
-						if (dotclk(2 downto 0) = "011") then
+						access_cnt <= "0000";
+						if (c_phase(2) = '0' and dotclk(1 downto 0) = "11") then
 							phase0 <= '1';
 							is_preload <= '1';
 							slot_state <= "10";
@@ -191,7 +195,7 @@ begin
 									is_border_1 <= '1';
 								end if;
 								-- reset slot len cnt
-								slot_len_cnt <= "0000";
+								access_cnt <= "0000";
 								is_last_vis <= '1';
 							else
 								-- start display after first full phase set
@@ -220,7 +224,6 @@ begin
 				phase3 <= phase2;
 				phase2 <= phase1;
 				phase1 <= phase0;
-				
 			end if;
 		end if;
 		
@@ -235,7 +238,7 @@ begin
 	h_phase3 <= phase3;
 	h_phase4 <= phase4;
 	
-	slot_px: process(qclk, dotclk, slot_len, slot_cnt, reset)
+	slot_px: process(qclk, dotclk, access_cnt, slot_accesses, reset)
 	begin
 		if (reset = '1') then
 			is_hsync <= '0';
@@ -273,7 +276,7 @@ begin
 				end if;
 
 				is_slot_len <= '0';
-				if (slot_len_cnt = slot_len) then
+				if (access_cnt = slot_accesses) then
 					is_slot_len <= '1';
 				end if;
 				
@@ -284,7 +287,7 @@ begin
 
 	---------------------------------------------------------------------------
 
-	is_shift_p: process(is_80, mode_tv, dotclk)
+	is_shift_p: process(is_80, mode_tv, dotclk, c_phase)
 	begin
 		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
 		if (mode_tv = '0') then
@@ -294,7 +297,7 @@ begin
 				is_shift80 <= '1';
 		else
 				-- TV 40 col
-				is_shift40 <= dotclk(1) and dotclk(2);
+				is_shift40 <= dotclk(1) and c_phase(2);
 				-- TV 80 col
 				is_shift80 <= dotclk(1);
 		end if;

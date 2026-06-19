@@ -31,7 +31,7 @@ use ieee.numeric_std.all;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 
-entity ShellUltraHdmi is
+entity ShellUltra is
     Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -89,15 +89,10 @@ entity ShellUltraHdmi is
 	   
 	   pet_vsync: out std_logic;
 
-		hdmi_ck_n: out std_logic;
-		hdmi_ck_p: out std_logic;
-		hdmi_d0_n: out std_logic;
-		hdmi_d0_p: out std_logic;
-		hdmi_d1_n: out std_logic;
-		hdmi_d1_p: out std_logic;
-		hdmi_d2_n: out std_logic;
-		hdmi_d2_p: out std_logic;
-	   
+	   pxl_out: out std_logic_vector(5 downto 0);
+   	   vsync: out std_logic;
+   	   hsync: out std_logic;
+
 	-- SPI
 	   spi_out : out std_logic;
 	   spi_clk : out std_logic;
@@ -115,9 +110,9 @@ entity ShellUltraHdmi is
 	   spi_amosi : out std_logic;
 	   nldac : out std_logic
 	 );
-end ShellUltraHdmi;
+end ShellUltra;
 
-architecture Behavioral of ShellUltraHdmi is
+architecture Behavioral of ShellUltra is
 
 	signal nsel1: std_logic;
 	signal nsel2: std_logic;
@@ -374,45 +369,9 @@ begin
 	nldac
 	);
 
-    test_hdmi : HdmiTestTop
-    port map (
-        clk54      => q50m,
-        reset_n    => nres,
-        de         => de_s,
-        hsync      => not(vga_hsync),
-        vsync      => not(vga_vsync),
-        r          => r_s,
-        g          => g_s,
-        b          => b_s,
-        h_out      => h_cnt,
-        v_out      => v_cnt,
-        tmds_clk_p => tmds_ck,
-        tmds_d0_p  => tmds_d0,
-        tmds_d1_p  => tmds_d1,
-        tmds_d2_p  => tmds_d2
-    );
+	hsync <= vga_hsync;
+	vsync <= vga_vsync;
+	pxl_out <= v_out;
 
-	de_s <= dispen;
-	
-    video_gen_p : process(dotclk0)
-    begin					  
-        -- Pixel colour: 8 SMPTE colour bars, 90 pixels wide each.
-		  if (rising_edge(dotclk0)) then
-				r_s <= v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4) & v_out(5) & v_out(4);
-				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
-				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
-        end if;
-	end process;
-	
-
-	hdmi_ck_p <= tmds_ck;
-	hdmi_ck_n <= not(tmds_ck);
-
-	hdmi_d0_p <= tmds_d0;
-	hdmi_d0_n <= not(tmds_d0);
-	hdmi_d1_p <= tmds_d1;
-	hdmi_d1_n <= not(tmds_d1);
-	hdmi_d2_p <= tmds_d2;
-	hdmi_d2_n <= not(tmds_d2);
 
 end Behavioral;

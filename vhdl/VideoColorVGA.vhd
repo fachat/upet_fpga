@@ -147,6 +147,9 @@ architecture Behavioral of Video is
 	signal x_start: std_logic;
 	signal y_border: std_logic;
 	signal rline_cnt0: std_logic;
+	
+	-- pixel phase
+	signal c_phase: std_logic_vector(3 downto 2);
 
 	---
 	signal cblink_mode: std_logic;			-- character blink mode, R24.5
@@ -422,8 +425,8 @@ architecture Behavioral of Video is
 	-- VGA canvas (fixed timing, ?_addr start with 0/0 on upper left edge, outside visible area)
 	component Canvas is
     	Port (
-           qclk: in std_logic;          -- Q clock (50MHz)
-           dotclk: in std_logic_vector(3 downto 0);     -- 25Mhz, 1/2, 1/4, 1/8, 1/16
+           qclk: in std_logic;      -- Q clock (54MHz)
+           dotclk0: in std_logic;	-- 27 MHz
 
 			  mode_60hz: in std_logic;
 			  mode_tv: in std_logic;
@@ -456,7 +459,8 @@ architecture Behavioral of Video is
 	component HBorder is
 		Port (
 			qclk: in std_logic;
-			dotclk: in std_logic_vector(3 downto 0);			
+			dotclk: in std_logic_vector(1 downto 0);
+			c_phase: in std_logic_vector(3 downto 2);
 			
 			h_zero: in std_logic;
 			hsync_pos: in std_logic_vector(6 downto 0);
@@ -527,7 +531,8 @@ architecture Behavioral of Video is
 		fetch_ce: in std_logic;
 
 		qclk: in std_logic;
-		dotclk: in std_logic_vector(3 downto 0);
+		dotclk0: in std_logic;
+		c_phase: in std_logic_vector(3 downto 2);
 		vdin: in std_logic_vector(7 downto 0);
 		h_enable: in std_logic;
 		h_zero: in std_logic;
@@ -587,7 +592,11 @@ architecture Behavioral of Video is
 
 begin
 	
-	windows_p: process(dotclk, h_phase1, h_phase2, h_phase3, h_phase4)
+	-- char phase is derived from pixel address
+	--c_phase <= x_addr(2 downto 0);
+	c_phase <= dotclk(3 downto 2);
+	
+	windows_p: process(c_phase, h_phase1, h_phase2, h_phase3, h_phase4)
 	begin
 			chr_window <= h_phase1;		--'0';
 			attr_window <= h_phase2;	--'0';
@@ -597,51 +606,43 @@ begin
 			sprite_data_window <= '0';
 			
 			-- access windows for pixel data, character data, or chr ROM
-			-- TODO: make case()
-			if (dotclk(3 downto 2) = "00") then
-				--chr_window <= '1';
+
+			case (c_phase(3 downto 2)) is
+			when "00" =>
 				sprite_ptr_window <= '1';
-			end if;
-			
-			-- note: attributes must be loaded before character set, as attributes contain alternate character bit
-			if (dotclk(3 downto 2) = "01") then
+			when "01" =>
+				-- note: attributes must be loaded before character set, as attributes contain alternate character bit
 				--attr_window <= '1';
 				sprite_data_window <= '1';
-			end if;
-
-			if (dotclk(3 downto 2) = "10") then
+			when "10" =>
 				--pxl_window <= '1';
 				sprite_data_window <= '1';
-			end if;			
-			
-			if (dotclk(3 downto 2) = "11") then
+			when "11" =>
 				--sr_window <= '1';
 				sprite_data_window <= '1';
-			end if;
-			
+			when others =>
+			end case;
+						
 	end process;
 
-	ce_p: process(dotclk)
+	ce_p: process(dotclk, c_phase)
 	begin
 			pxl_ce_00 <= '0';
 			pxl_ce_01 <= '0';
 			pxl_ce_10 <= '0';
 			fetch_ce <= '0';
 
-			if (dotclk(1 downto 0) = "00") then
+			case (dotclk(1 downto 0)) is
+			when "00" =>				
 				pxl_ce_00 <= '1';
-			end if;
-
-			if (dotclk(1 downto 0) = "01") then
+			when "01" =>				
 				pxl_ce_01 <= '1';
-			end if;
-			if (dotclk(1 downto 0) = "10") then
+			when "10" =>				
 				pxl_ce_10 <= '1';
-			end if;
-
-			if (dotclk(1 downto 0) = "11") then
+			when "11" =>				
 				fetch_ce <= '1';
-			end if;
+			when others =>
+			end case;
 	end process;
 	
 
@@ -669,7 +670,7 @@ begin
 						sprite_ptr_fetch, sprite_data_fetch, dotclk)
 	begin
 		-- video access?
---		if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
+		if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 			vid_fetch <= chr_fetch_int 
 						or pxl_fetch_int 
 						or attr_fetch_int 
@@ -678,13 +679,13 @@ begin
 						;
 					
 			-- provisional approach for initial testing of new approach
-			if (dotclk(3 downto 2) = "10") then
+			if (c_phase(3 downto 2) = "10") then
 				--vreq_video <= '0';
 				vreq_video <= sprite_data_fetch;
 			else 
 				vreq_video <= '1';
 			end if;
---		end if;
+		end if;
 	end process;
 	
 	-----------------------------------------------------------------------------
@@ -695,7 +696,7 @@ begin
 	vgacanvas: Canvas
 	port map (
 		qclk,
-		dotclk,
+		dotclk(0),
 		mode_60hz,
 		mode_tv,
 		mode_out,
@@ -728,7 +729,8 @@ begin
 	h_border: HBorder
 	port map (
 			qclk,
-			dotclk,
+			dotclk(1 downto 0),
+			c_phase(3 downto 2),
 			h_zero,
 			hsync_pos,
 			slots_per_line,
@@ -803,7 +805,7 @@ begin
 		end if;
 	end process;
 	
-	AddrHold: process(qclk, last_line_of_screen, vid_addr, reset, dotclk) 
+	AddrHold: process(qclk, last_line_of_screen, vid_addr, reset, dotclk, c_phase) 
 	begin
 		if (reset ='1') then
 			vid_addr_hold <= (others => '0');
@@ -847,17 +849,13 @@ begin
 		if (reset = '1') then
 			vid_addr <= (others => '0');
 			attr_addr <= (others => '0');
-		elsif (rising_edge(qclk) and dotclk(1 downto 0) = "11") then --dotclk(1 downto 0) = "11") then
+		elsif (rising_edge(qclk) and dotclk(1 downto 0) = "11") then 
 				if (x_start = '1') then
---					if (last_line_of_char = '0' 
---							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
 					if (new_line_attr = '0'
 							or (interlace_int = '1')
 							) then
 						attr_addr <= attr_addr_hold;
 					end if;
---					if ((mode_bitmap = '0' and last_line_of_char = '0') 
---							or (rline_cnt0 = '1' and interlace_int = '1' and is_double_int = '0')) then
 					if (new_line_vaddr = '0'
 							or (interlace_int = '1')
 							) then
@@ -898,10 +896,10 @@ begin
 	sprite_ptr_fetch <= sprite_ptr_window and fetch_sprite_en;
 	sprite_data_fetch <= sprite_data_window and fetch_sprite_en;	
 	
-	sprite_outcol_p: process(qclk, dotclk)
+	sprite_outcol_p: process(qclk)
 	begin
 		
-		if (falling_edge(qclk)) then -- and dotclk(0) = '0') then
+		if (falling_edge(qclk)) then 
 			if (sprite_ison(0) = '1') then
 				sprite_on <= '1';
 				sprite_outcol <= sprite_outbits(0);
@@ -969,7 +967,7 @@ begin
 			collision_sprite_sprite_none <= '1';
 		end if;
 		
-		if (falling_edge(qclk)) then -- and dotclk(0) = '0') then
+		if (falling_edge(qclk)) then 
 
 			irq_sprite_sprite_trigger <= '0';
 			
@@ -1032,7 +1030,7 @@ begin
 		end if;
 	end process;
 
-	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx, h_enable)
+	fetch_idx_p: process(qclk, dotclk, c_phase, h_zero, sprite_fetch_idx, h_enable)
 	begin
 	-- start fetching sprite immediately after end of visible area
 		if (h_enable = '1') then
@@ -1040,7 +1038,7 @@ begin
 			sprite_fetch_idx <= 0;
 			sprite_fetch_win <= '0';
 			sprite_fetch_done <= '0';
-		elsif (falling_edge(qclk) and dotclk = "1111") then
+		elsif (falling_edge(qclk) and c_phase(3 downto 2) = "11" and dotclk(1 downto 0) = "11") then
 			if (sprite_fetch_done = '0') then
 				if (sprite_fetch_win = '0') then
 					sprite_fetch_win <= '1';
@@ -1100,7 +1098,8 @@ begin
 		sprite_fetch_offset(0),
 		sprite_fetch_ce(0),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1137,7 +1136,8 @@ begin
 		sprite_fetch_offset(1),
 		sprite_fetch_ce(1),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1174,7 +1174,8 @@ begin
 		sprite_fetch_offset(2),
 		sprite_fetch_ce(2),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1211,7 +1212,8 @@ begin
 		sprite_fetch_offset(3),
 		sprite_fetch_ce(3),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1248,7 +1250,8 @@ begin
 		sprite_fetch_offset(4),
 		sprite_fetch_ce(4),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1285,7 +1288,8 @@ begin
 		sprite_fetch_offset(5),
 		sprite_fetch_ce(5),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1322,7 +1326,8 @@ begin
 		sprite_fetch_offset(6),
 		sprite_fetch_ce(6),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1359,7 +1364,8 @@ begin
 		sprite_fetch_offset(7),
 		sprite_fetch_ce(7),
 		qclk,
-		dotclk,
+		dotclk(0),
+		c_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1501,7 +1507,6 @@ begin
 				when others =>
 				end case;
 				
-			--elsif (dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')) then
 			elsif (is_shift = '1') then
 				sr(6 downto 1) <= sr(5 downto 0);
 				sr(0) <= '1';
@@ -1525,7 +1530,7 @@ begin
 	rasterout_p: process(qclk, dotclk, sr, x_border, y_border, dispen, mode_extended, mode_attrib, sr_attr, col_border, is_outbit, 
 		col_bg0, col_fg, col_bg1, col_bg2)
 	begin
-		if (falling_edge(qclk) and dotclk(0) = '0') then -- and (is_80 = '1' or dotclk(1) = '1')) then
+		if (falling_edge(qclk) and dotclk(0) = '0') then 
 			raster_isbg <= '0';
 			if (mode_extended = '0' and mode_attrib = '0') then
 				-- 2 COL MODE
@@ -1658,7 +1663,7 @@ begin
 			vid_out_idx <= (others => '0');
 			vid_out_blank <= '1';
 			
-		elsif (falling_edge(qclk) and dotclk(0) = '1') then -- and (is_80 = '1' or dotclk(1) = '1')) then
+		elsif (falling_edge(qclk) and dotclk(0) = '1') then 
 
 			collision_trigger_sprite_border <= (others => '0');
 			collision_trigger_sprite_raster <= (others => '0');

@@ -85,9 +85,9 @@ architecture Behavioral of HBorder is
 	-- VGA 40: 8 cycles
 	-- TV  80: 8 cycles
 	-- TV  40: 16cycles
-	signal slot_len: std_logic_vector(3 downto 0);
+	signal access_per_slot: std_logic_vector(3 downto 0);
 	-- count mem-cycles
-	signal slot_len_cnt: std_logic_vector(3 downto 0);
+	signal access_cnt: std_logic_vector(3 downto 0);
 	
 	signal is_hsync: std_logic;
 	signal is_slots: std_logic;
@@ -107,23 +107,23 @@ begin
 		if (mode_tv = '0') then
 			if (is_80 = '1') then
 				-- 80 cols VGA mode is fastest
-				slot_len <= "0011";
+				access_per_slot <= "0011";
 			else
 				-- 40 col VGA mode
-				slot_len <= "0111";
+				access_per_slot <= "0111";
 			end if;
 		else
 			if (is_80 = '1') then
 				-- 80 col TV mode
-				slot_len <= "0111";
+				access_per_slot <= "0111";
 			else
 				-- 40 col TV mode
-				slot_len <= "1111";
+				access_per_slot <= "1111";
 			end if;
 		end if;
 	end process;
 	
-	slot_p: process(qclk, dotclk, slot_len, slot_cnt, reset)
+	slot_p: process(qclk, dotclk, access_per_slot, slot_cnt, reset)
 	begin
 		if (reset = '1') then
 			slot_state <= "00";
@@ -150,21 +150,21 @@ begin
 				else
 				
 					if (is_slot_len = '1') then
-						slot_len_cnt <= "0000";
+						access_cnt <= "0000";
 						-- counts number of chars / slots
 						slot_cnt <= slot_cnt + 1;
 						-- shifted border
 						is_border_2 <= is_border_1;
 					else
 						-- counts memclks per char / slot
-						slot_len_cnt <= slot_len_cnt + 1;
+						access_cnt <= access_cnt + 1;
 					end if;
 				
 					case (slot_state) is
 					when "00" =>
 						-- counts number of chars / slots
 						-- until horizontal start of raster position is reached
-						slot_len_cnt <= "0000";
+						access_cnt <= "0000";
 						slot_cnt <= slot_cnt + 1;
 						if (is_hsync = '1') then
 							slot_state <= "01";
@@ -172,13 +172,13 @@ begin
 					when "01" =>
 						-- sync start of raster with shift / slot phase, so
 						-- that first fetch starts immediately
-						slot_len_cnt <= "0000";
-						if (dotclk(2 downto 0) = "011") then
+						access_cnt <= "0000";
+						--if (dotclk(2 downto 0) = "011") then
 							phase0 <= '1';
 							is_preload <= '1';
 							slot_state <= "10";
 							slot_cnt <= "000000001";
-						end if;
+						--end if;
 					when "10" =>
 						
 						if (phase4 = '1') then
@@ -191,7 +191,7 @@ begin
 									is_border_1 <= '1';
 								end if;
 								-- reset slot len cnt
-								slot_len_cnt <= "0000";
+								access_cnt <= "0000";
 								is_last_vis <= '1';
 							else
 								-- start display after first full phase set
@@ -235,7 +235,7 @@ begin
 	h_phase3 <= phase3;
 	h_phase4 <= phase4;
 	
-	slot_px: process(qclk, dotclk, slot_len, slot_cnt, reset)
+	slot_px: process(qclk, dotclk, access_per_slot, slot_cnt, reset)
 	begin
 		if (reset = '1') then
 			is_hsync <= '0';
@@ -273,7 +273,7 @@ begin
 				end if;
 
 				is_slot_len <= '0';
-				if (slot_len_cnt = slot_len) then
+				if (access_cnt = access_per_slot) then
 					is_slot_len <= '1';
 				end if;
 				

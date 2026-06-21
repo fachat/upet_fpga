@@ -420,7 +420,7 @@ architecture Behavioral of Video is
 	component Canvas is
     	Port (
            qclk: in std_logic;          -- Q clock (50MHz)
-           dotclk: in std_logic_vector(3 downto 0);     -- 25Mhz, 1/2, 1/4, 1/8, 1/16
+           dotclk: in std_logic_vector(1 downto 0);     	 -- 27Mhz
 
 			  mode_60hz: in std_logic;
 			  mode_tv: in std_logic;
@@ -690,7 +690,7 @@ begin
 	vgacanvas: Canvas
 	port map (
 		qclk,
-		dotclk,
+		dotclk(1 downto 0),
 		mode_60hz,
 		mode_tv,
 		mode_out,

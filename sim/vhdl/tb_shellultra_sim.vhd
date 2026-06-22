@@ -107,7 +107,7 @@ begin
         wait;
     end process;
 
-    fram_addr <= to_integer(unsigned(FA & A));
+    fram_addr <= to_integer(unsigned(FA)) * 65536 + to_integer(unsigned(A));
     vram_addr <= to_integer(unsigned(VA));
 
     -- FRAM model on CPU bus
@@ -134,7 +134,7 @@ begin
         end if;
     end process;
 
-    flash_cs_n <= not ((spi_selb = '0') and (spi_selc = '0'));
+    flash_cs_n <= '0' when (spi_selb = '0' and spi_selc = '0') else '1';
 
     flash0 : entity work.spi_flash_model
         port map (

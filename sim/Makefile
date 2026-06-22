@@ -1,5 +1,5 @@
 GHDL ?= ghdl
-GHDLFLAGS = --std=08 --ieee=synopsys -fexplicit
+GHDLFLAGS = --std=08 --ieee=synopsys -fexplicit -frelaxed
 
 ROOT := ..
 OUT := out
@@ -33,7 +33,7 @@ build:
 
 run: build
 	@mkdir -p $(OUT)
-	$(GHDL) -r $(GHDLFLAGS) $(TB) --stop-time=30ms --vcd=$(OUT)/sim.vcd
+	$(GHDL) -r $(GHDLFLAGS) $(TB) --stop-time=30ms --assert-level=error --ieee-asserts=disable --vcd=$(OUT)/sim.vcd
 	@echo "Wrote $(OUT)/frame.ppm and $(OUT)/sim.vcd"
 
 view:

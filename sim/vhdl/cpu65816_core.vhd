@@ -53,7 +53,7 @@ begin
 
                     when S_RESET_HI =>
                         pc(15 downto 8) <= unsigned(d_in);
-                        A <= std_logic_vector(pc(15 downto 8) & pc(7 downto 0));
+                        A <= d_in & std_logic_vector(pc(7 downto 0));
                         state <= S_FETCH;
                         vpb <= '1';
 

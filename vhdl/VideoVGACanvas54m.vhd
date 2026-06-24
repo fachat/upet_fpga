@@ -257,7 +257,7 @@ architecture Behavioral of Canvas is
     constant V_FP_60      : integer := 9;
     constant V_SYNC_W_60  : integer := 6;
     constant V_TOTAL_60   : integer := 525;
-	 constant V_ZERO_P_60  : integer := 480;
+	 constant V_ZERO_P_60  : integer := 478; --480;
 
     ---------------------------------------------------------------------------
     -- 720x576p50 timing constants
@@ -300,6 +300,8 @@ architecture Behavioral of Canvas is
 	 
 	 signal hzero_d1	: std_logic;
 	 signal hzero_d2	: std_logic;
+	 signal hzero_d3	: std_logic;
+	 signal hzero_d4	: std_logic;
 	 
 begin
 
@@ -448,81 +450,79 @@ begin
                 end if;
 				end if;
 				
-				hzero_d2 <= hzero_d1;
+				hzero_d1 <= hzero_s;
+				hzero_d3 <= hzero_d2;
         end if;
     end process;
 
     video_gen_p : process(qclk, dotclk, frame_h_cnt, frame_v_cnt, h_display, v_display, h_sync_b, v_sync_b, v_zero_p, h_zero_p, h_sync_e, v_sync_e)
-        variable h : integer;
-        variable v : integer;
     begin
-      --if (falling_edge(qclk) and dotclk(0) = '0') then
-		  
-        h := frame_h_cnt;
-        v := frame_v_cnt;
+		-- hzero and hsync must not have glitches, so they need to be clocked
+      if (rising_edge(qclk) and dotclk(0) = '1') then
 
         -- Data enable: high inside active display window.
-        if h < h_display and v < v_display then
+        if frame_h_cnt < h_display and frame_v_cnt < v_display then
             de_s <= '1';
         else
             de_s <= '0';
         end if;
-		  if (h < h_display) then
+		  if (frame_h_cnt < h_display) then
 				hde_s <= '1';
 		  else
 				hde_s <= '0';
 		  end if;
-		  if (v < v_display) then
+		  if (frame_v_cnt < v_display) then
 				vde_s <= '1';
 		  else
 				vde_s <= '0';
 		  end if;
 
         -- Horizontal sync (positive polarity - note: ext is negative = low during pulse).
-        if h >= h_sync_b and h < h_sync_e then
+        if frame_h_cnt >= h_sync_b and frame_h_cnt < h_sync_e then
             hsync_s <= '1';
         else
             hsync_s <= '0';
         end if;
 
         -- Vertical sync (positive polarity - note: ext is negative = low during pulse).
-        if v >= v_sync_b and v < v_sync_e then
+        if frame_v_cnt >= v_sync_b and frame_v_cnt < v_sync_e then
             vsync_s <= '1';
         else
             vsync_s <= '0';
         end if;
 
 		  -- vertical origin of coordinate system
-		  if v = v_zero_p then
+		  if frame_v_cnt = v_zero_p then
 				vzero_s <= '1';
 		  else
 				vzero_s <= '0';
 		  end if;
 		  
 		  -- vertical origin of coordinate system
-		  if h = h_zero_p then
+		  if frame_h_cnt = h_zero_p then
 				hzero_s <= '1';
 		  else
 				hzero_s <= '0';
 		  end if;
 
-		--end if;
+		end if;
+		
+		hzero_d2 <= hzero_d1;
+		hzero_d4 <= hzero_d3;
 	end process;
 
 	-----------------------------------------------------------------------------
 	-- horizontal geometry calculation
 	
-	xa: process(qclk, dotclk, hzero_s, x_addr_int)
+	xa: process(qclk, dotclk, hzero_s, x_addr_int, reset)
 	begin
 		if (falling_edge(qclk) and dotclk(0) = '1') then
-			if (hzero_s = '1') then
+			if (reset = '1' or hzero_s = '1') then
 				x_addr_int <= (others => '0');
 			else
 				x_addr_int <= x_addr_int + 1;
 			end if;
-		end if;
-		
-		hzero_d1 <= hzero_s;
+		end if;		
 	end process;
 	
 	h_enable <= hde_s;
@@ -531,8 +531,8 @@ begin
 	hz: process(qclk, dotclk, hzero_s, hzero_d1, hzero_d2)
 	begin
 		if (falling_edge(qclk) and dotclk(1 downto 0) = "10") then
-			-- shape ext. hzero; delays make sure a dotclk "10" falling q is always detected
-			h_zero <= hzero_s or hzero_d1 or hzero_d2;
+			-- shape ext. hzero; delays make sure a dotclk "10" falling q is always included
+			h_zero <= hzero_s or hzero_d1 or hzero_d2 or hzero_d3 or hzero_d4;
 		end if;
 	end process;
 			
@@ -543,10 +543,10 @@ begin
 	
 	v_sync <= vsync_s;
 	
-	ya: process(qclk, vzero_s, y_addr_int, hsync_s)
+	ya: process(qclk, vzero_s, y_addr_int, hsync_s, reset)
 	begin
 		if (rising_edge(hsync_s)) then
-			if (vzero_s = '1') then
+			if (reset = '1' or vzero_s = '1') then
 				y_addr_int <= (others => '0');
 			else
 				y_addr_int <= y_addr_int + 1;
@@ -555,7 +555,14 @@ begin
 	end process;
 
 	v_enable <= vde_s;
-	v_zero <= vzero_s;
+
+	vzero_p: process(hde_s, vzero_s)
+	begin
+		if (rising_edge(hde_s)) then
+			v_zero <= vzero_s;
+		end if;
+	end process;
+	
 	y_addr <= y_addr_int;
 	
 	dispen <= de_s;

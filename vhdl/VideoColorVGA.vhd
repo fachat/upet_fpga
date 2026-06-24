@@ -1949,13 +1949,15 @@ begin
 	
 	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
 	vid_out(3 downto 2) <= "00" when vid_out_blank = '1' else pbr_doB(4 downto 3);  -- GREEN
-	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
-
+--	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
+	
 	-- potential DEBUG
 --	vid_out(0) <= '0' when vid_out_blank = '1' else last_line_of_char;
 --	vid_out(1) <= '0' when vid_out_blank = '1' else rline_cnt0;
 --	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
 --	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
+	vid_out(4) <= v_zero;
+	vid_out(5) <= h_zero;
 	
 	
 	

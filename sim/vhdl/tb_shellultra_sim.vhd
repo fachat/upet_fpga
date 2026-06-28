@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 use std.textio.all;
 use std.env.all;
 
@@ -211,6 +212,19 @@ begin
             spi_amosi => spi_amosi,
             nldac => nldac
         );
+
+    -- Initialize VRAM with pseudo-random values at the start of simulation
+    process
+        variable seed1 : positive := 42;
+        variable seed2 : positive := 137;
+        variable rand  : real;
+    begin
+        for i in 0 to 2**19 - 1 loop
+            uniform(seed1, seed2, rand);
+            vram(i) <= std_logic_vector(to_unsigned(integer(rand * 255.0), 8));
+        end loop;
+        wait;
+    end process;
 
     process
         variable pix_phase : std_logic := '0';

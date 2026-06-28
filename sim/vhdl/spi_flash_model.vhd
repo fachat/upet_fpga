@@ -15,14 +15,22 @@ architecture behavioral of spi_flash_model is
     type t_state is (S_CMD, S_ADDR, S_DATA);
     signal state : t_state := S_CMD;
 
-    type t_flash is array (0 to 65535) of std_logic_vector(7 downto 0);
+    constant C_FLASH_SIZE : integer := 2 * 1024 * 1024;
 
-    function init_flash return t_flash is
+    type t_flash is array (0 to C_FLASH_SIZE - 1) of std_logic_vector(7 downto 0);
+    type t_spiimg_file is file of character;
+
+    impure function init_flash return t_flash is
         variable mem : t_flash := (others => x"EA");
+        file spiimg_file : t_spiimg_file open read_mode is "spiimg";
+        variable ch : character;
+        variable idx : integer := 0;
     begin
-        -- Reset vector in the first 256-byte page loaded by IPL.
-        mem(16#00FC#) := x"00";
-        mem(16#00FD#) := x"FF";
+        while (not endfile(spiimg_file)) and idx < C_FLASH_SIZE loop
+            read(spiimg_file, ch);
+            mem(idx) := std_logic_vector(to_unsigned(character'pos(ch), 8));
+            idx := idx + 1;
+        end loop;
         return mem;
     end function;
 
@@ -64,7 +72,7 @@ begin
                     addr_shift <= addr_shift(22 downto 0) & mosi;
                     if bit_cnt = 23 then
                         cur_addr <= unsigned(addr_shift(22 downto 0) & mosi);
-                        cur_byte <= flash(to_integer(unsigned((addr_shift(14 downto 0) & mosi))));
+                        cur_byte <= flash(to_integer(unsigned((addr_shift(19 downto 0) & mosi))));
                         state <= S_DATA;
                         data_bit <= 0;
                         bit_cnt <= 0;
@@ -82,7 +90,7 @@ begin
                     data_bit <= 0;
                     next_addr := cur_addr + 1;
                     cur_addr <= next_addr;
-                    cur_byte <= flash(to_integer(next_addr(15 downto 0)));
+                    cur_byte <= flash(to_integer(next_addr(20 downto 0)));
                 else
                     data_bit <= data_bit + 1;
                 end if;

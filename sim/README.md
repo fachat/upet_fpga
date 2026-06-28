@@ -7,8 +7,8 @@ This folder provides a standalone simulation harness for `vhdl/ShellUltra.vhd`.
 - GHDL build/elaboration for the original VHDL design
 - A VHDL 65816-compatible simulation core (`vhdl/cpu65816_core.vhd`) wired to matching ShellUltra CPU pins
 - FRAM/VRAM behavioral models on the external busses
-- SPI flash model (`vhdl/spi_flash_model.vhd`) with 256 pages (64KiB) initialized to NOP (`0xEA`)
-- IPL/reset-vector setup in flash page 0 so the copied boot page starts executing NOPs
+- SPI flash model (`vhdl/spi_flash_model.vhd`) with 2MiB storage
+- Flash initialized from `sim/spiimg` at address 0 (loads the full file, truncated at flash size)
 - Frame capture to `out/frame.ppm` at 720x576
 - SDL window viewer (`show_frame.py`, via pygame/SDL)
 

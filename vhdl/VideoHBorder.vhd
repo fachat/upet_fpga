@@ -311,7 +311,6 @@ begin
 
 	is_shift_p: process(is_80, mode_tv, dotclk)
 	begin
-		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
 		if (mode_tv = '0') then
 				-- VGA 40 col
 				is_shift40 <= dotclk(1);
@@ -319,7 +318,7 @@ begin
 				is_shift80 <= '1';
 		else
 				-- TV 40 col
-				is_shift40 <= dotclk(1) and dotclk(2);
+				is_shift40 <= dotclk(1) and access_cnt(0);
 				-- TV 80 col
 				is_shift80 <= dotclk(1);
 		end if;

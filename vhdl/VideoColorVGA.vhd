@@ -1956,9 +1956,10 @@ begin
 --	vid_out(1) <= '0' when vid_out_blank = '1' else rline_cnt0;
 --	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
 --	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
-	vid_out(4) <= v_zero;
-	vid_out(5) <= h_zero;
-	
+--	vid_out(4) <= v_zero;
+--	vid_out(5) <= h_zero;
+	vid_out(4) <= h_phase1;
+	vid_out(5) <= h_phase2;
 	
 	
 	--------------------------------------------

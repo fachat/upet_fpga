@@ -134,6 +134,7 @@ begin
 			phase2 <= '0';
 			phase3 <= '0';
 			phase4 <= '0';
+			access_cnt <= (others => '0');
 		else
 			-- every memclk
 			-- output (is_border) is evaluated at falling qclk and dotclk(0)=1

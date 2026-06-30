@@ -12,8 +12,8 @@ architecture sim of tb_shellultra_sim is
     constant C_QCLK_PERIOD : time := 18.518 ns; -- 54MHz
     constant C_FRAME_W : integer := 720;
     constant C_FRAME_H : integer := 576;
-    constant C_LINE_TOTAL : integer := 864;
-    constant C_FRAME_TOTAL : integer := 625;
+    constant C_LINE_TOTAL : integer := 858; --864;
+    constant C_FRAME_TOTAL : integer := 525; --625;
 
     signal q50m : std_logic := '0';
     signal nres : std_logic := '0';
@@ -76,10 +76,10 @@ architecture sim of tb_shellultra_sim is
     signal flash_cs_n : std_logic;
 
     type t_ram is array (0 to 2**21 - 1) of std_logic_vector(7 downto 0);
-    type t_vram is array (0 to 2**19 - 1) of std_logic_vector(7 downto 0);
+--    type t_vram is array (0 to 2**19 - 1) of std_logic_vector(7 downto 0);
 
     signal fram : t_ram := (others => (others => '0'));
-    signal vram : t_vram := (others => (others => '0'));
+--    signal vram : t_vram := (others => (others => '0'));
 
     signal fram_addr : integer range 0 to 2**21 - 1;
     signal vram_addr : integer range 0 to 2**19 - 1;
@@ -97,6 +97,34 @@ architecture sim of tb_shellultra_sim is
         end case;
     end function;
 
+    type t_vram is array (0 to 2**19 - 1) of std_logic_vector(7 downto 0);
+    type t_charrom_file is file of character;
+
+    impure function init_vram return t_vram is
+        variable mem : t_vram := (others => x"00");
+        file charrom_file : t_charrom_file open read_mode is "chargen_pet16";
+        variable ch : character;
+        variable idx : integer := 0;
+
+        variable seed1 : positive := 42;
+        variable seed2 : positive := 137;
+        variable rand  : real;
+    begin
+	for i in 0 to 2**19 - 1 loop
+            uniform(seed1, seed2, rand);
+            mem(i) := std_logic_vector(to_unsigned(integer(rand * 255.0), 8));
+        end loop;
+
+        while (not endfile(charrom_file)) and idx < 2**19 loop
+            read(charrom_file, ch);
+            mem(idx) := std_logic_vector(to_unsigned(character'pos(ch), 8));
+            idx := idx + 1;
+        end loop;
+        return mem;
+    end function;
+
+    signal vram : t_vram := init_vram;
+
 begin
     q50m <= not q50m after C_QCLK_PERIOD / 2;
 
@@ -108,7 +136,7 @@ begin
         wait;
     end process;
 
-    fram_addr <= to_integer(unsigned(FA)) * 65536 + to_integer(unsigned(A));
+    fram_addr <= to_integer(unsigned(FA)) * 32768 + to_integer(unsigned(A(14 downto 0)));
     vram_addr <= to_integer(unsigned(VA));
 
     -- FRAM model on CPU bus
@@ -128,7 +156,7 @@ begin
 
     process(q50m)
     begin
-        if rising_edge(q50m) then
+       if rising_edge(q50m) then
             if nvramsel = '0' and ramrwb = '0' then
                 vram(vram_addr) <= VD;
             end if;
@@ -212,19 +240,6 @@ begin
             spi_amosi => spi_amosi,
             nldac => nldac
         );
-
-    -- Initialize VRAM with pseudo-random values at the start of simulation
-    process
-        variable seed1 : positive := 42;
-        variable seed2 : positive := 137;
-        variable rand  : real;
-    begin
-        for i in 0 to 2**19 - 1 loop
-            uniform(seed1, seed2, rand);
-            vram(i) <= std_logic_vector(to_unsigned(integer(rand * 255.0), 8));
-        end loop;
-        wait;
-    end process;
 
     process
         variable pix_phase : std_logic := '0';

@@ -1,0 +1,64 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Jun 30 20:56:28 2026
+[*]
+[dumpfile] "/home/fachat/Shared/upet_family/fpga/sim/out/sim.vcd"
+[dumpfile_mtime] "Tue Jun 30 20:48:42 2026"
+[dumpfile_size] 628032686
+[savefile] "/home/fachat/Shared/upet_family/fpga/sim/wave.gtkw"
+[timestart] 16803966000000
+[size] 1920 993
+[pos] -1 -1
+*-27.600000 16804301000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_shellultra_sim.
+[treeopen] tb_shellultra_sim.dut.
+[treeopen] tb_shellultra_sim.dut.top_c.
+[treeopen] tb_shellultra_sim.dut.top_c.viccy.
+[sst_width] 239
+[signals_width] 174
+[sst_expanded] 1
+[sst_vpaned_height] 296
+@28
+tb_shellultra_sim.dut.q50m
+tb_shellultra_sim.dut.top_c.reset
+@22
+tb_shellultra_sim.dut.top_c.dotclk[3:0]
+@28
+tb_shellultra_sim.dut.top_c.vreq_ipl
+tb_shellultra_sim.dut.top_c.vreq_cpu
+tb_shellultra_sim.dut.top_c.vreq_video
+@22
+tb_shellultra_sim.dut.top_c.vd_in[7:0]
+@28
+tb_shellultra_sim.dut.top_c.spi_in3
+tb_shellultra_sim.dut.top_c.spi_clk
+tb_shellultra_sim.dut.top_c.ipl
+@22
+tb_shellultra_sim.dut.top_c.ipl_cnt[11:0]
+@28
+tb_shellultra_sim.dut.top_c.nvramsel
+@22
+tb_shellultra_sim.vd[7:0]
+@28
+tb_shellultra_sim.dut.top_c.ramrwb
+@22
+tb_shellultra_sim.dut.top_c.va[18:0]
+tb_shellultra_sim.dut.top_c.va_out[15:0]
+@28
+tb_shellultra_sim.dut.top_c.viccy.sprite_ptr_fetch
+tb_shellultra_sim.dut.top_c.viccy.sprite_data_fetch
+tb_shellultra_sim.dut.top_c.viccy.attr_fetch_int
+tb_shellultra_sim.dut.top_c.viccy.crom_fetch_int
+tb_shellultra_sim.dut.top_c.viccy.sprite_ptr_window
+tb_shellultra_sim.dut.top_c.viccy.sprite_data_window
+tb_shellultra_sim.dut.top_c.viccy.attr_window
+tb_shellultra_sim.dut.top_c.viccy.chr_window
+tb_shellultra_sim.dut.top_c.viccy.pxl_window
+tb_shellultra_sim.dut.top_c.viccy.h_enable
+tb_shellultra_sim.dut.top_c.viccy.fetch_int
+tb_shellultra_sim.dut.top_c.viccy.h_zero
+tb_shellultra_sim.dut.top_c.viccy.mode_attrib
+@29
+tb_shellultra_sim.dut.top_c.viccy.mode_extended
+[pattern_trace] 1
+[pattern_trace] 0

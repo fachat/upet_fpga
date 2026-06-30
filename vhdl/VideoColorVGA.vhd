@@ -1851,8 +1851,11 @@ begin
 	-- alt modes
 	altmodes_p: process(qclk)
 	begin
-	
-		if (falling_edge(qclk)) then
+		if (reset = '1') then
+			mode_attrib <= '0';
+			mode_extended <= '0';
+			mode_bitmap <= '0';
+		elsif (falling_edge(qclk)) then
 			
 			if (v_zero = '1' or mode_set_flag = '1') then
 				mode_attrib <= mode_attrib_reg;

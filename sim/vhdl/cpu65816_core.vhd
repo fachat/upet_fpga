@@ -26,7 +26,8 @@ architecture behavioral of cpu65816_core is
     signal pc : unsigned(15 downto 0) := (others => '0');
     signal d_in : std_logic_vector(7 downto 0);
 begin
-    D <= (others => 'Z');
+	D <= (others => 'Z') when phi2 = '1'
+	     	else x"00";	-- bank zero
     d_in <= D;
 
     rwb <= '1';

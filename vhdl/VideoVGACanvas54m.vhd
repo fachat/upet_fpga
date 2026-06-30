@@ -43,7 +43,6 @@ entity Canvas is
 		mode_tv: in std_logic;
  	   mode_out: in std_logic;
 		
-		dispen : out std_logic;
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 
@@ -565,7 +564,7 @@ begin
 	
 	y_addr <= y_addr_int;
 	
-	dispen <= de_s;
+--	dispen <= de_s;
 	
 end Behavioral;
 

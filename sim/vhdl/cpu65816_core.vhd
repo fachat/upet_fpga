@@ -43,7 +43,7 @@ begin
             pc <= (others => '0');
             A <= x"FFFC";
             vpb <= '0';
-        elsif rising_edge(phi2) then
+        elsif falling_edge(phi2) then
             if rdy = '1' then
                 case state is
                     when S_RESET_LO =>

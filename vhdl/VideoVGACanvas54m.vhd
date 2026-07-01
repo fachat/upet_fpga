@@ -256,7 +256,7 @@ architecture Behavioral of Canvas is
     constant V_FP_60      : integer := 9;
     constant V_SYNC_W_60  : integer := 6;
     constant V_TOTAL_60   : integer := 525;
-	 constant V_ZERO_P_60  : integer := 478; --480;
+	 constant V_ZERO_P_60  : integer := 480;
 
     ---------------------------------------------------------------------------
     -- 720x576p50 timing constants
@@ -270,7 +270,7 @@ architecture Behavioral of Canvas is
     constant V_FP_50      : integer := 5;
     constant V_SYNC_W_50  : integer := 5;
     constant V_TOTAL_50   : integer := 625;
-	 constant V_ZERO_P_50  : integer := 525;
+	 constant V_ZERO_P_50  : integer := 525; -- 606
 
     ---------------------------------------------------------------------------
 	 
@@ -320,8 +320,7 @@ begin
 	geo_p: process(mode_60hz, mode_tv, mode_out) 
 	begin
 	
-		if (mode_60hz = '0') then
---		if (mode_60hz = '1') then
+		if (mode_60hz = '1') then
 --			if (mode_tv = '1') then
 --				if (mode_out = '1') then
 --					hh_display 			<= hh_display_60_mon;

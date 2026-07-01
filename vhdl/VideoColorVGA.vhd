@@ -675,9 +675,11 @@ begin
 			-- provisional approach for initial testing of new approach
 			if (dotclk(3 downto 2) = "10") then
 				--vreq_video <= '0';
-				vreq_video <= sprite_data_fetch;
+				vreq_video <= sprite_data_fetch
+					or h_phase0 or h_phase1 or h_phase2 or h_phase2;
 			else 
-				vreq_video <= '1';
+				vreq_video <= '0'
+					or h_phase0 or h_phase1 or h_phase2 or h_phase2;
 			end if;
 --		end if;
 	end process;

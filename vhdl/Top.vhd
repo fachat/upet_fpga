@@ -991,19 +991,9 @@ begin
 	v_out_p: process(q50m, memclk, nvramsel_int, nframsel_int, ipl, reset,
 			vid_fetch, rwb, m_vramsel_out, dac_dma_req, is_cpu, is_cpu_trigger)
 	begin
-		if (reset = '1') then
-			--ramrwb_int	<= '1';
-			--nframsel <= '1';
-			--nvramsel <= '1';
-		elsif (rising_edge(q50m)) then
---		elsif (falling_edge(q50m)) then
-				
-			--if (dotclk(0) ='0') then
-			--end if;
-		end if;
 		
-				nvramsel <= nvramsel_int;
-				nframsel <= nframsel_int;
+		nvramsel <= nvramsel_int;
+		nframsel <= nframsel_int;
 		
 		vreq_ipl <= ipl;
 		vreq_dac <= dac_dma_req;

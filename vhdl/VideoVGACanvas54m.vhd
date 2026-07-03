@@ -259,36 +259,64 @@ architecture Behavioral of Canvas is
 	 constant V_ZERO_P_60  : integer := 480;
 
     ---------------------------------------------------------------------------
+	 -- 60 Hz TV
+    constant H_DISPLAY_60_TV : integer := 720 * 2;
+    constant H_FP_60_TV      : integer := 38;
+    constant H_SYNC_W_60_TV  : integer := 124;
+    constant H_TOTAL_60_TV   : integer := 858 * 2;
+	 constant H_ZERO_P_60_TV  : integer := 824 * 2;
+	 
+    constant V_DISPLAY_60_TV : integer := 480;
+    constant V_FP_60_TV      : integer := 8;
+    constant V_SYNC_W_60_TV  : integer := 6;
+    constant V_TOTAL_60_TV   : integer := 525;
+	 constant V_ZERO_P_60_TV  : integer := 480;
+
+    ---------------------------------------------------------------------------
     -- 720x576p50 timing constants
     constant H_DISPLAY_50 : integer := 720;
     constant H_FP_50      : integer := 12;
     constant H_SYNC_W_50  : integer := 64;
     constant H_TOTAL_50   : integer := 864;
-	 constant H_ZERO_P_50  : integer := 820;
+	 constant H_ZERO_P_50  : integer := 822;
 	 
     constant V_DISPLAY_50 : integer := 576;
     constant V_FP_50      : integer := 5;
     constant V_SYNC_W_50  : integer := 5;
     constant V_TOTAL_50   : integer := 625;
-	 constant V_ZERO_P_50  : integer := 525; -- 606
+	 constant V_ZERO_P_50  : integer := 606;	
+
+	 -- 50 Hz TV
+    -- 720x576p50 timing constants
+    constant H_DISPLAY_50_TV : integer := 720 * 2;
+    constant H_FP_50_TV      : integer := 12 * 2;
+    constant H_SYNC_W_50_TV  : integer := 63 * 2;
+    constant H_TOTAL_50_TV   : integer := 864 * 2;
+	 constant H_ZERO_P_50_TV  : integer := 822 * 2;
+	 
+    constant V_DISPLAY_50_TV : integer := 576;
+    constant V_FP_50_TV      : integer := 4;
+    constant V_SYNC_W_50_TV  : integer := 6;
+    constant V_TOTAL_50_TV   : integer := 624;
+	 constant V_ZERO_P_50_TV  : integer := 606;	
 
     ---------------------------------------------------------------------------
 	 
-	 signal h_display 	 : integer range 0 to 1023;
-	 signal h_sync_b   	 : integer range 0 to 1023;
-	 signal h_sync_e	 	 : integer range 0 to 1023;
-	 signal h_total	  	 : integer range 0 to 1023;
-	 signal h_zero_p		 : integer range 0 to 1023;
+	 signal h_display 	 : integer range 0 to 2047;
+	 signal h_sync_b   	 : integer range 0 to 2047;
+	 signal h_sync_e	 	 : integer range 0 to 2047;
+	 signal h_total	  	 : integer range 0 to 2047;
+	 signal h_zero_p		 : integer range 0 to 2047;
 	 
 	 signal v_display 	 : integer range 0 to 1023;
 	 signal v_sync_b	  	 : integer range 0 to 1023;
 	 signal v_sync_e	 	 : integer range 0 to 1023;
 	 signal v_total	  	 : integer range 0 to 1023;
 	 signal v_zero_p		 : integer range 0 to 1023;
-	 
-	 
-	 signal frame_h_cnt   : integer range 0 to 1023;
+	 	 
+	 signal frame_h_cnt   : integer range 0 to 2047;
     signal frame_v_cnt   : integer range 0 to 1023;
+	 
 	 signal de_s		: std_logic;
 	 signal hde_s		: std_logic;
 	 signal vde_s		: std_logic;
@@ -321,105 +349,72 @@ begin
 	begin
 	
 		if (mode_60hz = '1') then
---			if (mode_tv = '1') then
---				if (mode_out = '1') then
---					hh_display 			<= hh_display_60_mon;
---					hh_sync_pos 		<= hh_sync_pos_60_mon;
---					hh_sync_end 		<= hh_sync_end_60_mon;
---					hh_total 			<= hh_total_60_mon;
---					hh_zero	 			<= hh_zero_60_mon;
---					vv_display			<= vv_display_60_mon;
---					vv_sync_pos			<= vv_sync_pos_60_mon;
---					vv_sync_end			<= vv_sync_end_60_mon;
---					vv_total				<= vv_total_60_mon;
---				else
---					hh_display 			<= hh_display_60_tv;
---					hh_sync_pos 		<= hh_sync_pos_60_tv;
---					hh_sync_end 		<= hh_sync_end_60_tv;
---					hh_total 			<= hh_total_60_tv;
---					hh_zero	 			<= hh_zero_60_tv;
---					vv_display			<= vv_display_60_tv;
---					vv_sync_pos			<= vv_sync_pos_60_tv;
---					vv_sync_end			<= vv_sync_end_60_tv;
---					vv_total				<= vv_total_60_tv;
---				end if;
---			else
---				hh_display 			<= hh_display_60;
---				hh_sync_pos 		<= hh_sync_pos_60;
---				hh_sync_end 		<= hh_sync_end_60;
---				hh_total 			<= hh_total_60;
---				hh_zero	 			<= hh_zero_60;
---				vv_display			<= vv_display_60;
---				vv_sync_pos			<= vv_sync_pos_60;
---				vv_sync_end			<= vv_sync_end_60;
---				vv_total				<= vv_total_60;				
---			end if;
---			vv_zero					<= vv_zero_60;
 
+			if (mode_tv = '1') then
+--				if (mode_out = '1') then
+--				else
+					h_display			<= H_DISPLAY_60_TV;
+					h_sync_b				<= H_DISPLAY_60_TV + H_FP_60_TV;
+					h_sync_e				<= H_DISPLAY_60_TV + H_FP_60_TV + H_SYNC_W_60_TV;
+					h_total				<= H_TOTAL_60_TV - 1;
+					h_zero_p				<= H_ZERO_P_60_TV;
+			
+					v_display			<= V_DISPLAY_60_TV;
+					v_sync_b				<= V_DISPLAY_60_TV + V_FP_60_TV;
+					v_sync_e				<= V_DISPLAY_60_TV + V_FP_60_TV + V_SYNC_W_60_TV;
+					v_total				<= V_TOTAL_60_TV - 1;
+					v_zero_p				<= V_ZERO_P_60_TV;
+--				end if;
+			else
+				h_display			<= H_DISPLAY_60;
+				h_sync_b				<= H_DISPLAY_60 + H_FP_60;
+				h_sync_e				<= H_DISPLAY_60 + H_FP_60 + H_SYNC_W_60;
+				h_total				<= H_TOTAL_60 - 1;
+				h_zero_p				<= H_ZERO_P_60;
+			
+				v_display			<= V_DISPLAY_60;
+				v_sync_b				<= V_DISPLAY_60 + V_FP_60;
+				v_sync_e				<= V_DISPLAY_60 + V_FP_60 + V_SYNC_W_60;
+				v_total				<= V_TOTAL_60 - 1;
+				v_zero_p				<= V_ZERO_P_60;
+			end if;
+			
 			x_default_offset_val	<= x_default_offset_60;
 			y_default_offset_val	<= y_default_offset_60;
-
-			h_display			<= H_DISPLAY_60;
-			h_sync_b				<= H_DISPLAY_60 + H_FP_60;
-			h_sync_e				<= H_DISPLAY_60 + H_FP_60 + H_SYNC_W_60;
-			h_total				<= H_TOTAL_60 - 1;
-			h_zero_p				<= H_ZERO_P_60;
-			
-			v_display			<= V_DISPLAY_60;
-			v_sync_b				<= V_DISPLAY_60 + V_FP_60;
-			v_sync_e				<= V_DISPLAY_60 + V_FP_60 + V_SYNC_W_60;
-			v_total				<= V_TOTAL_60 - 1;
-			v_zero_p				<= V_ZERO_P_60;
 		else
---			if (mode_tv = '1') then
+
+			if (mode_tv = '1') then
 --				if (mode_out = '1') then
---					hh_display 			<= hh_display_50_mon;
---					hh_sync_pos 		<= hh_sync_pos_50_mon;
---					hh_sync_end 		<= hh_sync_end_50_mon;
---					hh_total 			<= hh_total_50_mon;
---					hh_zero	 			<= hh_zero_50_mon;
---					vv_display			<= vv_display_50_mon;
---					vv_sync_pos			<= vv_sync_pos_50_mon;
---					vv_sync_end			<= vv_sync_end_50_mon;
---					vv_total				<= vv_total_50_mon;
 --				else
---					hh_display 			<= hh_display_50_tv;
---					hh_sync_pos 		<= hh_sync_pos_50_tv;
---					hh_sync_end 		<= hh_sync_end_50_tv;
---					hh_total 			<= hh_total_50_tv;
---					hh_zero	 			<= hh_zero_50_tv;
---					vv_display			<= vv_display_50_tv;
---					vv_sync_pos			<= vv_sync_pos_50_tv;
---					vv_sync_end			<= vv_sync_end_50_tv;
---					vv_total				<= vv_total_50_tv;
+					h_display			<= H_DISPLAY_50_TV;
+					h_sync_b				<= H_DISPLAY_50_TV + H_FP_50_TV;
+					h_sync_e				<= H_DISPLAY_50_TV + H_FP_50_TV + H_SYNC_W_50_TV;
+					h_total				<= H_TOTAL_50_TV - 1;
+					h_zero_p				<= H_ZERO_P_50_TV;
+			
+					v_display			<= V_DISPLAY_50_TV;
+					v_sync_b				<= V_DISPLAY_50_TV + V_FP_50_TV;
+					v_sync_e				<= V_DISPLAY_50_TV + V_FP_50_TV + V_SYNC_W_50_TV;
+					v_total				<= V_TOTAL_50_TV - 1;
+					v_zero_p				<= V_ZERO_P_50_TV;
 --				end if;
---			else
---				hh_display 			<= hh_display_50;
---				hh_sync_pos 		<= hh_sync_pos_50;
---				hh_sync_end 		<= hh_sync_end_50;
---				hh_total 			<= hh_total_50;
---				hh_zero	 			<= hh_zero_50;
---				vv_display			<= vv_display_50;
---				vv_sync_pos			<= vv_sync_pos_50;
---				vv_sync_end			<= vv_sync_end_50;
---				vv_total				<= vv_total_50;
---			end if;
---			vv_zero					<= vv_zero_50;
+			else
+				h_display			<= H_DISPLAY_50;
+				h_sync_b				<= H_DISPLAY_50 + H_FP_50;
+				h_sync_e				<= H_DISPLAY_50 + H_FP_50 + H_SYNC_W_50;
+				h_total				<= H_TOTAL_50 - 1;
+				h_zero_p				<= H_ZERO_P_50;
+			
+				v_display			<= V_DISPLAY_50;
+				v_sync_b				<= V_DISPLAY_50 + V_FP_50;
+				v_sync_e				<= V_DISPLAY_50 + V_FP_50 + V_SYNC_W_50;
+				v_total				<= V_TOTAL_50 - 1;
+				v_zero_p				<= V_ZERO_P_50;
+			end if;
 
 			x_default_offset_val	<= x_default_offset_50;
 			y_default_offset_val	<= y_default_offset_50;
 
-			h_display			<= H_DISPLAY_50;
-			h_sync_b				<= H_DISPLAY_50 + H_FP_50;
-			h_sync_e				<= H_DISPLAY_50 + H_FP_50 + H_SYNC_W_50;
-			h_total				<= H_TOTAL_50 - 1;
-			h_zero_p				<= H_ZERO_P_50;
-			
-			v_display			<= V_DISPLAY_50;
-			v_sync_b				<= V_DISPLAY_50 + V_FP_50;
-			v_sync_e				<= V_DISPLAY_50 + V_FP_50 + V_SYNC_W_50;
-			v_total				<= V_TOTAL_50 - 1;
-			v_zero_p				<= V_ZERO_P_50;
 		end if;
 	end process;
 

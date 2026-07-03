@@ -433,10 +433,15 @@ begin
                 -- Advance pixel / line counters.
                 if (frame_h_cnt = h_total) then
                     frame_h_cnt <= 0;
-                    if (frame_v_cnt = v_total) then
+						  -- this is >= instead of > as on TV we increase be two on an odd total
+                    if (frame_v_cnt >= v_total) then
                         frame_v_cnt <= 0;
                     else
-                        frame_v_cnt <= frame_v_cnt + 1;
+								if (mode_tv = '0') then
+									frame_v_cnt <= frame_v_cnt + 1;
+								else
+									frame_v_cnt <= frame_v_cnt + 2;
+								end if;
                     end if;
                 else
                     frame_h_cnt <= frame_h_cnt + 1;

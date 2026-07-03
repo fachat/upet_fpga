@@ -498,7 +498,7 @@ begin
 	begin
 		if (reset = '1') then
 			is_cpu <= '0';
-		elsif (rising_edge(q50m)) then -- and cp01 = '1') then
+		elsif (rising_edge(q50m) and cp01 = '1') then
 			if (mode = "11") then
 				is_cpu <= '1';
  			elsif (is_cpu_trigger = '1') then

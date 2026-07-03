@@ -75,11 +75,10 @@ architecture sim of tb_shellultra_sim is
 
     signal flash_cs_n : std_logic;
 
-    type t_ram is array (0 to 2**21 - 1) of std_logic_vector(7 downto 0);
---    type t_vram is array (0 to 2**19 - 1) of std_logic_vector(7 downto 0);
+    signal write_en : std_logic;
 
+    type t_ram is array (0 to 2**21 - 1) of std_logic_vector(7 downto 0);
     signal fram : t_ram := (others => (others => '0'));
---    signal vram : t_vram := (others => (others => '0'));
 
     signal fram_addr : integer range 0 to 2**21 - 1;
     signal vram_addr : integer range 0 to 2**19 - 1;
@@ -151,15 +150,21 @@ begin
         end if;
     end process;
 
-    -- VRAM model shared with video and IPL
-    VD <= vram(vram_addr) when (nvramsel = '0' and ramrwb = '1') else (others => 'Z');
-
     process(q50m)
     begin
-       if rising_edge(q50m) then
-            if nvramsel = '0' and ramrwb = '0' then
+    	-- VRAM model shared with video and IPL
+	if (rising_edge(q50m)) then
+	    	VD <= vram(vram_addr) when (nvramsel = '0' and ramrwb = '1') else (others => 'Z');
+	end if;
+    end process;
+
+    write_en <= not (nvramsel or ramrwb);
+
+    process(write_en)
+    begin
+       --if rising_edge(nvramsel) then
+       if falling_edge(write_en) then
                 vram(vram_addr) <= VD;
-            end if;
         end if;
     end process;
 
@@ -177,6 +182,7 @@ begin
 
     cpu0 : entity work.cpu65816_core
         port map (
+	    qclk => q50m,
             nres => nres,
             phi2 => phi2,
             rdy  => rdy,

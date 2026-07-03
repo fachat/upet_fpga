@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Wed Jul  1 21:42:51 2026
+[*] Thu Jul  2 21:06:05 2026
 [*]
 [dumpfile] "/home/fachat/Shared/upet_family/fpga/sim/out/sim.vcd"
-[dumpfile_mtime] "Wed Jul  1 21:13:30 2026"
-[dumpfile_size] 582778630
+[dumpfile_mtime] "Thu Jul  2 21:06:05 2026"
+[dumpfile_size] 101847040
 [savefile] "/home/fachat/Shared/upet_family/fpga/sim/wave.gtkw"
-[timestart] 314931000000
+[timestart] 314886300000
 [size] 1920 993
 [pos] -1 -1
-*-27.600000 316065224000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-26.043200 315176360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] tb_shellultra_sim.
 [treeopen] tb_shellultra_sim.dut.
 [treeopen] tb_shellultra_sim.dut.top_c.
 [sst_width] 239
-[signals_width] 182
+[signals_width] 230
 [sst_expanded] 1
 [sst_vpaned_height] 296
 @28
@@ -27,9 +27,22 @@ tb_shellultra_sim.dut.top_c.phi2
 tb_shellultra_sim.dut.top_c.memclk
 @22
 tb_shellultra_sim.dut.top_c.a[15:0]
+tb_shellultra_sim.cpu0.pc[15:0]
+tb_shellultra_sim.cpu0.d_in[7:0]
+tb_shellultra_sim.cpu0.d[7:0]
+@29
+tb_shellultra_sim.cpu0.phi2
 @28
 tb_shellultra_sim.dut.top_c.vreq_ipl
 tb_shellultra_sim.dut.top_c.vreq_cpu
+tb_shellultra_sim.dut.top_c.is_cpu
+tb_shellultra_sim.dut.top_c.is_bus
+tb_shellultra_sim.dut.top_c.wait_ram
+tb_shellultra_sim.dut.top_c.is_cpu_trigger
+tb_shellultra_sim.dut.top_c.clk1m
+tb_shellultra_sim.dut.top_c.do_cpu
+tb_shellultra_sim.dut.top_c.cp01
+tb_shellultra_sim.dut.top_c.cp11
 tb_shellultra_sim.dut.top_c.vreq_video
 tb_shellultra_sim.dut.top_c.vid_fetch
 tb_shellultra_sim.dut.top_c.viccy.h_border.h_phase0

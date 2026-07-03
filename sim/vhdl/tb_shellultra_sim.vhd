@@ -11,9 +11,11 @@ end entity;
 architecture sim of tb_shellultra_sim is
     constant C_QCLK_PERIOD : time := 18.518 ns; -- 54MHz
     constant C_FRAME_W : integer := 720;
+    constant C_BACK_H : integer := 68;
+    constant C_BACK_V : integer := 39;
     constant C_FRAME_H : integer := 576;
-    constant C_LINE_TOTAL : integer := 858; --864;
-    constant C_FRAME_TOTAL : integer := 525; --625;
+    constant C_LINE_TOTAL : integer := 864;
+    constant C_FRAME_TOTAL : integer := 625;
 
     signal q50m : std_logic := '0';
     signal nres : std_logic := '0';
@@ -83,7 +85,7 @@ architecture sim of tb_shellultra_sim is
     signal fram_addr : integer range 0 to 2**21 - 1;
     signal vram_addr : integer range 0 to 2**19 - 1;
 
-    type t_frame is array (0 to C_FRAME_W * C_FRAME_H - 1) of std_logic_vector(5 downto 0);
+    type t_frame is array (0 to C_LINE_TOTAL * C_FRAME_TOTAL - 1) of std_logic_vector(5 downto 0);
     signal framebuf : t_frame := (others => (others => '0'));
 
     function comp2_to_u8(c : std_logic_vector(1 downto 0)) return integer is
@@ -249,8 +251,8 @@ begin
 
     process
         variable pix_phase : std_logic := '0';
-        variable x : integer := 0;
-        variable y : integer := 0;
+        variable x : integer := C_BACK_H;
+        variable y : integer := C_BACK_V;
         variable idx : integer;
 
         file ppm : text;
@@ -265,8 +267,8 @@ begin
             wait until rising_edge(q50m);
             pix_phase := not pix_phase;
             if pix_phase = '1' then
-                if x < C_FRAME_W and y < C_FRAME_H then
-                    idx := y * C_FRAME_W + x;
+                if x < C_LINE_TOTAL and y < C_FRAME_TOTAL then
+                    idx := y * C_LINE_TOTAL + x;
                     framebuf(idx) <= pxl_out;
                 end if;
 
@@ -276,17 +278,17 @@ begin
                         file_open(ppm, "out/frame.ppm", write_mode);
                         write(linebuf, string'("P3"));
                         writeline(ppm, linebuf);
-                        write(linebuf, C_FRAME_W);
+                        write(linebuf, C_LINE_TOTAL);
                         write(linebuf, string'(" "));
-                        write(linebuf, C_FRAME_H);
+                        write(linebuf, C_FRAME_TOTAL);
                         writeline(ppm, linebuf);
                         write(linebuf, string'("255"));
                         writeline(ppm, linebuf);
 
-                        for yy in 0 to C_FRAME_H - 1 loop
+                        for yy in 0 to C_FRAME_TOTAL - 1 loop
                             linebuf := null;
-                            for xx in 0 to C_FRAME_W - 1 loop
-                                p := framebuf(yy * C_FRAME_W + xx);
+                            for xx in 0 to C_LINE_TOTAL - 1 loop
+                                p := framebuf(yy * C_LINE_TOTAL + xx);
                                 r := comp2_to_u8(p(5 downto 4));
                                 g := comp2_to_u8(p(3 downto 2));
                                 b := comp2_to_u8(p(1 downto 0));

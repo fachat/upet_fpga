@@ -453,7 +453,8 @@ begin
         end if;
     end process;
 
-    video_gen_p : process(qclk, dotclk, frame_h_cnt, frame_v_cnt, h_display, v_display, h_sync_b, v_sync_b, v_zero_p, h_zero_p, h_sync_e, v_sync_e)
+    video_gen_p : process(qclk, dotclk, frame_h_cnt, frame_v_cnt, h_display, v_display, h_sync_b, v_sync_b, v_zero_p, h_zero_p, h_sync_e, v_sync_e,
+			hzero_d1, hzero_d3)
     begin
 		-- hzero and hsync must not have glitches, so they need to be clocked
       if (rising_edge(qclk) and dotclk(0) = '1') then

@@ -661,7 +661,7 @@ begin
 	sr_fetch_int <= sr_window and fetch_int;
 
 	fetch_p: process(chr_fetch_int, pxl_fetch_int, attr_fetch_int, crom_fetch_int, qclk,
-						sprite_ptr_fetch, sprite_data_fetch, dotclk)
+						sprite_ptr_fetch, sprite_data_fetch, dotclk, h_phase0, h_phase1, h_phase2, h_phase3)
 	begin
 		-- video access?
 --		if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
@@ -1738,7 +1738,7 @@ begin
 	-----------------------------------------------------------------------------
 	-- output sr control
 
-	en_p: process(nsrload, qclk, enable, h_enable, v_enable, interlace_int, rline_cnt0)
+	en_p: process(nsrload, qclk, enable, h_enable, v_enable, interlace_int, rline_cnt0, dena_int)
 	begin
 		enable <= h_enable and v_enable
 				and (interlace_int or not(rline_cnt0)); -- comment to DEBUG interlace timing
@@ -1852,7 +1852,7 @@ begin
 	
 	--------------------------------------------
 	-- alt modes
-	altmodes_p: process(qclk)
+	altmodes_p: process(reset, qclk)
 	begin
 		if (reset = '1') then
 			mode_attrib <= '0';

@@ -310,7 +310,7 @@ begin
 
 	---------------------------------------------------------------------------
 
-	is_shift_p: process(is_80, mode_tv, dotclk)
+	is_shift_p: process(is_80, mode_tv, dotclk, access_cnt)
 	begin
 		if (mode_tv = '0') then
 				-- VGA 40 col

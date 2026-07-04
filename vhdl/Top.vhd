@@ -87,6 +87,9 @@ entity Top is
 	   nframsel : out STD_LOGIC;
 	   ramrwb : out std_logic;
 	   
+		dotclk0 : out std_logic;
+		
+		dispen : out std_logic;
       vsync : out  STD_LOGIC;
       hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
@@ -363,7 +366,7 @@ architecture Behavioral of Top is
 
 	   phi2 : in std_logic;
 	   
-	   --dena   : out std_logic;	-- display enable
+	   dena  : out std_logic;	-- display enable
       v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;	-- for the PET screen interrupt
@@ -474,6 +477,8 @@ begin
 	   dotclk
 	);
 
+	dotclk0 <= dotclk(0);
+	
 	-- shorten bus phi2 a tad bit on write cycles, to keep bus hold time
 	-- for slightly slower devices.
 	--cphi2 <= cphi2_int and (chold or rwb or not(is_bus));
@@ -733,6 +738,7 @@ begin
 		vd_in,
 		vd_out,
 		phi2_int,
+		dispen,
 		vsync,
 		hsync,
 		pet_vsync,

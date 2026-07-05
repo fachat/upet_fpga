@@ -459,8 +459,8 @@ architecture Behavioral of Video is
 	component HBorder is
 		Port (
 			qclk: in std_logic;
-			dotclk: in std_logic_vector(1 downto 0);
-			c_phase: in std_logic_vector(3 downto 2);
+			dotclk: in std_logic_vector(3 downto 0);
+--			c_phase: in std_logic_vector(3 downto 2);
 			
 			h_zero: in std_logic;
 			hsync_pos: in std_logic_vector(6 downto 0);
@@ -731,8 +731,8 @@ begin
 	h_border: HBorder
 	port map (
 			qclk,
-			dotclk(1 downto 0),
-			c_phase(3 downto 2),
+			dotclk(3 downto 0),
+			--c_phase(3 downto 2),
 			h_zero,
 			hsync_pos,
 			slots_per_line,

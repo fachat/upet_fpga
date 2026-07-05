@@ -1854,12 +1854,12 @@ begin
 	-- alt modes
 	altmodes_p: process(reset, qclk)
 	begin
-		if (reset = '1') then
+		if (falling_edge(qclk)) then
+		 if (reset = '1') then
 			mode_attrib <= '0';
 			mode_extended <= '0';
 			mode_bitmap <= '0';
-		elsif (falling_edge(qclk)) then
-			
+		 else
 			if (v_zero = '1' or mode_set_flag = '1') then
 				mode_attrib <= mode_attrib_reg;
 				mode_extended <= mode_extended_reg;
@@ -1887,6 +1887,7 @@ begin
 					pal_alt <= '1';
 				end if;
 			end if;
+ 		 end if;
 		end if;
 	end process;
 
@@ -2015,6 +2016,7 @@ begin
 	
 	reg9: process(phi2, CPU_D, crtc_sel, crtc_rs, crtc_rwb, crtc_is_data, regsel, reset) 
 	begin
+		if (falling_edge(phi2)) then
  		 if (reset = '1') then
 			mode_tv <= '0';
 			mode_60hz <= '0';
@@ -2077,8 +2079,7 @@ begin
 			sprite_mcol1 <= "0000";
 			sprite_base <= "10010111";
 			pal_sel <= '0';
-		elsif (falling_edge(phi2)) then
-		  if(
+		elsif(
 				crtc_sel = '1'
 				and crtc_is_data = '1' 
 				and crtc_rwb = '0'

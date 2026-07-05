@@ -43,6 +43,8 @@ entity Canvas is
 		mode_tv: in std_logic;
  	   mode_out: in std_logic;
 		
+		dena: out std_logic;
+		
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 
@@ -510,6 +512,8 @@ begin
 		hzero_d4 <= hzero_d3;
 	end process;
 
+	dena <= de_s;
+	
 	-----------------------------------------------------------------------------
 	-- horizontal geometry calculation
 	

@@ -38,7 +38,7 @@ entity Video is
 		vd_out: out std_logic_vector(7 downto 0);
 	   phi2: in std_logic;
 	   
-	   dena   : out std_logic;	-- display enable
+	   dena : out std_logic;	-- display enable
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;	-- for the PET screen interrupt
@@ -426,6 +426,8 @@ architecture Behavioral of Video is
 			  mode_tv: in std_logic;
 			  mode_out: in std_logic;
 			  
+			  dena: out std_logic;
+			  
            v_sync : out  STD_LOGIC;
            h_sync : out  STD_LOGIC;
 
@@ -696,6 +698,7 @@ begin
 		mode_60hz,
 		mode_tv,
 		mode_out,
+		dena,
 		v_sync_int,
 		h_sync_int,
 		v_sync_ext,
@@ -1743,7 +1746,7 @@ begin
 		enable <= h_enable and v_enable
 				and (interlace_int or not(rline_cnt0)); -- comment to DEBUG interlace timing
 		dena_int <= enable;
-		dena <= dena_int;
+		--dena <= dena_int;
 	end process;
 
 	--------------------------------------------

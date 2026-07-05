@@ -177,12 +177,12 @@ begin
 						-- sync start of raster with shift / slot phase, so
 						-- that first fetch starts immediately
 						access_cnt <= "0000";
-						if (c_phase(2) = '0' and dotclk(1 downto 0) = "11") then
+						--if (c_phase(2) = '0' and dotclk(1 downto 0) = "11") then
 							phase0 <= '1';
 							is_preload <= '1';
 							slot_state <= "10";
 							slot_cnt <= "000000001";
-						end if;
+						--end if;
 					when "10" =>
 						
 						if (phase4 = '1') then

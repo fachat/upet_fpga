@@ -426,7 +426,7 @@ architecture Behavioral of Video is
 	component Canvas is
     	Port (
            qclk: in std_logic;      -- Q clock (54MHz)
-           dotclk0: in std_logic;	-- 27 MHz
+           dotclk: in std_logic_vector(1 downto 0);	-- 27 MHz
 
 			  mode_60hz: in std_logic;
 			  mode_tv: in std_logic;
@@ -670,7 +670,7 @@ begin
 						sprite_ptr_fetch, sprite_data_fetch, dotclk)
 	begin
 		-- video access?
-		if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
+--		if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 			vid_fetch <= chr_fetch_int 
 						or pxl_fetch_int 
 						or attr_fetch_int 
@@ -687,7 +687,7 @@ begin
 				vreq_video <= '0'
 					or h_phase0 or h_phase1 or h_phase2 or h_phase2;
 			end if;
-		end if;
+--		end if;
 	end process;
 	
 	-----------------------------------------------------------------------------
@@ -698,7 +698,7 @@ begin
 	vgacanvas: Canvas
 	port map (
 		qclk,
-		dotclk(0),
+		dotclk(1 downto 0),
 		mode_60hz,
 		mode_tv,
 		mode_out,

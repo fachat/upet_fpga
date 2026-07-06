@@ -55,7 +55,7 @@ entity Video is
 	   qclk: in std_logic;		-- Q clock (50MHz)
 		dotclk: in std_logic_vector(3 downto 0);	-- 25Mhz, 1/2, 1/4, 1/8, 1/16
 	   
-	   vid_fetch : out std_logic; -- true during video access phase (all, character, chrom, and hires pixel data)
+	   vid_fetch : out std_logic; -- true during video access phase (all, character, chrom, sprites, and hires pixel data)
 		vreq_video : out std_logic;	-- true if *next* memory access should be video
 		
 	   vid_out: out std_logic_vector(5 downto 0);
@@ -1037,16 +1037,17 @@ begin
 	begin
 	-- start fetching sprite immediately after end of visible area
 		if (h_enable = '1') then
+		--if (h_enable = '0') then	-- debug - put into visible area
 			sprite_fetch_state <= 0;
 			sprite_req_state <= 0;
 			sprite_fetch_win <= '0';
 			sprite_req_win <= '0';
 			sprite_fetch_done <= '0';
-		elsif (falling_edge(qclk) and dotclk = "11") then
+		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 			if (sprite_fetch_done = '0') then
 				if (sprite_req_win = '0') then
 					sprite_req_win <= '1';
-				elsif(sprite_req_state = 8*4 - 1) then
+				elsif(sprite_req_state = 31) then
 					sprite_req_win <= '0';
 					sprite_fetch_done <= '1';
 				end if;
@@ -1061,12 +1062,12 @@ begin
 		sprite_fetch_idx <= sprite_fetch_state / 4;
 		sprite_fetch_idx_v <= std_logic_vector(to_unsigned(sprite_fetch_idx, sprite_fetch_idx_v'length));
 		
-		if (sprite_fetch_idx_v(1 downto 0) = "00") then
+		if (sprite_fetch_state mod 4 = 0) then
 			sprite_ptr_window <= '1';
 			sprite_data_window <= '0';
 		else
-			sprite_ptr_window <= '1';
-			sprite_data_window <= '0';
+			sprite_ptr_window <= '0';
+			sprite_data_window <= '1';
 		end if;
 		
 	end process;
@@ -1985,10 +1986,10 @@ begin
 --	vid_out(1) <= '0' when vid_out_blank = '1' else rline_cnt0;
 --	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
 --	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
---	vid_out(4) <= v_zero;
---	vid_out(5) <= h_zero;
---	vid_out(4) <= h_phase1;
---	vid_out(5) <= h_phase2;
+--	vid_out(0) <= sprite_ptr_window and v_enable;
+--	vid_out(1) <= sprite_data_window and v_enable;
+--	vid_out(4) <= sprite_req_win and v_enable;
+--	vid_out(5) <= sprite_fetch_win and v_enable;
 	
 	
 	--------------------------------------------

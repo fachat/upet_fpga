@@ -312,6 +312,7 @@ architecture Behavioral of Video is
 	
 	signal fetch_int: std_logic;
 	signal fetch_sprite_en: std_logic;
+	signal req_sprite_en: std_logic;
 	
 	signal chr_fetch_int : std_logic;
 	signal crom_fetch_int: std_logic;
@@ -337,7 +338,6 @@ architecture Behavioral of Video is
 	signal sprite_d: std_logic_vector(7 downto 0);
 	signal sprite_fetch_offset: AOA6(0 to 7);
 	signal sprite_enabled: std_logic_vector(7 downto 0);
-	--signal sprite_active: std_logic_vector(7 downto 0);
 	signal sprite_ison: std_logic_vector(7 downto 0);
 	signal sprite_overraster: std_logic_vector(7 downto 0);
 	signal sprite_overborder: std_logic_vector(7 downto 0);
@@ -369,10 +369,15 @@ architecture Behavioral of Video is
 	signal sprite_onraster: std_logic;
 	signal sprite_no: integer range 0 to 7;
 	
+	signal sprite_req_state: integer range 0 to 63;
+	signal sprite_req_idx: integer range 0 to 7;
+	signal sprite_req_win: std_logic;			-- sprites can fetch
+	signal sprite_fetch_state: integer range 0 to 63;
 	signal sprite_fetch_idx: integer range 0 to 7;
 	signal sprite_fetch_idx_v: std_logic_vector(2 downto 0);
-	signal sprite_fetch_win: std_logic;	-- sprites can fetch
-	signal sprite_fetch_done: std_logic;	-- sprites can fetch
+	signal sprite_fetch_win: std_logic;			-- sprites can fetch
+	signal sprite_fetch_done: std_logic;		-- sprite fetches done
+	signal sprite_req_active: std_logic;		-- next mem cycle a sprite fetch occurs
 	signal sprite_fetch_active: std_logic;		-- sprite is active for fetch
 	signal sprite_data_ptr: std_logic_vector(7 downto 0);
 	signal sprite_fetch_ce: std_logic_vector(7 downto 0);
@@ -590,31 +595,31 @@ begin
 			attr_window <= h_phase2;	--'0';
 			pxl_window <= h_phase3;		--'0';
 			sr_window <= h_phase4;		--'0';
-			sprite_ptr_window <= '0';
-			sprite_data_window <= '0';
-			
-			-- access windows for pixel data, character data, or chr ROM
-			-- TODO: make case()
-			if (dotclk(3 downto 2) = "00") then
-				--chr_window <= '1';
-				sprite_ptr_window <= '1';
-			end if;
-			
-			-- note: attributes must be loaded before character set, as attributes contain alternate character bit
-			if (dotclk(3 downto 2) = "01") then
-				--attr_window <= '1';
-				sprite_data_window <= '1';
-			end if;
-
-			if (dotclk(3 downto 2) = "10") then
-				--pxl_window <= '1';
-				sprite_data_window <= '1';
-			end if;			
-			
-			if (dotclk(3 downto 2) = "11") then
-				--sr_window <= '1';
-				sprite_data_window <= '1';
-			end if;
+--			sprite_ptr_window <= '0';
+--			sprite_data_window <= '0';
+--			
+--			-- access windows for pixel data, character data, or chr ROM
+--			-- TODO: make case()
+--			if (dotclk(3 downto 2) = "00") then
+--				--chr_window <= '1';
+--				sprite_ptr_window <= '1';
+--			end if;
+--			
+--			-- note: attributes must be loaded before character set, as attributes contain alternate character bit
+--			if (dotclk(3 downto 2) = "01") then
+--				--attr_window <= '1';
+--				sprite_data_window <= '1';
+--			end if;
+--
+--			if (dotclk(3 downto 2) = "10") then
+--				--pxl_window <= '1';
+--				sprite_data_window <= '1';
+--			end if;			
+--			
+--			if (dotclk(3 downto 2) = "11") then
+--				--sr_window <= '1';
+--				sprite_data_window <= '1';
+--			end if;
 			
 	end process;
 
@@ -666,24 +671,16 @@ begin
 						sprite_ptr_fetch, sprite_data_fetch, dotclk, h_phase0, h_phase1, h_phase2, h_phase3)
 	begin
 		-- video access?
---		if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 			vid_fetch <= chr_fetch_int 
 						or pxl_fetch_int 
 						or attr_fetch_int 
 						or sprite_ptr_fetch
 						or sprite_data_fetch
 						;
-					
-			-- provisional approach for initial testing of new approach
-			if (dotclk(3 downto 2) = "10") then
-				--vreq_video <= '0';
-				vreq_video <= sprite_data_fetch
+
+			-- request a video memory fetch
+			vreq_video <= req_sprite_en
 					or h_phase0 or h_phase1 or h_phase2 or h_phase2;
-			else 
-				vreq_video <= '0'
-					or h_phase0 or h_phase1 or h_phase2 or h_phase2;
-			end if;
---		end if;
 	end process;
 	
 	-----------------------------------------------------------------------------
@@ -880,14 +877,18 @@ begin
 
 	-----------------------------------------------------------------------------
 	-- sprite handling
-
+	
 	-- enables sprite fetch on the first 8 slots (8x4 accesses), when the correct sprite is enabled (sprite_active)
 	-- sprite_fetch_active is set whenever sprite_fetch_idx matches a sprite active in the given rasterline
 	fetch_sprite_en <= '1' when is_enable = '1' 
-								-- and first_row = '1'
 								and (interlace_int = '1' or rline_cnt0 = '0')
 								and sprite_fetch_active = '1'
 								and sprite_fetch_win = '1'
+							else '0';
+	req_sprite_en <= '1' when is_enable = '1' 
+								and (interlace_int = '1' or rline_cnt0 = '0')
+								and sprite_req_active = '1'
+								and sprite_req_win = '1'
 							else '0';
 
 	-- these two are derived from the window functions in the general fetch timing
@@ -1029,33 +1030,51 @@ begin
 		end if;
 	end process;
 
+	----------------------------------------------------------------
+	-- sprite engine fetch and select status and counter
+	-- 
 	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx, h_enable)
 	begin
 	-- start fetching sprite immediately after end of visible area
 		if (h_enable = '1') then
-		--if (h_enable = '0') then
-			sprite_fetch_idx <= 0;
+			sprite_fetch_state <= 0;
+			sprite_req_state <= 0;
 			sprite_fetch_win <= '0';
+			sprite_req_win <= '0';
 			sprite_fetch_done <= '0';
-		elsif (falling_edge(qclk) and dotclk = "1111") then
+		elsif (falling_edge(qclk) and dotclk = "11") then
 			if (sprite_fetch_done = '0') then
-				if (sprite_fetch_win = '0') then
-					sprite_fetch_win <= '1';
-				elsif(sprite_fetch_idx = 7) then
-					sprite_fetch_win <= '0';
+				if (sprite_req_win = '0') then
+					sprite_req_win <= '1';
+				elsif(sprite_req_state = 8*4 - 1) then
+					sprite_req_win <= '0';
 					sprite_fetch_done <= '1';
-				else
-					sprite_fetch_idx <= sprite_fetch_idx + 1;
 				end if;
+				sprite_req_state <= sprite_req_state + 1;
 			end if;
+			-- one memory access delayed
+			sprite_fetch_win <= sprite_req_win;
+			sprite_fetch_state <= sprite_req_state;
 		end if;
 		
+		sprite_req_idx <= sprite_req_state / 4;
+		sprite_fetch_idx <= sprite_fetch_state / 4;
 		sprite_fetch_idx_v <= std_logic_vector(to_unsigned(sprite_fetch_idx, sprite_fetch_idx_v'length));
+		
+		if (sprite_fetch_idx_v(1 downto 0) = "00") then
+			sprite_ptr_window <= '1';
+			sprite_data_window <= '0';
+		else
+			sprite_ptr_window <= '1';
+			sprite_data_window <= '0';
+		end if;
+		
 	end process;
 	
 	fetchactive_p: process(qclk, x_addr, sprite_fetch_idx, sprite_ptr_fetch, sprite_data_fetch, fetch_ce, sprite_data_ptr, sprite_base,
 			sprite_enabled, sprite_fetch_offset)
 	begin
+		sprite_req_active <= sprite_enabled(sprite_req_idx);
 		sprite_fetch_active <= sprite_enabled(sprite_fetch_idx);
 
 		sprite_fetch_ptr(5 downto 0) <= sprite_fetch_offset(sprite_fetch_idx);			

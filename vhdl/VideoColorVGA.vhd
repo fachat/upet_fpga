@@ -346,6 +346,7 @@ architecture Behavioral of Video is
 	signal sprite_mcol1: std_logic_vector(3 downto 0);
 	signal sprite_mcol2: std_logic_vector(3 downto 0);
 	signal sprite_base: std_logic_vector(7 downto 0);
+	signal sprite_phase: std_logic_vector(1 downto 0);
 	
 	-- goes high after h_enable goes low to enable sprite fetch
 	signal spr_fetch_en: std_logic;
@@ -529,7 +530,8 @@ architecture Behavioral of Video is
 		fetch_ce: in std_logic;
 
 		qclk: in std_logic;
-		dotclk: in std_logic_vector(3 downto 0);
+		dotclk0: in std_logic;
+		phase: in std_logic_vector(1 downto 0);
 		vdin: in std_logic_vector(7 downto 0);
 		h_enable: in std_logic;
 		h_zero: in std_logic;
@@ -594,33 +596,7 @@ begin
 			chr_window <= h_phase1;		--'0';
 			attr_window <= h_phase2;	--'0';
 			pxl_window <= h_phase3;		--'0';
-			sr_window <= h_phase4;		--'0';
---			sprite_ptr_window <= '0';
---			sprite_data_window <= '0';
---			
---			-- access windows for pixel data, character data, or chr ROM
---			-- TODO: make case()
---			if (dotclk(3 downto 2) = "00") then
---				--chr_window <= '1';
---				sprite_ptr_window <= '1';
---			end if;
---			
---			-- note: attributes must be loaded before character set, as attributes contain alternate character bit
---			if (dotclk(3 downto 2) = "01") then
---				--attr_window <= '1';
---				sprite_data_window <= '1';
---			end if;
---
---			if (dotclk(3 downto 2) = "10") then
---				--pxl_window <= '1';
---				sprite_data_window <= '1';
---			end if;			
---			
---			if (dotclk(3 downto 2) = "11") then
---				--sr_window <= '1';
---				sprite_data_window <= '1';
---			end if;
-			
+			sr_window <= h_phase4;		--'0';			
 	end process;
 
 	ce_p: process(dotclk)
@@ -630,20 +606,17 @@ begin
 			pxl_ce_10 <= '0';
 			fetch_ce <= '0';
 
-			if (dotclk(1 downto 0) = "00") then
+			case dotclk(1 downto 0) is
+			when "00" =>
 				pxl_ce_00 <= '1';
-			end if;
-
-			if (dotclk(1 downto 0) = "01") then
+			when "01" =>
 				pxl_ce_01 <= '1';
-			end if;
-			if (dotclk(1 downto 0) = "10") then
+			when "10" =>
 				pxl_ce_10 <= '1';
-			end if;
-
-			if (dotclk(1 downto 0) = "11") then
+			when "11" =>
 				fetch_ce <= '1';
-			end if;
+			when others =>
+			end case;
 	end process;
 	
 
@@ -1061,6 +1034,8 @@ begin
 		sprite_req_idx <= sprite_req_state / 4;
 		sprite_fetch_idx <= sprite_fetch_state / 4;
 		sprite_fetch_idx_v <= std_logic_vector(to_unsigned(sprite_fetch_idx, sprite_fetch_idx_v'length));
+
+		sprite_phase <= std_logic_vector(to_unsigned(sprite_fetch_state, 2));
 		
 		if (sprite_fetch_state mod 4 = 0) then
 			sprite_ptr_window <= '1';
@@ -1117,7 +1092,8 @@ begin
 		sprite_fetch_offset(0),
 		sprite_fetch_ce(0),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1154,7 +1130,8 @@ begin
 		sprite_fetch_offset(1),
 		sprite_fetch_ce(1),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1191,7 +1168,8 @@ begin
 		sprite_fetch_offset(2),
 		sprite_fetch_ce(2),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1228,7 +1206,8 @@ begin
 		sprite_fetch_offset(3),
 		sprite_fetch_ce(3),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1265,7 +1244,8 @@ begin
 		sprite_fetch_offset(4),
 		sprite_fetch_ce(4),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1302,7 +1282,8 @@ begin
 		sprite_fetch_offset(5),
 		sprite_fetch_ce(5),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1339,7 +1320,8 @@ begin
 		sprite_fetch_offset(6),
 		sprite_fetch_ce(6),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1376,7 +1358,8 @@ begin
 		sprite_fetch_offset(7),
 		sprite_fetch_ce(7),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,

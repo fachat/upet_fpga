@@ -49,7 +49,8 @@ entity Sprite is
 		fetch_ce: in std_logic;
 		
 		qclk: in std_logic;
-		dotclk: in std_logic_vector(3 downto 0);
+		dotclk0: in std_logic;
+		phase: in std_logic_vector(1 downto 0);
 		vdin: in std_logic_vector(7 downto 0);
 		h_enable: in std_logic;
 		h_zero: in std_logic;
@@ -127,12 +128,11 @@ begin
 	is_shift2 <= is_shift80 when s_fine = '1' else
 				is_shift40;
 
-	xcnt_p: process(qclk, h_zero, dotclk, is80, is_shift2)
+	xcnt_p: process(qclk, h_zero, dotclk0, is80, is_shift2)
 	begin
 		if (h_zero = '1') then
 			x_cnt <= (others => '0');
-		elsif (falling_edge(qclk) and dotclk(0) = '1' 
-				--and (is80 = '1' or dotclk(1) = '1')
+		elsif (falling_edge(qclk) and dotclk0 = '1' 
 				and is_shift2 = '1'
 				) then
 			if (active_int = '1') then
@@ -206,7 +206,7 @@ begin
 	fetch_offset <= fetch_offset_int;
 	
 	-- TODO
-	fetch_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx, enabled_int)
+	fetch_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx, enabled_int, phase)
 	begin
 			
 		-- fetch sprite data
@@ -222,7 +222,7 @@ begin
 				
 					fetch_offset_int <= fetch_offset_int + 1;
 				
-					case (dotclk(3 downto 2)) is
+					case (phase) is
 					when "11" =>
 						shiftreg(23 downto 16) <= reverse_any_vector(vdin);
 					when "10" => 
@@ -237,7 +237,7 @@ begin
 		end if;
 	end process;
 	
-	out_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx)
+	out_p: process(qclk, fetch_ce, x_expand, shiftreg, v_zero, x_cnt, pxl_idx, dotclk0)
 	begin
 	
 		if (x_expand = '0') then
@@ -250,7 +250,7 @@ begin
 		
 		-- shift out bits
 		if (falling_edge(qclk)) then
-			if (dotclk(0) = '1' and is_shift2 = '1') then
+			if (dotclk0 = '1' and is_shift2 = '1') then
 			
 				if (active_int = '1') then
 					outbits(4) <= s_palette;

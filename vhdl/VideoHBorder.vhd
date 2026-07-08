@@ -72,6 +72,7 @@ architecture Behavioral of HBorder is
 	-- state
 	signal slot_state: std_logic_vector(1 downto 0);
 	signal slot_cnt: std_logic_vector(8 downto 0);
+	signal shift_tv_toggle: std_logic;
 	
 	-- five phases for fetching a slot, i.e.:
 	signal phase0: std_logic;	-- last memclk before first fetch, to request memory fetch
@@ -310,7 +311,20 @@ begin
 
 	---------------------------------------------------------------------------
 
-	is_shift_p: process(is_80, mode_tv, dotclk, access_cnt)
+	shift_toggle_p: process(reset, h_zero, qclk, dotclk)
+	begin
+		if (reset = '1') then
+			shift_tv_toggle <= '0';
+		elsif falling_edge(dotclk(1)) then
+			if (h_zero = '1') then
+				shift_tv_toggle <= '1';
+			else
+				shift_tv_toggle <= not(shift_tv_toggle);
+			end if;
+		end if;
+	end process;
+	
+	is_shift_p: process(is_80, mode_tv, dotclk, access_cnt, shift_tv_toggle)
 	begin
 		if (mode_tv = '0') then
 				-- VGA 40 col
@@ -319,7 +333,7 @@ begin
 				is_shift80 <= '1';
 		else
 				-- TV 40 col
-				is_shift40 <= dotclk(1) and access_cnt(0);
+				is_shift40 <= dotclk(1) and shift_tv_toggle;
 				-- TV 80 col
 				is_shift80 <= dotclk(1);
 		end if;

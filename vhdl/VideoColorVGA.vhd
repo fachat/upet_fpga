@@ -641,7 +641,7 @@ begin
 	sr_fetch_int <= sr_window and fetch_int;
 
 	fetch_p: process(chr_fetch_int, pxl_fetch_int, attr_fetch_int, crom_fetch_int, qclk,
-						sprite_ptr_fetch, sprite_data_fetch, dotclk, h_phase0, h_phase1, h_phase2, h_phase3)
+						sprite_ptr_fetch, sprite_data_fetch, dotclk, h_phase0, h_phase1, h_phase2, h_phase3, req_sprite_en)
 	begin
 		-- video access?
 			vid_fetch <= chr_fetch_int 

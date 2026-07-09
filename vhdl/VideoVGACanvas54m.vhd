@@ -91,54 +91,6 @@ architecture Behavioral of Canvas is
 	-- 15.625 kHz 	ModeLine "720x576" 13.50 720 732 795 864 576 580 586 624 -HSync -VSync Interlace 
 	-- 31.25 kHz 	ModeLine "720x576" 27.00 720 732 796 864 576 581 586 625 -HSync -VSync 
 	
-	-- in characters
-	constant x_default_offset_50: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
-	-- in rasterlines
-	constant y_default_offset_50: natural := 80; -- 130
-	-- zero for pixel coordinates is 88 rasterlines up of default borders
-	constant vv_zero_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(606, 10));
-	
-	-- visible horizontal window is shifted 8 cycles in front to account for pre-fetch; so we shift sync 8 cycles back
-
-	---- VGA 50Hz 720x576p timing
-	-- all values in pixels
-	constant hh_display_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720				-1, 11));
-	constant hh_sync_pos_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(732				-1, 11)); --+7, 11));
-	constant hh_sync_end_50: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(796 			-1, 11)); --+7, 11));
-	constant hh_total_50: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864				-1, 11));
-	constant hh_zero_50: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(820				-1, 11)); --+7, 11));
-	-- all values in rasterlines
-	constant vv_display_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(576		-1, 10));
-	constant vv_sync_pos_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(581		-1, 10));
-	constant vv_sync_end_50: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(586		-1, 10));
-	constant vv_total_50: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(625		-1, 10));	
-	
-	---- TV PAL timing
-	-- values in pixel
-	constant hh_display_50_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720 *2				-1, 11));
-	constant hh_sync_pos_50_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(732 *2				-1, 11));
-	constant hh_sync_end_50_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(795 *2	 			-1, 11));
-	constant hh_total_50_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864 *2				-1, 11));
-	constant hh_zero_50_tv: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(820 *2				-1, 11));
-	-- all values in rasterlines
-	constant vv_display_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(576		-1, 10));
-	constant vv_sync_pos_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(580		-1, 10));
-	constant vv_sync_end_50_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(586		-1, 10));
-	constant vv_total_50_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(624		-1, 10));	
-
-	---- PET monitor timing
-	-- values in pixel
-	constant hh_display_50_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(720 *2				-1, 11));
-	constant hh_sync_pos_50_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(728 *2				-1, 11));
-	constant hh_sync_end_50_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(856 *2	 			-1, 11));
-	constant hh_total_50_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(864 *2				-1, 11));
-	constant hh_zero_50_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(820 *2				-1, 11));
-	-- all values in rasterlines
-	constant vv_display_50_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(576		-1, 10));
-	constant vv_sync_pos_50_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(590		-1, 10));
-	constant vv_sync_end_50_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(620		-1, 10));
-	constant vv_total_50_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(625		-1, 10));	
-
 
 	----------------------------------------------------------------------------------------------------------------
 	-- 720x480p60
@@ -148,54 +100,6 @@ architecture Behavioral of Canvas is
 	-- 31.4685 kHz 	ModeLine "720x480" 27.00 720 736 798 858 480 489 495 525 -HSync -VSync 
 	--
 	
-	-- in characters
-	constant x_default_offset_60: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
-	-- in rasterlines
-	constant y_default_offset_60: natural:= 80;
-	-- zero for pixel coordinates is 85 rasterlines up of default borders
-	constant vv_zero_60: std_logic_vector(9 downto 0)				:=std_logic_vector(to_unsigned(480, 10));
-	
-	---- VGA 60Hz 720x480p timing
-	-- all values in pixels
-	constant hh_display_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(720				-1, 11));
-	constant hh_sync_pos_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(736				-1, 11));
-	constant hh_sync_end_60: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(798 			-1, 11));
-	constant hh_total_60: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(858				-1, 11));
-	constant hh_zero_60: std_logic_vector(10 downto 0)				:= std_logic_vector(to_unsigned(824				-1, 11));
-	-- in rasterlines
-	constant vv_display_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(480		-1, 10));
-	constant vv_sync_pos_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(489		-1, 10));
-	constant vv_sync_end_60: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(495		-1, 10));
-	constant vv_total_60: std_logic_vector(9 downto 0)				:=std_logic_vector(to_unsigned(525		-1, 10));
-
-	---- 60Hz NTSC timing
-	--	horizonatl timing
-	constant hh_display_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(720	*2			-1, 11));
-	constant hh_sync_pos_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(739	*2			-1, 11));
-	constant hh_sync_end_60_tv: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(801 *2			-1, 11));
-	constant hh_total_60_tv: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858	*2			-1, 11));
-	constant hh_zero_60_tv: std_logic_vector(10 downto 0)			:= std_logic_vector(to_unsigned(824	*2			-1, 11));	
-	-- in rasterlines
-	constant vv_display_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
-	constant vv_sync_pos_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(488		-1, 10));
-	constant vv_sync_end_60_tv: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(494		-1, 10));
-	constant vv_total_60_tv: std_logic_vector(9 downto 0)			:=std_logic_vector(to_unsigned(525		-1, 10));
-
-	---- 60Hz PET monitor timing
-	--	horizonatl timing
-	constant hh_display_60_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(720	*2			-1, 11));
-	constant hh_sync_pos_60_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(730	*2			-1, 11));
-	constant hh_sync_end_60_mon: std_logic_vector(10 downto 0)	:= std_logic_vector(to_unsigned(850 *2			-1, 11));
-	constant hh_total_60_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(858	*2			-1, 11));
-	constant hh_zero_60_mon: std_logic_vector(10 downto 0)		:= std_logic_vector(to_unsigned(824	*2			-1, 11));	
-	-- in rasterlines
-	constant vv_display_60_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(480		-1, 10));
-	constant vv_sync_pos_60_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(485		-1, 10));
-	constant vv_sync_end_60_mon: std_logic_vector(9 downto 0)	:=std_logic_vector(to_unsigned(520		-1, 10));
-	constant vv_total_60_mon: std_logic_vector(9 downto 0)		:=std_logic_vector(to_unsigned(524		-1, 10));
-
-
-
 	----------------------------------------------------------------------------------------------------------------
 	-- all values in pixels
 	-- note: cummulative, starting with display
@@ -252,7 +156,7 @@ architecture Behavioral of Canvas is
     constant H_FP_60      : integer := 16;
     constant H_SYNC_W_60  : integer := 62;
     constant H_TOTAL_60   : integer := 858;
-	 constant H_ZERO_P_60  : integer := 824;
+	 constant H_ZERO_P_60  : integer := 816; --824;
 	 
     constant V_DISPLAY_60 : integer := 480;
     constant V_FP_60      : integer := 9;
@@ -260,19 +164,31 @@ architecture Behavioral of Canvas is
     constant V_TOTAL_60   : integer := 525;
 	 constant V_ZERO_P_60  : integer := 480;
 
-    ---------------------------------------------------------------------------
 	 -- 60 Hz TV
     constant H_DISPLAY_60_TV : integer := 720 * 2;
-    constant H_FP_60_TV      : integer := 38;
-    constant H_SYNC_W_60_TV  : integer := 124;
+    constant H_FP_60_TV      : integer := 19 * 2;
+    constant H_SYNC_W_60_TV  : integer := 62 * 2;
     constant H_TOTAL_60_TV   : integer := 858 * 2;
-	 constant H_ZERO_P_60_TV  : integer := 824 * 2;
+	 constant H_ZERO_P_60_TV  : integer := 819 * 2 - 1;
 	 
     constant V_DISPLAY_60_TV : integer := 480;
     constant V_FP_60_TV      : integer := 8;
     constant V_SYNC_W_60_TV  : integer := 6;
     constant V_TOTAL_60_TV   : integer := 525;
 	 constant V_ZERO_P_60_TV  : integer := 480;
+
+	 -- 60 Hz TV PET Monitor
+    constant H_DISPLAY_60_PET : integer := 720 * 2;
+    constant H_FP_60_PET      : integer := 10 * 2;
+    constant H_SYNC_W_60_PET  : integer := 120 * 2;
+    constant H_TOTAL_60_PET   : integer := 858 * 2;
+	 constant H_ZERO_P_60_PET  : integer := 819 * 2 - 1;
+	 
+    constant V_DISPLAY_60_PET : integer := 480;
+    constant V_FP_60_PET      : integer := 8;
+    constant V_SYNC_W_60_PET  : integer := 6;
+    constant V_TOTAL_60_PET   : integer := 525;
+	 constant V_ZERO_P_60_PET  : integer := 480;
 
     ---------------------------------------------------------------------------
     -- 720x576p50 timing constants
@@ -289,7 +205,7 @@ architecture Behavioral of Canvas is
 	 constant V_ZERO_P_50  : integer := 606;	
 
 	 -- 50 Hz TV
-    -- 720x576p50 timing constants
+    -- 720x576i50 timing constants
     constant H_DISPLAY_50_TV : integer := 720 * 2;
     constant H_FP_50_TV      : integer := 12 * 2;
     constant H_SYNC_W_50_TV  : integer := 63 * 2;
@@ -301,6 +217,25 @@ architecture Behavioral of Canvas is
     constant V_SYNC_W_50_TV  : integer := 6;
     constant V_TOTAL_50_TV   : integer := 624;
 	 constant V_ZERO_P_50_TV  : integer := 606;	
+
+	 -- 50 Hz TV PET Monitor
+    -- 720x576i50 timing constants
+    constant H_DISPLAY_50_PET : integer := 720 * 2;
+    constant H_FP_50_PET      : integer := 8 * 2;
+    constant H_SYNC_W_50_PET  : integer := 28 * 2;
+    constant H_TOTAL_50_PET   : integer := 864 * 2;
+	 constant H_ZERO_P_50_PET  : integer := 822 * 2;
+	 
+    constant V_DISPLAY_50_PET : integer := 576;
+    constant V_FP_50_PET      : integer := 14;
+    constant V_SYNC_W_50_PET  : integer := 30;
+    constant V_TOTAL_50_PET   : integer := 624;
+	 constant V_ZERO_P_50_PET  : integer := 606;	
+
+	 -- in characters
+	 constant x_default_offset_5060: std_logic_vector(6 downto 0):= std_logic_vector(to_unsigned(9,7));
+	 -- in rasterlines
+	 constant y_default_offset_5060: natural := 80; -- 130
 
     ---------------------------------------------------------------------------
 	 
@@ -353,8 +288,19 @@ begin
 		if (mode_60hz = '1') then
 
 			if (mode_tv = '1') then
---				if (mode_out = '1') then
---				else
+				if (mode_out = '1') then
+					h_display			<= H_DISPLAY_60_PET;
+					h_sync_b				<= H_DISPLAY_60_PET + H_FP_60_PET;
+					h_sync_e				<= H_DISPLAY_60_PET + H_FP_60_PET + H_SYNC_W_60_PET;
+					h_total				<= H_TOTAL_60_PET - 1;
+					h_zero_p				<= H_ZERO_P_60_PET;
+			
+					v_display			<= V_DISPLAY_60_PET;
+					v_sync_b				<= V_DISPLAY_60_PET + V_FP_60_PET;
+					v_sync_e				<= V_DISPLAY_60_PET + V_FP_60_PET + V_SYNC_W_60_PET;
+					v_total				<= V_TOTAL_60_PET - 1;
+					v_zero_p				<= V_ZERO_P_60_PET;
+				else
 					h_display			<= H_DISPLAY_60_TV;
 					h_sync_b				<= H_DISPLAY_60_TV + H_FP_60_TV;
 					h_sync_e				<= H_DISPLAY_60_TV + H_FP_60_TV + H_SYNC_W_60_TV;
@@ -366,7 +312,7 @@ begin
 					v_sync_e				<= V_DISPLAY_60_TV + V_FP_60_TV + V_SYNC_W_60_TV;
 					v_total				<= V_TOTAL_60_TV - 1;
 					v_zero_p				<= V_ZERO_P_60_TV;
---				end if;
+				end if;
 			else
 				h_display			<= H_DISPLAY_60;
 				h_sync_b				<= H_DISPLAY_60 + H_FP_60;
@@ -381,13 +327,22 @@ begin
 				v_zero_p				<= V_ZERO_P_60;
 			end if;
 			
-			x_default_offset_val	<= x_default_offset_60;
-			y_default_offset_val	<= y_default_offset_60;
 		else
 
 			if (mode_tv = '1') then
---				if (mode_out = '1') then
---				else
+				if (mode_out = '1') then
+					h_display			<= H_DISPLAY_50_PET;
+					h_sync_b				<= H_DISPLAY_50_PET + H_FP_50_PET;
+					h_sync_e				<= H_DISPLAY_50_PET + H_FP_50_PET + H_SYNC_W_50_PET;
+					h_total				<= H_TOTAL_50_PET - 1;
+					h_zero_p				<= H_ZERO_P_50_PET;
+			
+					v_display			<= V_DISPLAY_50_PET;
+					v_sync_b				<= V_DISPLAY_50_PET + V_FP_50_PET;
+					v_sync_e				<= V_DISPLAY_50_PET + V_FP_50_PET + V_SYNC_W_50_PET;
+					v_total				<= V_TOTAL_50_PET - 1;
+					v_zero_p				<= V_ZERO_P_50_PET;
+				else
 					h_display			<= H_DISPLAY_50_TV;
 					h_sync_b				<= H_DISPLAY_50_TV + H_FP_50_TV;
 					h_sync_e				<= H_DISPLAY_50_TV + H_FP_50_TV + H_SYNC_W_50_TV;
@@ -399,7 +354,7 @@ begin
 					v_sync_e				<= V_DISPLAY_50_TV + V_FP_50_TV + V_SYNC_W_50_TV;
 					v_total				<= V_TOTAL_50_TV - 1;
 					v_zero_p				<= V_ZERO_P_50_TV;
---				end if;
+				end if;
 			else
 				h_display			<= H_DISPLAY_50;
 				h_sync_b				<= H_DISPLAY_50 + H_FP_50;
@@ -414,10 +369,10 @@ begin
 				v_zero_p				<= V_ZERO_P_50;
 			end if;
 
-			x_default_offset_val	<= x_default_offset_50;
-			y_default_offset_val	<= y_default_offset_50;
-
 		end if;
+		
+		x_default_offset_val	<= x_default_offset_5060;
+		y_default_offset_val	<= y_default_offset_5060;
 	end process;
 
 	-----------------------------------------------------------------------------

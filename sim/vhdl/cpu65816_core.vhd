@@ -4,6 +4,7 @@ use ieee.numeric_std.all;
 
 entity cpu65816_core is
     port (
+    	qclk : in std_logic;
         nres : in std_logic;
         phi2 : in std_logic;
         rdy  : in std_logic;
@@ -26,8 +27,19 @@ architecture behavioral of cpu65816_core is
     signal pc : unsigned(15 downto 0) := (others => '0');
     signal d_in : std_logic_vector(7 downto 0);
 begin
-    D <= (others => 'Z');
-    d_in <= D;
+
+    process(qclk)
+    begin
+	if (nres = '0') then
+	    D <= (others => 'Z');
+	    d_in <= (others => 'Z');
+	elsif rising_edge(qclk) then
+	    D <= (others => 'Z') when phi2 = '1'
+	     	else x"00";	-- bank zero
+            d_in <= D;
+	end if;
+    end process;
+
 
     rwb <= '1';
     vda <= '1';
@@ -42,7 +54,7 @@ begin
             pc <= (others => '0');
             A <= x"FFFC";
             vpb <= '0';
-        elsif rising_edge(phi2) then
+        elsif falling_edge(phi2) then
             if rdy = '1' then
                 case state is
                     when S_RESET_LO =>

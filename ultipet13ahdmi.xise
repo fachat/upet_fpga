@@ -15,10 +15,6 @@
   <version xil_pn:ise_version="14.7" xil_pn:schema_version="2"/>
 
   <files>
-    <file xil_pn:name="vhdl/ShellUltra.vhd" xil_pn:type="FILE_VHDL">
-      <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="1"/>
-      <association xil_pn:name="Implementation" xil_pn:seqID="12"/>
-    </file>
     <file xil_pn:name="vhdl/Top.vhd" xil_pn:type="FILE_VHDL">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="2"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="11"/>
@@ -63,17 +59,26 @@
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="13"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="7"/>
     </file>
-    <file xil_pn:name="pinoutUPet13a.ucf" xil_pn:type="FILE_UCF">
+    <file xil_pn:name="vhdl/ShellUltraHdmi.vhd" xil_pn:type="FILE_VHDL">
+      <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="63"/>
+      <association xil_pn:name="Implementation" xil_pn:seqID="13"/>
+    </file>
+    <file xil_pn:name="vhdl/HdmiConverter.vhd" xil_pn:type="FILE_VHDL">
+      <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="64"/>
+      <association xil_pn:name="Implementation" xil_pn:seqID="12"/>
+    </file>
+    <file xil_pn:name="pinoutUPet13aHdmi.ucf" xil_pn:type="FILE_UCF">
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
     </file>
   </files>
 
   <properties>
+    <property xil_pn:name="Auto Implementation Top" xil_pn:value="false" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Device" xil_pn:value="xc6slx9" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Device Family" xil_pn:value="Spartan6" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="Implementation Top" xil_pn:value="Architecture|ShellUltra|Behavioral" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="Implementation Top File" xil_pn:value="../vhdl/ShellUltra.vhd" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="Implementation Top Instance Path" xil_pn:value="/ShellUltra" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Implementation Top" xil_pn:value="Architecture|ShellUltraHdmi|Behavioral" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Implementation Top File" xil_pn:value="../vhdl/ShellUltraHdmi.vhd" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Implementation Top Instance Path" xil_pn:value="/ShellUltraHdmi" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Optimization Goal" xil_pn:value="Area" xil_pn:valueState="non-default"/>
     <property xil_pn:name="Package" xil_pn:value="tqg144" xil_pn:valueState="default"/>
     <property xil_pn:name="Preferred Language" xil_pn:value="VHDL" xil_pn:valueState="non-default"/>
@@ -83,8 +88,8 @@
     <property xil_pn:name="Synthesis Tool" xil_pn:value="XST (VHDL/Verilog)" xil_pn:valueState="default"/>
     <property xil_pn:name="Top-Level Source Type" xil_pn:value="HDL" xil_pn:valueState="default"/>
     <property xil_pn:name="VHDL Source Analysis Standard" xil_pn:value="VHDL-200X" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="Working Directory" xil_pn:value="ultipet13a" xil_pn:valueState="non-default"/>
-    <property xil_pn:name="iMPACT Project File" xil_pn:value="../ultipet13a.ipf" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="Working Directory" xil_pn:value="ultipet13ahdmi" xil_pn:valueState="non-default"/>
+    <property xil_pn:name="iMPACT Project File" xil_pn:value="../ultipet13ahdmi.ipf" xil_pn:valueState="non-default"/>
     <!--                                                                                  -->
     <!-- The following properties are for internal use only. These should not be modified.-->
     <!--                                                                                  -->
@@ -96,7 +101,9 @@
     <property xil_pn:name="PROP_intWorkingDirUsed" xil_pn:value="Yes" xil_pn:valueState="non-default"/>
   </properties>
 
-  <bindings/>
+  <bindings>
+    <binding xil_pn:location="/ShellUltraHdmi" xil_pn:name="pinoutUPet13aHdmi.ucf"/>
+  </bindings>
 
   <libraries/>
 

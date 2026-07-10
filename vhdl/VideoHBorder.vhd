@@ -72,6 +72,7 @@ architecture Behavioral of HBorder is
 	-- state
 	signal slot_state: std_logic_vector(1 downto 0);
 	signal slot_cnt: std_logic_vector(8 downto 0);
+	signal shift_tv_toggle: std_logic;
 	
 	-- five phases for fetching a slot, i.e.:
 	signal phase0: std_logic;	-- last memclk before first fetch, to request memory fetch
@@ -85,13 +86,13 @@ architecture Behavioral of HBorder is
 	-- VGA 40: 8 cycles
 	-- TV  80: 8 cycles
 	-- TV  40: 16cycles
-	signal slot_len: std_logic_vector(3 downto 0);
+	signal access_per_slot: std_logic_vector(3 downto 0);
 	-- count mem-cycles
-	signal slot_len_cnt: std_logic_vector(3 downto 0);
+	signal access_cnt: std_logic_vector(3 downto 0);
 	
-	signal is_hsync: std_logic;
-	signal is_slots: std_logic;
-	signal is_slot_len: std_logic;
+	signal is_hnext: std_logic;
+	signal is_last_slot_in_line: std_logic;
+	signal is_last_access_in_slot: std_logic;
 	
 	-- two shifted border signals
 	signal is_border_1: std_logic;
@@ -107,34 +108,44 @@ begin
 		if (mode_tv = '0') then
 			if (is_80 = '1') then
 				-- 80 cols VGA mode is fastest
-				slot_len <= "0011";
+				access_per_slot <= "0011";
 			else
 				-- 40 col VGA mode
-				slot_len <= "0111";
+				access_per_slot <= "0111";
 			end if;
 		else
 			if (is_80 = '1') then
 				-- 80 col TV mode
-				slot_len <= "0111";
+				access_per_slot <= "0111";
 			else
 				-- 40 col TV mode
-				slot_len <= "1111";
+				access_per_slot <= "1111";
 			end if;
 		end if;
 	end process;
 	
-	slot_p: process(qclk, dotclk, slot_len, slot_cnt, reset)
+	slot_p: process(qclk, dotclk, access_per_slot, slot_cnt, reset)
 	begin
 		if (reset = '1') then
 			slot_state <= "00";
 			slot_cnt <= (others => '0');
 			is_last_vis <= '0';
+			phase0 <= '0';
+			phase1 <= '0';
+			phase2 <= '0';
+			phase3 <= '0';
+			phase4 <= '0';
+			access_cnt <= (others => '0');
 		else
 			-- every memclk
 			-- output (is_border) is evaluated at falling qclk and dotclk(0)=1
 			-- should this be phase shifted?
 			if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 				phase0 <= '0';
+				phase1 <= '0';
+				phase2 <= '0';
+				phase3 <= '0';
+				phase4 <= '0';
 				is_preload <= '0';
 				is_last_vis <= '0';
 				if (h_zero = '1') then
@@ -149,49 +160,50 @@ begin
 					is_border_3 <= '1';
 				else
 				
-					if (is_slot_len = '1') then
-						slot_len_cnt <= "0000";
+					
+					if (is_last_access_in_slot = '1') then
+						access_cnt <= access_per_slot;
 						-- counts number of chars / slots
 						slot_cnt <= slot_cnt + 1;
 						-- shifted border
 						is_border_2 <= is_border_1;
 					else
 						-- counts memclks per char / slot
-						slot_len_cnt <= slot_len_cnt + 1;
+						access_cnt <= access_cnt - 1;
 					end if;
 				
 					case (slot_state) is
 					when "00" =>
 						-- counts number of chars / slots
 						-- until horizontal start of raster position is reached
-						slot_len_cnt <= "0000";
+						access_cnt <= access_per_slot;
 						slot_cnt <= slot_cnt + 1;
-						if (is_hsync = '1') then
+						if (is_hnext = '1') then
 							slot_state <= "01";
 						end if;
 					when "01" =>
 						-- sync start of raster with shift / slot phase, so
 						-- that first fetch starts immediately
-						slot_len_cnt <= "0000";
-						if (dotclk(2 downto 0) = "011") then
+						access_cnt <= access_per_slot;
+						--if (dotclk(2) = '0') then
 							phase0 <= '1';
 							is_preload <= '1';
 							slot_state <= "10";
 							slot_cnt <= "000000001";
-						end if;
+						--end if;
 					when "10" =>
 						
 						if (phase4 = '1') then
-							if (is_slots = '1') then
+							if (is_last_slot_in_line = '1') then
 								-- end display after slots to display are reached
 								slot_state <= "11";
 								-- last char starts shifting out
 								if (is_80 = '0' or mode_tv = '1') then
-									-- if VGA80, then is_slots is set already on the phase4 of the prev char/slot
+									-- if VGA80, then is_last_slot_in_line is set already on the phase4 of the prev char/slot
 									is_border_1 <= '1';
 								end if;
 								-- reset slot len cnt
-								slot_len_cnt <= "0000";
+								access_cnt <= access_per_slot;
 								is_last_vis <= '1';
 							else
 								-- start display after first full phase set
@@ -200,14 +212,16 @@ begin
 							end if;
 						end if;
 
-						if (is_slot_len = '1') then
-							if (not(phase4 = '1' and is_slots = '1')) then
+						if (is_last_access_in_slot = '1') then
+							-- last access in slot
+							if (not(phase4 = '1' and is_last_slot_in_line = '1')) then
+								-- always except current slot had access and was last slot in line
 								phase0 <= '1';
 							end if;
 						end if;
 
 					when "11" =>
-						if (is_slot_len = '1') then
+						if (is_last_access_in_slot = '1') then
 							is_border_1 <= '1';
 						end if;	
 
@@ -215,12 +229,25 @@ begin
 						null;
 					end case;
 				end if;
-				
-				phase4 <= phase3;
-				phase3 <= phase2;
-				phase2 <= phase1;
+
+--					case access_cnt is
+--					when "0000" =>
+--						phase4 <= '1';
+--					when "0001" =>
+--						phase3 <= '1';
+--					when "0010" =>
+--						phase2 <= '1';
+--					when "0011" =>
+--						phase1 <= '1';
+--					when "0100" =>
+--						phase0 <= '1';
+--					when others =>
+--					end case;
+								
 				phase1 <= phase0;
-				
+				phase2 <= phase1;
+				phase3 <= phase2;
+				phase4 <= phase3;
 			end if;
 		end if;
 		
@@ -235,46 +262,46 @@ begin
 	h_phase3 <= phase3;
 	h_phase4 <= phase4;
 	
-	slot_px: process(qclk, dotclk, slot_len, slot_cnt, reset)
+	slot_px: process(qclk, dotclk, access_per_slot, slot_cnt, reset)
 	begin
 		if (reset = '1') then
-			is_hsync <= '0';
-			is_slots <= '0';
-			is_slot_len <= '0';
+			is_hnext <= '0';
+			is_last_slot_in_line <= '0';
+			is_last_access_in_slot <= '0';
 		else
 			if (falling_edge(qclk) and dotclk(1 downto 0) = "01") then
 			
 				-- count characters
 				-- slots_per_line, however, is always in 80col char cells, even in 40 col mode
-				is_slots <= '0';
+				is_last_slot_in_line <= '0';
 				if (is_80 = '0') then
 					if (slot_cnt(5 downto 0) = slots_per_line(6 downto 1)) then
-						is_slots <= '1';
+						is_last_slot_in_line <= '1';
 					end if;
 				else
 					if (slot_cnt(6 downto 0) = slots_per_line) then
-						is_slots <= '1';
+						is_last_slot_in_line <= '1';
 					end if;
 				end if;
 				
-				is_hsync <= '0';
+				is_hnext <= '0';
 				if (mode_tv = '0') then
 						-- VGA40/80
 						if ((slot_cnt(8 downto 2) = hsync_pos(6 downto 0))
 							and slot_cnt(1 downto 0) = "00")
-							then is_hsync <= '1';
+							then is_hnext <= '1';
 						end if;
 				else
 						-- TV40/80
 						if ((slot_cnt(8 downto 3) = hsync_pos(5 downto 0))
 							and slot_cnt(2 downto 0) = "000")
-							then is_hsync <= '1';
+							then is_hnext <= '1';
 						end if;
 				end if;
 
-				is_slot_len <= '0';
-				if (slot_len_cnt = slot_len) then
-					is_slot_len <= '1';
+				is_last_access_in_slot <= '0';
+				if (access_cnt = "0000") then
+					is_last_access_in_slot <= '1';
 				end if;
 				
 			end if;
@@ -284,9 +311,21 @@ begin
 
 	---------------------------------------------------------------------------
 
-	is_shift_p: process(is_80, mode_tv, dotclk)
+	shift_toggle_p: process(reset, h_zero, qclk, dotclk)
 	begin
-		--dotclk(0) = '0' and (is_80 = '1' or dotclk(1) = '1')
+		if (reset = '1') then
+			shift_tv_toggle <= '0';
+		elsif falling_edge(dotclk(1)) then
+			if (h_zero = '1') then
+				shift_tv_toggle <= '1';
+			else
+				shift_tv_toggle <= not(shift_tv_toggle);
+			end if;
+		end if;
+	end process;
+	
+	is_shift_p: process(is_80, mode_tv, dotclk, access_cnt, shift_tv_toggle)
+	begin
 		if (mode_tv = '0') then
 				-- VGA 40 col
 				is_shift40 <= dotclk(1);
@@ -294,7 +333,7 @@ begin
 				is_shift80 <= '1';
 		else
 				-- TV 40 col
-				is_shift40 <= dotclk(1) and dotclk(2);
+				is_shift40 <= dotclk(1) and shift_tv_toggle;
 				-- TV 80 col
 				is_shift80 <= dotclk(1);
 		end if;

@@ -38,7 +38,7 @@ entity Video is
 		vd_out: out std_logic_vector(7 downto 0);
 	   phi2: in std_logic;
 	   
-	   --dena   : out std_logic;	-- display enable
+	   dena : out std_logic;	-- display enable
 	   v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;	-- for the PET screen interrupt
@@ -55,7 +55,7 @@ entity Video is
 	   qclk: in std_logic;		-- Q clock (50MHz)
 		dotclk: in std_logic_vector(3 downto 0);	-- 25Mhz, 1/2, 1/4, 1/8, 1/16
 	   
-	   vid_fetch : out std_logic; -- true during video access phase (all, character, chrom, and hires pixel data)
+	   vid_fetch : out std_logic; -- true during video access phase (all, character, chrom, sprites, and hires pixel data)
 		vreq_video : out std_logic;	-- true if *next* memory access should be video
 		
 	   vid_out: out std_logic_vector(5 downto 0);
@@ -312,6 +312,7 @@ architecture Behavioral of Video is
 	
 	signal fetch_int: std_logic;
 	signal fetch_sprite_en: std_logic;
+	signal req_sprite_en: std_logic;
 	
 	signal chr_fetch_int : std_logic;
 	signal crom_fetch_int: std_logic;
@@ -337,7 +338,6 @@ architecture Behavioral of Video is
 	signal sprite_d: std_logic_vector(7 downto 0);
 	signal sprite_fetch_offset: AOA6(0 to 7);
 	signal sprite_enabled: std_logic_vector(7 downto 0);
-	--signal sprite_active: std_logic_vector(7 downto 0);
 	signal sprite_ison: std_logic_vector(7 downto 0);
 	signal sprite_overraster: std_logic_vector(7 downto 0);
 	signal sprite_overborder: std_logic_vector(7 downto 0);
@@ -346,6 +346,7 @@ architecture Behavioral of Video is
 	signal sprite_mcol1: std_logic_vector(3 downto 0);
 	signal sprite_mcol2: std_logic_vector(3 downto 0);
 	signal sprite_base: std_logic_vector(7 downto 0);
+	signal sprite_phase: std_logic_vector(1 downto 0);
 	
 	-- goes high after h_enable goes low to enable sprite fetch
 	signal spr_fetch_en: std_logic;
@@ -369,10 +370,15 @@ architecture Behavioral of Video is
 	signal sprite_onraster: std_logic;
 	signal sprite_no: integer range 0 to 7;
 	
+	signal sprite_req_state: integer range 0 to 63;
+	signal sprite_req_idx: integer range 0 to 7;
+	signal sprite_req_win: std_logic;			-- sprites can fetch
+	signal sprite_fetch_state: integer range 0 to 63;
 	signal sprite_fetch_idx: integer range 0 to 7;
 	signal sprite_fetch_idx_v: std_logic_vector(2 downto 0);
-	signal sprite_fetch_win: std_logic;	-- sprites can fetch
-	signal sprite_fetch_done: std_logic;	-- sprites can fetch
+	signal sprite_fetch_win: std_logic;			-- sprites can fetch
+	signal sprite_fetch_done: std_logic;		-- sprite fetches done
+	signal sprite_req_active: std_logic;		-- next mem cycle a sprite fetch occurs
 	signal sprite_fetch_active: std_logic;		-- sprite is active for fetch
 	signal sprite_data_ptr: std_logic_vector(7 downto 0);
 	signal sprite_fetch_ce: std_logic_vector(7 downto 0);
@@ -420,11 +426,13 @@ architecture Behavioral of Video is
 	component Canvas is
     	Port (
            qclk: in std_logic;          -- Q clock (50MHz)
-           dotclk: in std_logic_vector(3 downto 0);     -- 25Mhz, 1/2, 1/4, 1/8, 1/16
+           dotclk: in std_logic_vector(1 downto 0);     	 -- 27Mhz
 
 			  mode_60hz: in std_logic;
 			  mode_tv: in std_logic;
 			  mode_out: in std_logic;
+			  
+			  dena: out std_logic;
 			  
            v_sync : out  STD_LOGIC;
            h_sync : out  STD_LOGIC;
@@ -522,7 +530,8 @@ architecture Behavioral of Video is
 		fetch_ce: in std_logic;
 
 		qclk: in std_logic;
-		dotclk: in std_logic_vector(3 downto 0);
+		dotclk0: in std_logic;
+		phase: in std_logic_vector(1 downto 0);
 		vdin: in std_logic_vector(7 downto 0);
 		h_enable: in std_logic;
 		h_zero: in std_logic;
@@ -587,33 +596,7 @@ begin
 			chr_window <= h_phase1;		--'0';
 			attr_window <= h_phase2;	--'0';
 			pxl_window <= h_phase3;		--'0';
-			sr_window <= h_phase4;		--'0';
-			sprite_ptr_window <= '0';
-			sprite_data_window <= '0';
-			
-			-- access windows for pixel data, character data, or chr ROM
-			-- TODO: make case()
-			if (dotclk(3 downto 2) = "00") then
-				--chr_window <= '1';
-				sprite_ptr_window <= '1';
-			end if;
-			
-			-- note: attributes must be loaded before character set, as attributes contain alternate character bit
-			if (dotclk(3 downto 2) = "01") then
-				--attr_window <= '1';
-				sprite_data_window <= '1';
-			end if;
-
-			if (dotclk(3 downto 2) = "10") then
-				--pxl_window <= '1';
-				sprite_data_window <= '1';
-			end if;			
-			
-			if (dotclk(3 downto 2) = "11") then
-				--sr_window <= '1';
-				sprite_data_window <= '1';
-			end if;
-			
+			sr_window <= h_phase4;		--'0';			
 	end process;
 
 	ce_p: process(dotclk)
@@ -623,20 +606,17 @@ begin
 			pxl_ce_10 <= '0';
 			fetch_ce <= '0';
 
-			if (dotclk(1 downto 0) = "00") then
+			case dotclk(1 downto 0) is
+			when "00" =>
 				pxl_ce_00 <= '1';
-			end if;
-
-			if (dotclk(1 downto 0) = "01") then
+			when "01" =>
 				pxl_ce_01 <= '1';
-			end if;
-			if (dotclk(1 downto 0) = "10") then
+			when "10" =>
 				pxl_ce_10 <= '1';
-			end if;
-
-			if (dotclk(1 downto 0) = "11") then
+			when "11" =>
 				fetch_ce <= '1';
-			end if;
+			when others =>
+			end case;
 	end process;
 	
 
@@ -661,25 +641,19 @@ begin
 	sr_fetch_int <= sr_window and fetch_int;
 
 	fetch_p: process(chr_fetch_int, pxl_fetch_int, attr_fetch_int, crom_fetch_int, qclk,
-						sprite_ptr_fetch, sprite_data_fetch, dotclk)
+						sprite_ptr_fetch, sprite_data_fetch, dotclk, h_phase0, h_phase1, h_phase2, h_phase3, req_sprite_en)
 	begin
 		-- video access?
---		if (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 			vid_fetch <= chr_fetch_int 
 						or pxl_fetch_int 
 						or attr_fetch_int 
 						or sprite_ptr_fetch
 						or sprite_data_fetch
 						;
-					
-			-- provisional approach for initial testing of new approach
-			if (dotclk(3 downto 2) = "10") then
-				--vreq_video <= '0';
-				vreq_video <= sprite_data_fetch;
-			else 
-				vreq_video <= '1';
-			end if;
---		end if;
+
+			-- request a video memory fetch
+			vreq_video <= req_sprite_en
+					or h_phase0 or h_phase1 or h_phase2 or h_phase2;
 	end process;
 	
 	-----------------------------------------------------------------------------
@@ -690,10 +664,11 @@ begin
 	vgacanvas: Canvas
 	port map (
 		qclk,
-		dotclk,
+		dotclk(1 downto 0),
 		mode_60hz,
 		mode_tv,
 		mode_out,
+		dena,
 		v_sync_int,
 		h_sync_int,
 		v_sync_ext,
@@ -875,14 +850,18 @@ begin
 
 	-----------------------------------------------------------------------------
 	-- sprite handling
-
+	
 	-- enables sprite fetch on the first 8 slots (8x4 accesses), when the correct sprite is enabled (sprite_active)
 	-- sprite_fetch_active is set whenever sprite_fetch_idx matches a sprite active in the given rasterline
 	fetch_sprite_en <= '1' when is_enable = '1' 
-								-- and first_row = '1'
 								and (interlace_int = '1' or rline_cnt0 = '0')
 								and sprite_fetch_active = '1'
 								and sprite_fetch_win = '1'
+							else '0';
+	req_sprite_en <= '1' when is_enable = '1' 
+								and (interlace_int = '1' or rline_cnt0 = '0')
+								and sprite_req_active = '1'
+								and sprite_req_win = '1'
 							else '0';
 
 	-- these two are derived from the window functions in the general fetch timing
@@ -1024,33 +1003,54 @@ begin
 		end if;
 	end process;
 
+	----------------------------------------------------------------
+	-- sprite engine fetch and select status and counter
+	-- 
 	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx, h_enable)
 	begin
 	-- start fetching sprite immediately after end of visible area
 		if (h_enable = '1') then
-		--if (h_enable = '0') then
-			sprite_fetch_idx <= 0;
+		--if (h_enable = '0') then	-- debug - put into visible area
+			sprite_fetch_state <= 0;
+			sprite_req_state <= 0;
 			sprite_fetch_win <= '0';
+			sprite_req_win <= '0';
 			sprite_fetch_done <= '0';
-		elsif (falling_edge(qclk) and dotclk = "1111") then
+		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
 			if (sprite_fetch_done = '0') then
-				if (sprite_fetch_win = '0') then
-					sprite_fetch_win <= '1';
-				elsif(sprite_fetch_idx = 7) then
-					sprite_fetch_win <= '0';
+				if (sprite_req_win = '0') then
+					sprite_req_win <= '1';
+				elsif(sprite_req_state = 31) then
+					sprite_req_win <= '0';
 					sprite_fetch_done <= '1';
-				else
-					sprite_fetch_idx <= sprite_fetch_idx + 1;
 				end if;
+				sprite_req_state <= sprite_req_state + 1;
 			end if;
+			-- one memory access delayed
+			sprite_fetch_win <= sprite_req_win;
+			sprite_fetch_state <= sprite_req_state;
 		end if;
 		
+		sprite_req_idx <= sprite_req_state / 4;
+		sprite_fetch_idx <= sprite_fetch_state / 4;
 		sprite_fetch_idx_v <= std_logic_vector(to_unsigned(sprite_fetch_idx, sprite_fetch_idx_v'length));
+
+		sprite_phase <= std_logic_vector(to_unsigned(sprite_fetch_state, 2));
+		
+		if (sprite_fetch_state mod 4 = 0) then
+			sprite_ptr_window <= '1';
+			sprite_data_window <= '0';
+		else
+			sprite_ptr_window <= '0';
+			sprite_data_window <= '1';
+		end if;
+		
 	end process;
 	
 	fetchactive_p: process(qclk, x_addr, sprite_fetch_idx, sprite_ptr_fetch, sprite_data_fetch, fetch_ce, sprite_data_ptr, sprite_base,
 			sprite_enabled, sprite_fetch_offset)
 	begin
+		sprite_req_active <= sprite_enabled(sprite_req_idx);
 		sprite_fetch_active <= sprite_enabled(sprite_fetch_idx);
 
 		sprite_fetch_ptr(5 downto 0) <= sprite_fetch_offset(sprite_fetch_idx);			
@@ -1092,7 +1092,8 @@ begin
 		sprite_fetch_offset(0),
 		sprite_fetch_ce(0),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1129,7 +1130,8 @@ begin
 		sprite_fetch_offset(1),
 		sprite_fetch_ce(1),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1166,7 +1168,8 @@ begin
 		sprite_fetch_offset(2),
 		sprite_fetch_ce(2),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1203,7 +1206,8 @@ begin
 		sprite_fetch_offset(3),
 		sprite_fetch_ce(3),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1240,7 +1244,8 @@ begin
 		sprite_fetch_offset(4),
 		sprite_fetch_ce(4),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1277,7 +1282,8 @@ begin
 		sprite_fetch_offset(5),
 		sprite_fetch_ce(5),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1314,7 +1320,8 @@ begin
 		sprite_fetch_offset(6),
 		sprite_fetch_ce(6),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1351,7 +1358,8 @@ begin
 		sprite_fetch_offset(7),
 		sprite_fetch_ce(7),
 		qclk,
-		dotclk,
+		dotclk(0),
+		sprite_phase,
 		VRAM_D,
 		h_enable,
 		h_zero,
@@ -1736,11 +1744,12 @@ begin
 	-----------------------------------------------------------------------------
 	-- output sr control
 
-	en_p: process(nsrload, qclk, enable, h_enable, v_enable, interlace_int, rline_cnt0)
+	en_p: process(nsrload, qclk, enable, h_enable, v_enable, interlace_int, rline_cnt0, dena_int)
 	begin
 		enable <= h_enable and v_enable
 				and (interlace_int or not(rline_cnt0)); -- comment to DEBUG interlace timing
 		dena_int <= enable;
+		--dena <= dena_int;
 	end process;
 
 	--------------------------------------------
@@ -1849,11 +1858,14 @@ begin
 	
 	--------------------------------------------
 	-- alt modes
-	altmodes_p: process(qclk)
+	altmodes_p: process(reset, qclk)
 	begin
-	
 		if (falling_edge(qclk)) then
-			
+		 if (reset = '1') then
+			mode_attrib <= '0';
+			mode_extended <= '0';
+			mode_bitmap <= '0';
+		 else
 			if (v_zero = '1' or mode_set_flag = '1') then
 				mode_attrib <= mode_attrib_reg;
 				mode_extended <= mode_extended_reg;
@@ -1881,6 +1893,7 @@ begin
 					pal_alt <= '1';
 				end if;
 			end if;
+ 		 end if;
 		end if;
 	end process;
 
@@ -1950,13 +1963,16 @@ begin
 	vid_out(1 downto 0) <= "00" when vid_out_blank = '1' else pbr_doB(1 downto 0);	-- BLUE
 	vid_out(3 downto 2) <= "00" when vid_out_blank = '1' else pbr_doB(4 downto 3);  -- GREEN
 	vid_out(5 downto 4) <= "00" when vid_out_blank = '1' else pbr_doB(7 downto 6); 	-- RED
-
+	
 	-- potential DEBUG
 --	vid_out(0) <= '0' when vid_out_blank = '1' else last_line_of_char;
 --	vid_out(1) <= '0' when vid_out_blank = '1' else rline_cnt0;
 --	vid_out(4) <= '0' when vid_out_blank = '1' else new_line_vaddr;
 --	vid_out(5) <= '0' when vid_out_blank = '1' else last_vis_slot_of_line;
-	
+--	vid_out(0) <= sprite_ptr_window and v_enable;
+--	vid_out(1) <= sprite_data_window and v_enable;
+--	vid_out(4) <= sprite_req_win and v_enable;
+--	vid_out(5) <= sprite_fetch_win and v_enable;
 	
 	
 	--------------------------------------------

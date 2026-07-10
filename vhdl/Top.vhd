@@ -87,6 +87,9 @@ entity Top is
 	   nframsel : out STD_LOGIC;
 	   ramrwb : out std_logic;
 	   
+		dotclk0 : out std_logic;
+		
+		dispen : out std_logic;
       vsync : out  STD_LOGIC;
       hsync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;
@@ -363,7 +366,7 @@ architecture Behavioral of Top is
 
 	   phi2 : in std_logic;
 	   
-	   --dena   : out std_logic;	-- display enable
+	   dena  : out std_logic;	-- display enable
       v_sync : out  STD_LOGIC;
       h_sync : out  STD_LOGIC;
 	   pet_vsync: out std_logic;	-- for the PET screen interrupt
@@ -474,6 +477,8 @@ begin
 	   dotclk
 	);
 
+	dotclk0 <= dotclk(0);
+	
 	-- shorten bus phi2 a tad bit on write cycles, to keep bus hold time
 	-- for slightly slower devices.
 	--cphi2 <= cphi2_int and (chold or rwb or not(is_bus));
@@ -498,7 +503,7 @@ begin
 	begin
 		if (reset = '1') then
 			is_cpu <= '0';
-		--elsif (rising_edge(q50m) and dotclk(1 downto 0) = "11") then
+		--elsif (rising_edge(q50m) and cp01 = '1') then
 		elsif (falling_edge(q50m) and cp01 = '1') then
 			if (mode = "11") then
 				is_cpu <= '1';
@@ -734,6 +739,7 @@ begin
 		vd_in,
 		vd_out,
 		phi2_int,
+		dispen,
 		vsync,
 		hsync,
 		pet_vsync,
@@ -991,19 +997,9 @@ begin
 	v_out_p: process(q50m, memclk, nvramsel_int, nframsel_int, ipl, reset,
 			vid_fetch, rwb, m_vramsel_out, dac_dma_req, is_cpu, is_cpu_trigger)
 	begin
-		if (reset = '1') then
-			--ramrwb_int	<= '1';
-			--nframsel <= '1';
-			--nvramsel <= '1';
-		elsif (rising_edge(q50m)) then
---		elsif (falling_edge(q50m)) then
-				
-			--if (dotclk(0) ='0') then
-			--end if;
-		end if;
 		
-				nvramsel <= nvramsel_int;
-				nframsel <= nframsel_int;
+		nvramsel <= nvramsel_int;
+		nframsel <= nframsel_int;
 		
 		vreq_ipl <= ipl;
 		vreq_dac <= dac_dma_req;

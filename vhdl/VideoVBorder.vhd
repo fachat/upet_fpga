@@ -95,11 +95,13 @@ begin
 		if (reset = '1') then
 			v_state <= '0';
 			vh_cnt <= (others => '0');
+			rline_cnt0_int <= '0';
 		elsif (rising_edge(h_zero)) then
 		
 			if (v_zero = '1') then
 				vh_cnt <= (others => '0');
 				v_state <= '0';
+				--rline_cnt0_int <= '0';
 			else 
 			
 				rline_cnt0_int <= not(rline_cnt0_int);
@@ -138,7 +140,7 @@ begin
 		end if;
 	end process;
 
-	State: process (vh_cnt, v_state, vsync_pos, h_zero, rcline_cnt_ext, rows_per_char, next_row, v_shift, rline_cnt0_int, is_double, vis_rows_per_char)
+	State: process (vh_cnt, v_state, rcline_cnt_ext, rows_per_char, next_row, v_shift, rline_cnt0_int, is_double, vis_rows_per_char)
 	begin		
 
 		if (rcline_cnt_ext = vis_rows_per_char and (rline_cnt0_int = '0' or is_double = '1')) then -- rows_per_char

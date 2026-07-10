@@ -11,6 +11,8 @@ end entity;
 architecture sim of tb_shellultra_sim is
     constant C_QCLK_PERIOD : time := 18.518 ns; -- 54MHz
     constant C_FRAME_W : integer := 720;
+    constant C_BACK_H : integer := 68;
+    constant C_BACK_V : integer := 39;
     constant C_FRAME_H : integer := 576;
     constant C_LINE_TOTAL : integer := 864;
     constant C_FRAME_TOTAL : integer := 625;
@@ -75,16 +77,15 @@ architecture sim of tb_shellultra_sim is
 
     signal flash_cs_n : std_logic;
 
-    type t_ram is array (0 to 2**21 - 1) of std_logic_vector(7 downto 0);
-    type t_vram is array (0 to 2**19 - 1) of std_logic_vector(7 downto 0);
+    signal write_en : std_logic;
 
+    type t_ram is array (0 to 2**21 - 1) of std_logic_vector(7 downto 0);
     signal fram : t_ram := (others => (others => '0'));
-    signal vram : t_vram := (others => (others => '0'));
 
     signal fram_addr : integer range 0 to 2**21 - 1;
     signal vram_addr : integer range 0 to 2**19 - 1;
 
-    type t_frame is array (0 to C_FRAME_W * C_FRAME_H - 1) of std_logic_vector(5 downto 0);
+    type t_frame is array (0 to C_LINE_TOTAL * C_FRAME_TOTAL - 1) of std_logic_vector(5 downto 0);
     signal framebuf : t_frame := (others => (others => '0'));
 
     function comp2_to_u8(c : std_logic_vector(1 downto 0)) return integer is
@@ -97,6 +98,34 @@ architecture sim of tb_shellultra_sim is
         end case;
     end function;
 
+    type t_vram is array (0 to 2**19 - 1) of std_logic_vector(7 downto 0);
+    type t_charrom_file is file of character;
+
+    impure function init_vram return t_vram is
+        variable mem : t_vram := (others => x"00");
+        file charrom_file : t_charrom_file open read_mode is "chargen_pet16";
+        variable ch : character;
+        variable idx : integer := 0;
+
+        variable seed1 : positive := 42;
+        variable seed2 : positive := 137;
+        variable rand  : real;
+    begin
+	for i in 0 to 2**19 - 1 loop
+            uniform(seed1, seed2, rand);
+            mem(i) := std_logic_vector(to_unsigned(integer(rand * 255.0), 8));
+        end loop;
+
+        while (not endfile(charrom_file)) and idx < 2**19 loop
+            read(charrom_file, ch);
+            mem(idx) := std_logic_vector(to_unsigned(character'pos(ch), 8));
+            idx := idx + 1;
+        end loop;
+        return mem;
+    end function;
+
+    signal vram : t_vram := init_vram;
+
 begin
     q50m <= not q50m after C_QCLK_PERIOD / 2;
 
@@ -108,7 +137,7 @@ begin
         wait;
     end process;
 
-    fram_addr <= to_integer(unsigned(FA)) * 65536 + to_integer(unsigned(A));
+    fram_addr <= to_integer(unsigned(FA)) * 32768 + to_integer(unsigned(A(14 downto 0)));
     vram_addr <= to_integer(unsigned(VA));
 
     -- FRAM model on CPU bus
@@ -123,15 +152,21 @@ begin
         end if;
     end process;
 
-    -- VRAM model shared with video and IPL
-    VD <= vram(vram_addr) when (nvramsel = '0' and ramrwb = '1') else (others => 'Z');
-
     process(q50m)
     begin
-        if rising_edge(q50m) then
-            if nvramsel = '0' and ramrwb = '0' then
+    	-- VRAM model shared with video and IPL
+	if (rising_edge(q50m)) then
+	    	VD <= vram(vram_addr) when (nvramsel = '0' and ramrwb = '1') else (others => 'Z');
+	end if;
+    end process;
+
+    write_en <= not (nvramsel or ramrwb);
+
+    process(write_en)
+    begin
+       --if rising_edge(nvramsel) then
+       if falling_edge(write_en) then
                 vram(vram_addr) <= VD;
-            end if;
         end if;
     end process;
 
@@ -149,6 +184,7 @@ begin
 
     cpu0 : entity work.cpu65816_core
         port map (
+	    qclk => q50m,
             nres => nres,
             phi2 => phi2,
             rdy  => rdy,
@@ -213,23 +249,10 @@ begin
             nldac => nldac
         );
 
-    -- Initialize VRAM with pseudo-random values at the start of simulation
-    process
-        variable seed1 : positive := 42;
-        variable seed2 : positive := 137;
-        variable rand  : real;
-    begin
-        for i in 0 to 2**19 - 1 loop
-            uniform(seed1, seed2, rand);
-            vram(i) <= std_logic_vector(to_unsigned(integer(rand * 255.0), 8));
-        end loop;
-        wait;
-    end process;
-
     process
         variable pix_phase : std_logic := '0';
-        variable x : integer := 0;
-        variable y : integer := 0;
+        variable x : integer := C_BACK_H;
+        variable y : integer := C_BACK_V;
         variable idx : integer;
 
         file ppm : text;
@@ -244,8 +267,8 @@ begin
             wait until rising_edge(q50m);
             pix_phase := not pix_phase;
             if pix_phase = '1' then
-                if x < C_FRAME_W and y < C_FRAME_H then
-                    idx := y * C_FRAME_W + x;
+                if x < C_LINE_TOTAL and y < C_FRAME_TOTAL then
+                    idx := y * C_LINE_TOTAL + x;
                     framebuf(idx) <= pxl_out;
                 end if;
 
@@ -255,17 +278,17 @@ begin
                         file_open(ppm, "out/frame.ppm", write_mode);
                         write(linebuf, string'("P3"));
                         writeline(ppm, linebuf);
-                        write(linebuf, C_FRAME_W);
+                        write(linebuf, C_LINE_TOTAL);
                         write(linebuf, string'(" "));
-                        write(linebuf, C_FRAME_H);
+                        write(linebuf, C_FRAME_TOTAL);
                         writeline(ppm, linebuf);
                         write(linebuf, string'("255"));
                         writeline(ppm, linebuf);
 
-                        for yy in 0 to C_FRAME_H - 1 loop
+                        for yy in 0 to C_FRAME_TOTAL - 1 loop
                             linebuf := null;
-                            for xx in 0 to C_FRAME_W - 1 loop
-                                p := framebuf(yy * C_FRAME_W + xx);
+                            for xx in 0 to C_LINE_TOTAL - 1 loop
+                                p := framebuf(yy * C_LINE_TOTAL + xx);
                                 r := comp2_to_u8(p(5 downto 4));
                                 g := comp2_to_u8(p(3 downto 2));
                                 b := comp2_to_u8(p(1 downto 0));

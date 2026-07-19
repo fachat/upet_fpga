@@ -196,6 +196,7 @@ architecture Behavioral of ShellUltraHdmi is
 	   pet_vsync: out std_logic;
 
 	   pxl_out: out std_logic_vector(5 downto 0);
+	   hdmi_mode: out std_logic;
 	   
 	-- SPI
 	   spi_out : out std_logic;
@@ -287,7 +288,7 @@ architecture Behavioral of ShellUltraHdmi is
     signal r_s     : std_logic_vector(7 downto 0);
     signal g_s     : std_logic_vector(7 downto 0);
     signal b_s     : std_logic_vector(7 downto 0);
-
+	 signal hdmi_mode: std_logic;
 	 signal dispen	 : std_logic;
 	 
 begin
@@ -355,7 +356,8 @@ begin
 	pet_vsync,
 
 	v_out,
-	   
+	hdmi_mode,
+	
 	-- SPI
 	spi_out,
 	spi_clk,
@@ -402,17 +404,28 @@ begin
 				g_s <= v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2) & v_out(3) & v_out(2);
 				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
         end if;
-	end process;
 	
+		if (hdmi_mode = '1') then
+			hdmi_ck_p <= tmds_ck;
+			hdmi_ck_n <= not(tmds_ck);
 
-	hdmi_ck_p <= tmds_ck;
-	hdmi_ck_n <= not(tmds_ck);
+			hdmi_d0_p <= tmds_d0;
+			hdmi_d0_n <= not(tmds_d0);
+			hdmi_d1_p <= tmds_d1;
+			hdmi_d1_n <= not(tmds_d1);
+			hdmi_d2_p <= tmds_d2;
+			hdmi_d2_n <= not(tmds_d2);
+		else
+			hdmi_ck_p <= vga_vsync;
+			hdmi_ck_n <= vga_hsync;
 
-	hdmi_d0_p <= tmds_d0;
-	hdmi_d0_n <= not(tmds_d0);
-	hdmi_d1_p <= tmds_d1;
-	hdmi_d1_n <= not(tmds_d1);
-	hdmi_d2_p <= tmds_d2;
-	hdmi_d2_n <= not(tmds_d2);
+			hdmi_d0_p <= v_out(1);
+			hdmi_d0_n <= v_out(0);
+			hdmi_d1_p <= v_out(3);
+			hdmi_d1_n <= v_out(2);
+			hdmi_d2_p <= v_out(5);
+			hdmi_d2_n <= v_out(4);
+		end if;
+	end process;
 
 end Behavioral;

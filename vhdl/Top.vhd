@@ -95,7 +95,8 @@ entity Top is
 	   pet_vsync: out std_logic;
 
 		pxl_out: out std_logic_vector(5 downto 0);
-	   
+	   hdmi_mode: out std_logic;
+		
 	-- SPI
 	   spi_out : out std_logic;
 	   spi_clk : out std_logic;
@@ -220,6 +221,7 @@ architecture Behavioral of Top is
 	signal v_out: std_logic_vector(5 downto 0);
 	signal vis_regmap: std_logic;		-- when set, Viccy occupies not 4, but 96 addresses due to register-to-memory mapping
 	signal v_dbg_out: std_logic;
+	signal hdmi_on: std_logic;
 	
 	-- cpu
 	signal ca_in: std_logic_vector(15 downto 0);
@@ -878,11 +880,13 @@ begin
 			page9_map <= "00001001";
 			--pageA_map <= "00001010";
 			hide_bogus <= '0';
+			hdmi_on <= '0';
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0' and ca_in(3) = '0') then
 			-- Write to $E80x
 			case (ca_in(2 downto 0)) is
 			when "000" =>
 				-- video controls
+				hdmi_on <= D(0);
 				vis_80_in <= D(1);
 				screenb0 <= not(D(2));
 				isnocolmap <= D(3);
@@ -945,6 +949,7 @@ begin
 			case (ca_in(2 downto 0)) is
 			when "000" =>
 				-- video controls
+				s0_d(0) <= hdmi_on;
 				s0_d(1) <= vis_80_in;
 				s0_d(2) <= not(screenb0);
 				s0_d(3) <= isnocolmap;
@@ -992,7 +997,7 @@ begin
 		end if;
 	end process;
 
-
+	hdmi_mode <= hdmi_on;
 
 	v_out_p: process(q50m, memclk, nvramsel_int, nframsel_int, ipl, reset,
 			vid_fetch, rwb, m_vramsel_out, dac_dma_req, is_cpu, is_cpu_trigger)

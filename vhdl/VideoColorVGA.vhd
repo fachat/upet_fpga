@@ -74,11 +74,7 @@ end Video;
 
 architecture Behavioral of Video is
 
-	type AOA2 is array(natural range<>) of std_logic_vector(1 downto 0);
 	type AOA4 is array(natural range<>) of std_logic_vector(3 downto 0);
-	type AOA5 is array(natural range<>) of std_logic_vector(4 downto 0);
-	type AOA6 is array(natural range<>) of std_logic_vector(5 downto 0);
-	type AOA8 is array(natural range<>) of std_logic_vector(7 downto 0);
 	
 	--- modes
 	signal mode_attrib: std_logic;			-- r25.6, enable attribute use
@@ -287,8 +283,6 @@ architecture Behavioral of Video is
 	signal pxl_window : std_logic;
 	signal attr_window : std_logic;
 	signal sr_window : std_logic;
-	signal sprite_ptr_window: std_logic;
-	signal sprite_data_window: std_logic;
 
 	signal h_phase0: std_logic;		-- when next memclk should be phase1 video fetch
 	signal h_phase1: std_logic;		-- phase1 video fetch
@@ -311,17 +305,12 @@ architecture Behavioral of Video is
 	--signal new_line_vaddr_d: std_logic;
 	
 	signal fetch_int: std_logic;
-	signal fetch_sprite_en: std_logic;
-	signal req_sprite_en: std_logic;
 	
 	signal chr_fetch_int : std_logic;
 	signal crom_fetch_int: std_logic;
 	signal pxl_fetch_int : std_logic;
 	signal attr_fetch_int : std_logic;
 	signal sr_fetch_int : std_logic;
-	
-	signal sprite_ptr_fetch: std_logic;
-	signal sprite_data_fetch: std_logic;
 	
 	-- true when shift should be done
 	signal is_shift: std_logic;
@@ -332,57 +321,26 @@ architecture Behavioral of Video is
 	signal is_double_int: std_logic;
 	signal interlace_int: std_logic;
 
-	-- sprite
-	signal sprite_sel: std_logic_vector(7 downto 0);
-	signal sprite_dout: AOA8(0 to 7);
-	signal sprite_d: std_logic_vector(7 downto 0);
-	signal sprite_fetch_offset: AOA6(0 to 7);
-	signal sprite_enabled: std_logic_vector(7 downto 0);
+	-- sprite engine interface signals
 	signal sprite_ison: std_logic_vector(7 downto 0);
-	signal sprite_overraster: std_logic_vector(7 downto 0);
-	signal sprite_overborder: std_logic_vector(7 downto 0);
-	signal sprite_outbits: AOA5(0 to 7);
-	signal sprite_fgcol: AOA4(0 to 7);
-	signal sprite_mcol1: std_logic_vector(3 downto 0);
-	signal sprite_mcol2: std_logic_vector(3 downto 0);
-	signal sprite_base: std_logic_vector(7 downto 0);
-	signal sprite_phase: std_logic_vector(1 downto 0);
-	
-	-- goes high after h_enable goes low to enable sprite fetch
-	signal spr_fetch_en: std_logic;
-	-- when a sprite fetch is active
-	signal spr_fetch_active: std_logic_vector(7 downto 0);
-	-- fetch enable from one sprite to the next, chaining the sprite fetches together
-	signal spr_fetch_next: std_logic_vector(7 downto 0);
-	-- active when sprite ptr is done on next fetch_ce
-	signal spr_fetch_ptr: std_logic_vector(7 downto 0);
-	
-	
+
 	-- palette
 	--signal palette: AOA8(0 to 31);
 	signal pal_sel: std_logic;		-- which half is visible in the register file
 	signal pal_alt: std_logic;		-- use alternate palette
 	
-	-- output to mixer
+	-- output to mixer (from SpriteEngine)
 	signal sprite_on: std_logic;
 	signal sprite_outcol: std_logic_vector(4 downto 0);
 	signal sprite_onborder: std_logic;
 	signal sprite_onraster: std_logic;
 	signal sprite_no: integer range 0 to 7;
-	
-	signal sprite_req_state: integer range 0 to 63;
-	signal sprite_req_idx: integer range 0 to 7;
-	signal sprite_req_win: std_logic;			-- sprites can fetch
-	signal sprite_fetch_state: integer range 0 to 63;
-	signal sprite_fetch_idx: integer range 0 to 7;
-	signal sprite_fetch_idx_v: std_logic_vector(2 downto 0);
-	signal sprite_fetch_win: std_logic;			-- sprites can fetch
-	signal sprite_fetch_done: std_logic;		-- sprite fetches done
-	signal sprite_req_active: std_logic;		-- next mem cycle a sprite fetch occurs
-	signal sprite_fetch_active: std_logic;		-- sprite is active for fetch
-	signal sprite_data_ptr: std_logic_vector(7 downto 0);
-	signal sprite_fetch_ce: std_logic_vector(7 downto 0);
-	signal sprite_fetch_ptr: std_logic_vector(15 downto 0);
+
+	-- SpriteEngine video-memory fetch interface
+	signal spr_vmem_req:   std_logic;
+	signal spr_vmem_fetch: std_logic;
+	signal spr_vmem_addr:  std_logic_vector(15 downto 0);
+	signal spr_dout:       std_logic_vector(7 downto 0);
 	
 	-- collision
 	signal collision_sprite_sprite_none: std_logic;
@@ -512,48 +470,49 @@ architecture Behavioral of Video is
 		);
 	end component;
 	
-	component Sprite is
+	component SpriteEngine is
 	Port (
-		phi2: in std_logic;
-		sel: in std_logic;
-		rwb: in std_logic;
-		regsel: in std_logic_vector(1 downto 0);
-		din: in std_logic_vector(7 downto 0);
-		dout: out std_logic_vector(7 downto 0);
-
-		fgcol: in std_logic_vector(3 downto 0);
-		bgcol: in std_logic_vector(3 downto 0);
-		mcol1: in std_logic_vector(3 downto 0);
-		mcol2: in std_logic_vector(3 downto 0);
-		
-		fetch_offset: out std_logic_vector(5 downto 0);	-- 21x3 bytes = 63
-		fetch_ce: in std_logic;
-
-		qclk: in std_logic;
-		dotclk0: in std_logic;
-		phase: in std_logic_vector(1 downto 0);
-		vdin: in std_logic_vector(7 downto 0);
-		h_enable: in std_logic;
-		h_zero: in std_logic;
-		v_zero: in std_logic;
-		x_addr: in std_logic_vector(10 downto 0);
-		y_addr: in std_logic_vector(9 downto 0);
-		is_double: in std_logic;
-		is_interlace: in std_logic;
-		is80: in std_logic;
-		is_tv: in std_logic;
-		is_shift40: in std_logic;
-		is_shift80: in std_logic;
-		vsync_pos0: in std_logic;
-
-		enabled: out std_logic;		-- if sprite data should be read in rasterline
-		--active: out std_logic;		-- if sprite pixel out is active (in x/y area)
-		ison: out std_logic;			-- if sprite pixel is not background (for collision / prio)
-		overraster: out std_logic;		-- if sprite should appear over the raster
-		overborder: out std_logic;		-- if sprite should appear over the border
-		outbits: out std_logic_vector(4 downto 0); 	-- double bit output, plus alt palette bit
-		
-		reset: in std_logic
+		-- clocks
+		phi2:         in  std_logic;
+		qclk:         in  std_logic;
+		dotclk:       in  std_logic_vector(3 downto 0);
+		-- CPU register interface
+		crtc_sel:     in  std_logic;
+		crtc_is_data: in  std_logic;
+		regsel:       in  std_logic_vector(7 downto 0);
+		crtc_rwb:     in  std_logic;
+		CPU_D:        in  std_logic_vector(7 downto 0);
+		dout:         out std_logic_vector(7 downto 0);
+		-- video memory fetch interface
+		is_enable:    in  std_logic;
+		rline_cnt0:   in  std_logic;
+		is_interlace: in  std_logic;
+		h_enable:     in  std_logic;
+		vmem_req:     out std_logic;
+		vmem_fetch:   out std_logic;
+		vmem_addr:    out std_logic_vector(15 downto 0);
+		vmem_data:    in  std_logic_vector(7 downto 0);
+		-- display geometry
+		h_zero:       in  std_logic;
+		v_zero:       in  std_logic;
+		x_addr:       in  std_logic_vector(10 downto 0);
+		y_addr:       in  std_logic_vector(9 downto 0);
+		-- display mode
+		col_bg0:      in  std_logic_vector(3 downto 0);
+		is_double:    in  std_logic;
+		is_80:        in  std_logic;
+		is_tv:        in  std_logic;
+		is_shift40:   in  std_logic;
+		is_shift80:   in  std_logic;
+		vsync_pos0:   in  std_logic;
+		-- pixel output and active-sprite flags
+		sprite_on:       out std_logic;
+		sprite_outcol:   out std_logic_vector(4 downto 0);
+		sprite_onborder: out std_logic;
+		sprite_onraster: out std_logic;
+		sprite_no:       out integer range 0 to 7;
+		sprite_ison:     out std_logic_vector(7 downto 0);
+		reset:        in  std_logic
 	);
 	end component;
 	
@@ -641,19 +600,18 @@ begin
 	sr_fetch_int <= sr_window and fetch_int;
 
 	fetch_p: process(chr_fetch_int, pxl_fetch_int, attr_fetch_int, crom_fetch_int, qclk,
-						sprite_ptr_fetch, sprite_data_fetch, dotclk, h_phase0, h_phase1, h_phase2, h_phase3, req_sprite_en)
+						spr_vmem_fetch, dotclk, h_phase0, h_phase1, h_phase2, h_phase3, spr_vmem_req)
 	begin
 		-- video access?
 			vid_fetch <= chr_fetch_int 
-						or pxl_fetch_int 
-						or attr_fetch_int 
-						or sprite_ptr_fetch
-						or sprite_data_fetch
-						;
+							or pxl_fetch_int 
+							or attr_fetch_int 
+							or spr_vmem_fetch
+							;
 
 			-- request a video memory fetch
-			vreq_video <= req_sprite_en
-					or h_phase0 or h_phase1 or h_phase2 or h_phase2;
+			vreq_video <= spr_vmem_req
+						or h_phase0 or h_phase1 or h_phase2 or h_phase2;
 	end process;
 	
 	-----------------------------------------------------------------------------
@@ -849,88 +807,48 @@ begin
 	end process;
 
 	-----------------------------------------------------------------------------
-	-- sprite handling
-	
-	-- enables sprite fetch on the first 8 slots (8x4 accesses), when the correct sprite is enabled (sprite_active)
-	-- sprite_fetch_active is set whenever sprite_fetch_idx matches a sprite active in the given rasterline
-	fetch_sprite_en <= '1' when is_enable = '1' 
-								and (interlace_int = '1' or rline_cnt0 = '0')
-								and sprite_fetch_active = '1'
-								and sprite_fetch_win = '1'
-							else '0';
-	req_sprite_en <= '1' when is_enable = '1' 
-								and (interlace_int = '1' or rline_cnt0 = '0')
-								and sprite_req_active = '1'
-								and sprite_req_win = '1'
-							else '0';
 
-	-- these two are derived from the window functions in the general fetch timing
-	-- sprite_ptr_window and sprite_data_window are alternate to char/attr/pixel fetch in off-screen areas
-	sprite_ptr_fetch <= sprite_ptr_window and fetch_sprite_en;
-	sprite_data_fetch <= sprite_data_window and fetch_sprite_en;	
-	
-	sprite_outcol_p: process(qclk, dotclk)
-	begin
-		
-		if (falling_edge(qclk)) then -- and dotclk(0) = '0') then
-			if (sprite_ison(0) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(0);
-				sprite_onborder <= sprite_overborder(0);
-				sprite_onraster <= sprite_overraster(0);
-				sprite_no <= 0;
-			elsif (sprite_ison(1) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(1);
-				sprite_onborder <= sprite_overborder(1);
-				sprite_onraster <= sprite_overraster(1);
-				sprite_no <= 1;
-			elsif (sprite_ison(2) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(2);
-				sprite_onborder <= sprite_overborder(2);
-				sprite_onraster <= sprite_overraster(2);
-				sprite_no <= 2;
-			elsif (sprite_ison(3) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(3);
-				sprite_onborder <= sprite_overborder(3);
-				sprite_onraster <= sprite_overraster(3);
-				sprite_no <= 3;
-			elsif (sprite_ison(4) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(4);
-				sprite_onborder <= sprite_overborder(4);
-				sprite_onraster <= sprite_overraster(4);
-				sprite_no <= 4;
-			elsif (sprite_ison(5) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(5);
-				sprite_onborder <= sprite_overborder(5);
-				sprite_onraster <= sprite_overraster(5);
-				sprite_no <= 5;
-			elsif (sprite_ison(6) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(6);
-				sprite_onborder <= sprite_overborder(6);
-				sprite_onraster <= sprite_overraster(6);
-				sprite_no <= 6;
-			elsif (sprite_ison(7) = '1') then
-				sprite_on <= '1';
-				sprite_outcol <= sprite_outbits(7);
-				sprite_onborder <= sprite_overborder(7);
-				sprite_onraster <= sprite_overraster(7);
-				sprite_no <= 7;
-			else
-				sprite_on <= '0';
-				sprite_outcol <= "00000";
-				sprite_onborder <= '0';
-				sprite_onraster <= '0';
-				sprite_no <= 0;
-			end if;
-		end if;
-	end process;
+	-----------------------------------------------------------------------------
+	-- sprite handling (delegated to SpriteEngine)
 
+	sprite_engine: SpriteEngine
+	port map (
+		phi2          => phi2,
+		qclk          => qclk,
+		dotclk        => dotclk,
+		crtc_sel      => crtc_sel,
+		crtc_is_data  => crtc_is_data,
+		regsel        => regsel,
+		crtc_rwb      => crtc_rwb,
+		CPU_D         => CPU_D,
+		dout          => spr_dout,
+		is_enable     => is_enable,
+		rline_cnt0    => rline_cnt0,
+		is_interlace  => interlace_int,
+		h_enable      => h_enable,
+		vmem_req      => spr_vmem_req,
+		vmem_fetch    => spr_vmem_fetch,
+		vmem_addr     => spr_vmem_addr,
+		vmem_data     => VRAM_D,
+		h_zero        => h_zero,
+		v_zero        => v_zero,
+		x_addr        => x_addr,
+		y_addr        => y_addr_d,
+		col_bg0       => col_bg0,
+		is_double     => is_double_int,
+		is_80         => is_80,
+		is_tv         => mode_tv,
+		is_shift40    => is_shift40,
+		is_shift80    => is_shift80,
+		vsync_pos0    => vsync_pos(0),
+		sprite_on       => sprite_on,
+		sprite_outcol   => sprite_outcol,
+		sprite_onborder => sprite_onborder,
+		sprite_onraster => sprite_onraster,
+		sprite_no       => sprite_no,
+		sprite_ison     => sprite_ison,
+		reset         => reset
+	);
 
 	spritesprite_p: process(qclk, collision_trigger_sprite_sprite, collision_accum_sprite_sprite)
 	begin
@@ -965,421 +883,6 @@ begin
 			end loop;
 		end if;
 	end process;
-	
-	sdo_p: process(regsel, crtc_sel, crtc_is_data, sprite_dout)
-	begin
-	
-		sprite_sel <= (others => '0');
-		sprite_d <= (others => '0');
-		
-		if (crtc_sel = '1' and crtc_is_data = '1') then
-			case regsel(6 downto 2) is
-			when "01100" =>	-- sprite 0
-				sprite_sel(0) <= '1';
-				sprite_d <= sprite_dout(0);
-			when "01101" =>	-- sprite 1
-				sprite_sel(1) <= '1';
-				sprite_d <= sprite_dout(1);
-			when "01110" =>	-- sprite 2
-				sprite_sel(2) <= '1';
-				sprite_d <= sprite_dout(2);
-			when "01111" =>	-- sprite 3
-				sprite_sel(3) <= '1';
-				sprite_d <= sprite_dout(3);
-			when "10000" =>	-- sprite 4
-				sprite_sel(4) <= '1';
-				sprite_d <= sprite_dout(4);
-			when "10001" =>	-- sprite 5
-				sprite_sel(5) <= '1';
-				sprite_d <= sprite_dout(5);
-			when "10010" =>	-- sprite 6
-				sprite_sel(6) <= '1';
-				sprite_d <= sprite_dout(6);
-			when "10011" =>	-- sprite 7
-				sprite_sel(7) <= '1';
-				sprite_d <= sprite_dout(7);
-			when others =>
-			end case;
-		end if;
-	end process;
-
-	----------------------------------------------------------------
-	-- sprite engine fetch and select status and counter
-	-- 
-	fetch_idx_p: process(qclk, dotclk, h_zero, sprite_fetch_idx, h_enable)
-	begin
-	-- start fetching sprite immediately after end of visible area
-		if (h_enable = '1') then
-		--if (h_enable = '0') then	-- debug - put into visible area
-			sprite_fetch_state <= 0;
-			sprite_req_state <= 0;
-			sprite_fetch_win <= '0';
-			sprite_req_win <= '0';
-			sprite_fetch_done <= '0';
-		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
-			if (sprite_fetch_done = '0') then
-				if (sprite_req_win = '0') then
-					sprite_req_win <= '1';
-				elsif(sprite_req_state = 31) then
-					sprite_req_win <= '0';
-					sprite_fetch_done <= '1';
-				end if;
-				sprite_req_state <= sprite_req_state + 1;
-			end if;
-			-- one memory access delayed
-			sprite_fetch_win <= sprite_req_win;
-			sprite_fetch_state <= sprite_req_state;
-		end if;
-		
-		sprite_req_idx <= sprite_req_state / 4;
-		sprite_fetch_idx <= sprite_fetch_state / 4;
-		sprite_fetch_idx_v <= std_logic_vector(to_unsigned(sprite_fetch_idx, sprite_fetch_idx_v'length));
-
-		sprite_phase <= std_logic_vector(to_unsigned(sprite_fetch_state, 2));
-		
-		if (sprite_fetch_state mod 4 = 0) then
-			sprite_ptr_window <= '1';
-			sprite_data_window <= '0';
-		else
-			sprite_ptr_window <= '0';
-			sprite_data_window <= '1';
-		end if;
-		
-	end process;
-	
-	fetchactive_p: process(qclk, x_addr, sprite_fetch_idx, sprite_ptr_fetch, sprite_data_fetch, fetch_ce, sprite_data_ptr, sprite_base,
-			sprite_enabled, sprite_fetch_offset)
-	begin
-		sprite_req_active <= sprite_enabled(sprite_req_idx);
-		sprite_fetch_active <= sprite_enabled(sprite_fetch_idx);
-
-		sprite_fetch_ptr(5 downto 0) <= sprite_fetch_offset(sprite_fetch_idx);			
-		sprite_fetch_ptr(13 downto 6) <= sprite_data_ptr;
-		sprite_fetch_ptr(15 downto 14) <= sprite_base(7 downto 6);
-				
-		if (falling_edge(qclk)) then
-			if (fetch_ce = '1' and sprite_ptr_fetch = '1') then
-				sprite_data_ptr <= VRAM_D;
-			end if;
-		end if;
-
-		sprite_fetch_ce <= "00000000";
-		case (sprite_fetch_idx) is
-		when 0 =>       sprite_fetch_ce(0) <= sprite_data_fetch and fetch_ce;
-		when 1 =>       sprite_fetch_ce(1) <= sprite_data_fetch and fetch_ce;
-		when 2 =>       sprite_fetch_ce(2) <= sprite_data_fetch and fetch_ce;
-		when 3 =>       sprite_fetch_ce(3) <= sprite_data_fetch and fetch_ce;
-		when 4 =>       sprite_fetch_ce(4) <= sprite_data_fetch and fetch_ce;
-		when 5 =>       sprite_fetch_ce(5) <= sprite_data_fetch and fetch_ce;
-		when 6 =>       sprite_fetch_ce(6) <= sprite_data_fetch and fetch_ce;
-		when 7 =>       sprite_fetch_ce(7) <= sprite_data_fetch and fetch_ce;
-		end case;
-
-	end process;
-
-	sprite0: Sprite
-	port map (
-		phi2,
-		sprite_sel(0),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(0),
-		sprite_fgcol(0),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(0),
-		sprite_fetch_ce(0),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(0),
-		sprite_ison(0),
-		sprite_overraster(0),
-		sprite_overborder(0),
-		sprite_outbits(0),
-		reset
-	);
-
-	sprite1: Sprite
-	port map (
-		phi2,
-		sprite_sel(1),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(1),
-		sprite_fgcol(1),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(1),
-		sprite_fetch_ce(1),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(1),
-		sprite_ison(1),
-		sprite_overraster(1),
-		sprite_overborder(1),
-		sprite_outbits(1),
-		reset
-	);
-
-	sprite2: Sprite
-	port map (
-		phi2,
-		sprite_sel(2),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(2),
-		sprite_fgcol(2),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(2),
-		sprite_fetch_ce(2),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(2),
-		sprite_ison(2),
-		sprite_overraster(2),
-		sprite_overborder(2),
-		sprite_outbits(2),
-		reset
-	);
-
-	sprite3: Sprite
-	port map (
-		phi2,
-		sprite_sel(3),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(3),
-		sprite_fgcol(3),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(3),
-		sprite_fetch_ce(3),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(3),
-		sprite_ison(3),
-		sprite_overraster(3),
-		sprite_overborder(3),
-		sprite_outbits(3),
-		reset
-	);
-
-	sprite4: Sprite
-	port map (
-		phi2,
-		sprite_sel(4),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(4),
-		sprite_fgcol(4),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(4),
-		sprite_fetch_ce(4),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(4),
-		sprite_ison(4),
-		sprite_overraster(4),
-		sprite_overborder(4),
-		sprite_outbits(4),
-		reset
-	);
-
-	sprite5: Sprite
-	port map (
-		phi2,
-		sprite_sel(5),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(5),
-		sprite_fgcol(5),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(5),
-		sprite_fetch_ce(5),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(5),
-		sprite_ison(5),
-		sprite_overraster(5),
-		sprite_overborder(5),
-		sprite_outbits(5),
-		reset
-	);
-
-	sprite6: Sprite
-	port map (
-		phi2,
-		sprite_sel(6),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(6),
-		sprite_fgcol(6),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(6),
-		sprite_fetch_ce(6),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(6),
-		sprite_ison(6),
-		sprite_overraster(6),
-		sprite_overborder(6),
-		sprite_outbits(6),
-		reset
-	);
-
-	sprite7: Sprite
-	port map (
-		phi2,
-		sprite_sel(7),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout(7),
-		sprite_fgcol(7),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(7),
-		sprite_fetch_ce(7),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		VRAM_D,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr_d,
-		is_double_int,
-		interlace_int,
-		is_80,
-		mode_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos(0),
-		sprite_enabled(7),
-		sprite_ison(7),
-		sprite_overraster(7),
-		sprite_overborder(7),
-		sprite_outbits(7),
-		reset
-	);
 	
 	-----------------------------------------------------------------------------
 	-- replace discrete color circuitry of ultracpu 1.2b
@@ -1694,49 +1197,40 @@ begin
 	-- address mixer
 	-- mem_addr = hires fetch or chr fetch (i.e. NOT charrom pxl fetch)
 	
-	--when sprite_ptr_fetch = '1' else
-	--when sprite_data_fetch = '1' else
-	
 	a_out(2 downto 0) <= 
-							sprite_fetch_idx_v(2 downto 0)	when sprite_ptr_fetch = '1' else
-							sprite_fetch_ptr(2 downto 0)		when sprite_data_fetch = '1' else
-							attr_addr(2 downto 0) 				when attr_fetch_int = '1' else
-							rcline_cnt(2 downto 0) 				when crom_fetch_int = '1' else
+							spr_vmem_addr(2 downto 0)		when spr_vmem_fetch = '1' else
+							attr_addr(2 downto 0) 			when attr_fetch_int = '1' else
+							rcline_cnt(2 downto 0) 			when crom_fetch_int = '1' else
 							vid_addr(2 downto 0);
 
 	a_out(3) <= 
-							'1'										when sprite_ptr_fetch = '1' else
-							sprite_fetch_ptr(3)					when sprite_data_fetch = '1' else
-							attr_addr(3)			 				when attr_fetch_int = '1' else
-							rcline_cnt(3) 			 				when crom_fetch_int = '1' else
+							spr_vmem_addr(3)				when spr_vmem_fetch = '1' else
+							attr_addr(3)			 		when attr_fetch_int = '1' else
+							rcline_cnt(3) 			 		when crom_fetch_int = '1' else
 							vid_addr(3);
 
 	a_out(7 downto 4) <= 
-							"1111"									when sprite_ptr_fetch = '1' else
-							sprite_fetch_ptr(7 downto 4)		when sprite_data_fetch = '1' else
-							attr_addr(7 downto 4)				when attr_fetch_int = '1' else
+							spr_vmem_addr(7 downto 4)		when spr_vmem_fetch = '1' else
+							attr_addr(7 downto 4)			when attr_fetch_int = '1' else
 							char_index_buf(3 downto 0) 		when crom_fetch_int = '1' else
 							vid_addr(7 downto 4);
 
 	a_out(11 downto 8) <= 
-							sprite_base(3 downto 0)				when sprite_ptr_fetch = '1' else
-							sprite_fetch_ptr(11 downto 8)		when sprite_data_fetch = '1' else
-							attr_addr(11 downto 8)				when attr_fetch_int = '1' else
+							spr_vmem_addr(11 downto 8)		when spr_vmem_fetch = '1' else
+							attr_addr(11 downto 8)			when attr_fetch_int = '1' else
 							char_index_buf(7 downto 4) 		when crom_fetch_int = '1' else
 							vid_addr(11 downto 8);
 
 	a_out(12) 		<= 
-							sprite_base(4)							when sprite_ptr_fetch = '1' else
-							sprite_fetch_ptr(12)					when sprite_data_fetch = '1' else
-							attr_addr(12)							when attr_fetch_int = '1' else
-							is_graph									when crom_fetch_int = '1' else
+							spr_vmem_addr(12)				when spr_vmem_fetch = '1' else
+							attr_addr(12)					when attr_fetch_int = '1' else
+							is_graph						when crom_fetch_int = '1' else
 							vid_addr(12);
 
 	a_out(15 downto 13) <= 
-							sprite_base(7 downto 5)				when sprite_ptr_fetch = '1' else
-							sprite_fetch_ptr(15 downto 13)	when sprite_data_fetch = '1' else
-							attr_addr(15 downto 13)				when attr_fetch_int = '1' else
-							crom_base(7 downto 5) 				when crom_fetch_int = '1' else
+							spr_vmem_addr(15 downto 13)		when spr_vmem_fetch = '1' else
+							attr_addr(15 downto 13)			when attr_fetch_int = '1' else
+							crom_base(7 downto 5) 			when crom_fetch_int = '1' else
 							vid_addr(15 downto 13);
 							
 	A <= a_out;
@@ -2081,9 +1575,6 @@ begin
 			irq_sprite_sprite_en <= '0';
 			irq_sprite_border_en <= '0';
 			irq_sprite_raster_en <= '0';
-			sprite_mcol1 <= "0000";
-			sprite_mcol1 <= "0000";
-			sprite_base <= "10010111";
 			pal_sel <= '0';
 		elsif(
 				crtc_sel = '1'
@@ -2258,37 +1749,19 @@ begin
 				alt_rc_cnt <= CPU_D(3 downto 0);
 				alt_match_hsync <= CPU_D(6);
 				alt_set_rc <= CPU_D(7);
-			when x"2a" =>	-- R42 (was R88)
-				sprite_base <= CPU_D;
+			when x"2a" =>	-- R42 (was R88) - handled by SpriteEngine
+				null;
 			when x"2b" =>	-- R43 (was R89 / 59)
 				-- sprite border collisions
 			when x"2c" =>	-- R44 (was R90 / 5a)
 				-- sprite sprite collisions
 			when x"2d" =>	-- R45 (was R91 / 5b)
 				-- sprite raster collisions
-			when x"2e" =>	-- R46 (was R92 / 5c)
-				sprite_mcol1 <= CPU_D(3 downto 0);
-			when x"2f" =>	-- R47 (was R93)
-				sprite_mcol2 <= CPU_D(3 downto 0);
+			when x"2e" | x"2f" =>	-- R46-R47 (was R92-R93) - handled by SpriteEngine
+				null;
 			--
-			-- R48-R79 (x"30" - x"4f") are decoded separately in the sprites section
-			--
-			when x"50" =>	-- R80
-				sprite_fgcol(0) <= CPU_D(3 downto 0);
-			when x"51" =>	-- R81
-				sprite_fgcol(1) <= CPU_D(3 downto 0);
-			when x"52" =>	-- R82
-				sprite_fgcol(2) <= CPU_D(3 downto 0);
-			when x"53" =>	-- R83
-				sprite_fgcol(3) <= CPU_D(3 downto 0);
-			when x"54" =>	-- R84
-				sprite_fgcol(4) <= CPU_D(3 downto 0);
-			when x"55" =>	-- R85
-				sprite_fgcol(5) <= CPU_D(3 downto 0);
-			when x"56" =>	-- R86
-				sprite_fgcol(6) <= CPU_D(3 downto 0);
-			when x"57" =>	-- R87
-				sprite_fgcol(7) <= CPU_D(3 downto 0);
+			-- R48-R79 (x"30" - x"4f") are decoded by SpriteEngine
+			-- R80-R87 (x"50" - x"57") are decoded by SpriteEngine
 			--
 			-- R88 - R95 are reserved for palette access, see palette_bram and related signals
 			--	
@@ -2469,36 +1942,18 @@ begin
 						vd_out(3 downto 0) <= alt_rc_cnt;
 						vd_out(6) <= alt_match_hsync;
 						vd_out(7) <= alt_set_rc;
-					when x"2a" =>	-- R42 (was R88)
-						vd_out <= sprite_base;
+					when x"2a" =>	-- R42 (was R88) - read via SpriteEngine
+						vd_out <= spr_dout;
 					when x"2b" =>	-- R43 (was R89)
 						vd_out <= collision_accum_sprite_border;
 					when x"2c" =>	-- R44 (was R90)
 						vd_out <= collision_accum_sprite_sprite;
 					when x"2d" =>	-- R45 (was R91)
 						vd_out <= collision_accum_sprite_raster;
-					when x"2e" =>	-- R46 (was R92)
-						vd_out(3 downto 0) <= sprite_mcol1;
-					when x"2f" =>	-- R47 (was R93)
-						vd_out(3 downto 0) <= sprite_mcol2;
-					-- registers 0x30-0x4f are for sprites
-					-- registers 0x50-0x57 are sprite foreground colours
-					when x"50" =>	-- R80
-						vd_out(3 downto 0) <= sprite_fgcol(0);
-					when x"51" =>	-- R81
-						vd_out(3 downto 0) <= sprite_fgcol(1);
-					when x"52" =>	-- R82
-						vd_out(3 downto 0) <= sprite_fgcol(2);
-					when x"53" =>	-- R83
-						vd_out(3 downto 0) <= sprite_fgcol(3);
-					when x"54" =>	-- R84
-						vd_out(3 downto 0) <= sprite_fgcol(4);
-					when x"55" =>	-- R85
-						vd_out(3 downto 0) <= sprite_fgcol(5);
-					when x"56" =>	-- R86
-						vd_out(3 downto 0) <= sprite_fgcol(6);
-					when x"57" =>	-- R87
-						vd_out(3 downto 0) <= sprite_fgcol(7);
+					when x"2e" | x"2f" =>	-- R46-R47 (was R92-R93) - read via SpriteEngine
+						vd_out <= spr_dout;
+					-- registers 0x30-0x4f are for sprites (read via SpriteEngine)
+					-- registers 0x50-0x57 are sprite foreground colours (read via SpriteEngine)
 					-- registers 0x58-0x5f are palette access
 					when x"58" =>   -- R88
 						vd_out <= pbr_doA;
@@ -2517,7 +1972,7 @@ begin
 					when x"5f" =>   -- R95
 						vd_out <= pbr_doA;
 					when others =>
-						vd_out <= sprite_d;
+						vd_out <= spr_dout;
 					end case;
 				end if;
 			end if;

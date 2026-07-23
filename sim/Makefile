@@ -12,6 +12,7 @@ VHDL_SRC = \
 	$(ROOT)/vhdl/VideoHBorder.vhd \
 	$(ROOT)/vhdl/VideoVBorder.vhd \
 	$(ROOT)/vhdl/Sprite.vhd \
+	$(ROOT)/vhdl/SpriteEngine.vhd \
 	$(ROOT)/vhdl/palette_bram.vhd \
 	$(ROOT)/vhdl/VideoColorVGA.vhd \
 	$(ROOT)/vhdl/DAC.vhd \

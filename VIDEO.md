@@ -174,7 +174,7 @@ Sprite registers (subject to change):
   - bit 1: X-expand
   - bit 2: Y-expand
   - bit 3: Multicolour flag
-  - bit 4: sprite data priority: if set high, background overlays the sprite
+  - bit 4: sprite data priority: if set high, raster overlays the sprite
   - bit 5: sprite border flag (if set, show sprite over border)
   - bit 6: if set, use 80 col (X) / double resolution (Y) coordinates and pixel clock
   - bit 7: if set, use the alternative palette for the sprite

@@ -178,12 +178,9 @@ architecture Behavioral of SpriteEngine is
 	signal sprite_fetch_active: std_logic;
 	signal sprite_data_ptr:     std_logic_vector(7 downto 0);
 	signal sprite_fetch_ce:     std_logic_vector(7 downto 0);
-	signal sprite_ptr_window:   std_logic;
-	signal sprite_data_window:  std_logic;
 
 	signal fetch_sprite_en:     std_logic;
 	signal req_sprite_en:       std_logic;
-	signal sprite_ptr_fetch:    std_logic;
 	signal sprite_data_fetch:   std_logic;
 
 	-- fetch_ce derived from dotclk inside the engine
@@ -382,7 +379,7 @@ begin
 	-- Counts through 8 sprites x 4 memory accesses = 32 states after h_enable
 	-- goes low.  The first access of each sprite is the sprite-pointer fetch
 	-- (sprite_ptr_window); the remaining three are sprite-data fetches.
-	fetch_idx_p: process(qclk, dotclk, h_enable)
+	fetch_idx_p: process(qclk, dotclk, h_enable, sprite_req_state, sprite_fetch_state, sprite_fetch_idx)
 	begin
 		-- reset counters while visible area is active
 		if (h_enable = '1') then
@@ -392,18 +389,22 @@ begin
 			sprite_req_win     <= '0';
 			sprite_fetch_done  <= '0';
 		elsif (falling_edge(qclk) and dotclk(1 downto 0) = "11") then
+		
 			if (sprite_fetch_done = '0') then
 				if (sprite_req_win = '0') then
 					sprite_req_win <= '1';
 				elsif (sprite_req_state = 31) then
 					sprite_req_win    <= '0';
 					sprite_fetch_done <= '1';
+				else
+					sprite_req_state <= sprite_req_state + 1;
 				end if;
-				sprite_req_state <= sprite_req_state + 1;
 			end if;
+
 			-- fetch window is one memory access behind the request window
 			sprite_fetch_win   <= sprite_req_win;
 			sprite_fetch_state <= sprite_req_state;
+			
 		end if;
 
 		-- combinatorial derivations (always re-evaluated)
@@ -413,13 +414,6 @@ begin
 
 		sprite_phase <= std_logic_vector(to_unsigned(sprite_fetch_state, 2));
 
-		if (sprite_fetch_state mod 4 = 0) then
-			sprite_ptr_window  <= '1';
-			sprite_data_window <= '0';
-		else
-			sprite_ptr_window  <= '0';
-			sprite_data_window <= '1';
-		end if;
 	end process;
 
 	-- -------------------------------------------------------------------------
@@ -436,11 +430,10 @@ begin
 	                        and sprite_req_win = '1'
 	                   else '0';
 
-	sprite_ptr_fetch  <= sprite_ptr_window  and fetch_sprite_en;
-	sprite_data_fetch <= sprite_data_window and fetch_sprite_en;
+	sprite_data_fetch <= (sprite_phase(0) or sprite_phase(1)) and fetch_sprite_en;
 
 	-- expose to parent
-	vmem_fetch <= sprite_ptr_fetch or sprite_data_fetch;
+	vmem_fetch <= fetch_sprite_en;
 	vmem_req   <= req_sprite_en;
 
 	-- -------------------------------------------------------------------------
@@ -448,21 +441,21 @@ begin
 	--   During a sprite-pointer fetch: {sprite_base[7:0], 5'b11111, sprite_idx[2:0]}
 	--   During a sprite-data fetch:    {sprite_base[7:6], sprite_data_ptr[7:0], sprite_fetch_offset[5:0]}
 	vmem_addr <= sprite_base & "11111" & sprite_fetch_idx_v
-	                  when sprite_ptr_window = '1'
+	                  when sprite_phase = "00"
 	             else sprite_base(7 downto 6) & sprite_data_ptr & sprite_fetch_offset(sprite_fetch_idx);
 
 	-- -------------------------------------------------------------------------
 	-- Fetch-active control and per-sprite fetch_ce signals
-	fetchactive_p: process(qclk, sprite_fetch_idx, sprite_ptr_fetch,
+	fetchactive_p: process(qclk, sprite_fetch_idx, 
 	                        sprite_data_fetch, fetch_ce_int,
-	                        sprite_enabled, sprite_fetch_offset)
+	                        sprite_enabled, sprite_fetch_offset, sprite_req_idx)
 	begin
 		sprite_req_active   <= sprite_enabled(sprite_req_idx);
 		sprite_fetch_active <= sprite_enabled(sprite_fetch_idx);
 
 		-- capture sprite data pointer from video memory on pointer fetch
-		if (falling_edge(qclk)) then
-			if (fetch_ce_int = '1' and sprite_ptr_fetch = '1') then
+		if (falling_edge(qclk) and fetch_ce_int = '1') then
+			if (sprite_phase = "00") then
 				sprite_data_ptr <= vmem_data;
 			end if;
 		end if;

@@ -100,7 +100,7 @@ The following are the internal Viccy registers:
   - bit 2: extended mode (enable full and multicolor text modes)
   - bit 3: -
   - bit 4: DEN: display enable
-  - bit 5: palette select (0 = lower half of palette in R88-R95, 1 = upper half) 
+  - bit 5: palette select (legacy half-select bit)
   - bit 6: if set, map registers into memory (see below)
   - bit 7: PET/Micro-PET compatible (see r1,r8,r9,r12,r14,r39)
 
@@ -132,7 +132,7 @@ The following are the internal Viccy registers:
   - bit 0-7, defaults to 80 (so 25 rows with 8 rasterlines/char are centered on screen); in upet compat mode, gets set when r9 is written
 
 - r40: ALT1: alternate register control I
-  - bit 0: if set, enable access to alternate r12/r13 video memory, r20/r21 attribute memory addresses, r25 horizontal shift/border, and r88-95 alternate palette
+  - bit 0: if set, enable access to alternate r12/r13 video memory, r20/r21 attribute memory addresses, and r25 horizontal shift/border
   - bit 1: alternate bitmap mode bit
   - bit 2: alternate attribute mode bit
   - bit 3: alternate extended mode bit
@@ -159,17 +159,25 @@ Sprite registers (subject to change):
 - r46: SPRT_MCOL1: sprite multicolor 0 (VIC-II)
 - r47: SPRT_MCOL2: sprite multicolor 1 (VIC-II)
 
-- r48-51: VCCY_SPRT_BASE_0: Sprite 0
-- r48: X coordinate sprite 0 (VIC-II)
-  - note: X coordinates are 2x2 pixels in 40 column modes, except fine mode is set (r51.6)
-- r49: Y coordinate sprite 0 (VIC-II)
-  - note: Y coordinates are 2x2 pixels in non-double modes (r8.0/1 != "11"), except fine mode is set (r51.6)
-- r50: sprite 0 extra
+- r63: REGWIN_SEL: register window selector for r64-r95
+  - reset value: 0
+  - valid values:
+    - 0: r64-r79 = normal palette entries 0-15; r80-r95 = alternate palette entries 0-15
+    - 4: r64-r95 = sprite control registers (old r48-r79)
+    - 6: r64-r71 = sprite foreground colours (old r80-r87)
+  - writes with any other value are ignored
+
+- r64-67: VCCY_SPRT_BASE_0: Sprite 0 (when r63=4)
+- r64: X coordinate sprite 0 (VIC-II)
+  - note: X coordinates are 2x2 pixels in 40 column modes, except fine mode is set (r67.6)
+- r65: Y coordinate sprite 0 (VIC-II)
+  - note: Y coordinates are 2x2 pixels in non-double modes (r8.0/1 != "11"), except fine mode is set (r67.6)
+- r66: sprite 0 extra
   - bit 1-0: bits 8-7 of sprite 0 X coordinate (80 cols/fine) / bit 0 only in 40 col modes
   - bit 5-4: bits 8-7 of sprite 0 Y coordinate (double resolution/fine) / bit 4 only if non-double modes
-  - note: X coordinates are 2 pixels wide in 40 column modes, except fine mode is set (r51.6)
-  - note: Y coordinates are 2 pixel rows high in non-double-resolution modes (r8.0/1 != "11"), except fine mode is set (r51.6)
-- r51: sprite 0 control
+  - note: X coordinates are 2 pixels wide in 40 column modes, except fine mode is set (r67.6)
+  - note: Y coordinates are 2 pixel rows high in non-double-resolution modes (r8.0/1 != "11"), except fine mode is set (r67.6)
+- r67: sprite 0 control
   - bit 0: enable
   - bit 1: X-expand
   - bit 2: Y-expand
@@ -178,28 +186,28 @@ Sprite registers (subject to change):
   - bit 5: sprite border flag (if set, show sprite over border)
   - bit 6: if set, use 80 col (X) / double resolution (Y) coordinates and pixel clock
   - bit 7: if set, use the alternative palette for the sprite
-- r52-: SPRT_BASE_1: sprite 1
-- r56-: SPRT_BASE_2: sprite 2
-- r60-: SPRT_BASE_3: sprite 3
-- r64-: SPRT_BASE_4: sprite 4
-- r68-: SPRT_BASE_5: sprite 5
-- r72-: SPRT_BASE_6: sprite 6
-- r76-: SPRT_BASE_7: sprite 7
+- r68-: SPRT_BASE_1: sprite 1 (when r63=4)
+- r72-: SPRT_BASE_2: sprite 2 (when r63=4)
+- r76-: SPRT_BASE_3: sprite 3 (when r63=4)
+- r80-: SPRT_BASE_4: sprite 4 (when r63=4)
+- r84-: SPRT_BASE_5: sprite 5 (when r63=4)
+- r88-: SPRT_BASE_6: sprite 6 (when r63=4)
+- r92-: SPRT_BASE_7: sprite 7 (when r63=4)
 
-- r80: SPRT_COL_0: color sprite 0 (VIC-II)
-- r81: SPRT_COL_1: color sprite 1 (VIC-II)
-- r82: SPRT_COL_2: color sprite 2 (VIC-II)
-- r83: SPRT_COL_3: color sprite 3 (VIC-II)
-- r84: SPRT_COL_4: color sprite 4 (VIC-II)
-- r85: SPRT_COL_5: color sprite 5 (VIC-II)
-- r86: SPRT_COL_6: color sprite 6 (VIC-II)
-- r87: SPRT_COL_7: color sprite 7 (VIC-II)
+- r64: SPRT_COL_0: color sprite 0 (VIC-II, when r63=6)
+- r65: SPRT_COL_1: color sprite 1 (VIC-II, when r63=6)
+- r66: SPRT_COL_2: color sprite 2 (VIC-II, when r63=6)
+- r67: SPRT_COL_3: color sprite 3 (VIC-II, when r63=6)
+- r68: SPRT_COL_4: color sprite 4 (VIC-II, when r63=6)
+- r69: SPRT_COL_5: color sprite 5 (VIC-II, when r63=6)
+- r70: SPRT_COL_6: color sprite 6 (VIC-II, when r63=6)
+- r71: SPRT_COL_7: color sprite 7 (VIC-II, when r63=6)
 
 Palette registers:
 
-- r88 - r95: 8 out of 16 palette entries. Which half of the registers is determined by r32.5
-
-Note that r40.0 determines if the actual palette is accessible, or the alternate palette.
+- when r63=0:
+  - r64-r79: normal palette entries 0-15
+  - r80-r95: alternate palette entries 0-15
 
 ### Memory-mapped registers
 
@@ -556,4 +564,3 @@ The colour palette is the same as the C128 VDC's.
 - D: yellow
 - E: light grey
 - F: white
-

@@ -328,6 +328,11 @@ architecture Behavioral of Video is
 	--signal palette: AOA8(0 to 31);
 	signal pal_sel: std_logic;		-- which half is visible in the register file
 	signal pal_alt: std_logic;		-- use alternate palette
+	signal reg_window_select: std_logic_vector(7 downto 0);
+	signal regsel_sprite: std_logic_vector(7 downto 0);
+	signal window_palette_access: std_logic;
+	signal window_palette_alt: std_logic;
+	signal window_palette_index: std_logic_vector(3 downto 0);
 	
 	-- output to mixer (from SpriteEngine)
 	signal sprite_on: std_logic;
@@ -818,7 +823,7 @@ begin
 		dotclk        => dotclk,
 		crtc_sel      => crtc_sel,
 		crtc_is_data  => crtc_is_data,
-		regsel        => regsel,
+		regsel        => regsel_sprite,
 		crtc_rwb      => crtc_rwb,
 		CPU_D         => CPU_D,
 		dout          => spr_dout,
@@ -1437,14 +1442,13 @@ begin
 	
 	pbr_enA <= '1' when crtc_sel = '1' 
 							and crtc_is_data = '1' 
-							and regsel(7 downto 3) = "01011"
+							and window_palette_access = '1'
 					else '0';
 					
 	pbr_weA <= not(crtc_rwb);
 	
-	pbr_addrA(2 downto 0) <= regsel(2 downto 0);
-	pbr_addrA(3) <= pal_sel;
-	pbr_addrA(4) <= mode_altreg;
+	pbr_addrA(3 downto 0) <= window_palette_index;
+	pbr_addrA(4) <= window_palette_alt;
 	
 	pbr_diA <= CPU_D;
 	
@@ -1488,6 +1492,39 @@ begin
 
 	regsel <= crtc_reg when crtc_mapped = '0'
 				else crtc_rs_int;
+
+	reg_window_decode_p: process(regsel, reg_window_select)
+	begin
+		regsel_sprite <= regsel;
+		window_palette_access <= '0';
+		window_palette_alt <= '0';
+		window_palette_index <= (others => '0');
+
+		if (regsel >= x"40" and regsel <= x"5f") then
+			case reg_window_select is
+			when x"00" =>
+				window_palette_access <= '1';
+				window_palette_index <= regsel(3 downto 0);
+				if (regsel >= x"50") then
+					window_palette_alt <= '1';
+				end if;
+				regsel_sprite <= x"00";
+			when x"04" =>
+				regsel_sprite <= regsel - x"10";	-- R64-R95 -> R48-R79
+			when x"06" =>
+				if (regsel <= x"47") then
+					regsel_sprite <= regsel + x"10";	-- R64-R71 -> R80-R87
+				else
+					regsel_sprite <= x"00";
+				end if;
+			when others =>
+				regsel_sprite <= x"00";
+			end case;
+		elsif (regsel = x"3f" or (regsel >= x"30" and regsel <= x"57")) then
+			-- R63 is now selector, and legacy direct access to R48-R87 is disabled
+			regsel_sprite <= x"00";
+		end if;
+	end process;
 
 	crtc_is_data <= '1' when crtc_rs_int(1 downto 0) = "01" 
 								or crtc_rs_int(1 downto 0) = "11"
@@ -1576,6 +1613,7 @@ begin
 			irq_sprite_border_en <= '0';
 			irq_sprite_raster_en <= '0';
 			pal_sel <= '0';
+			reg_window_select <= x"00";
 		elsif(
 				crtc_sel = '1'
 				and crtc_is_data = '1' 
@@ -1759,11 +1797,12 @@ begin
 				-- sprite raster collisions
 			when x"2e" | x"2f" =>	-- R46-R47 (was R92-R93) - handled by SpriteEngine
 				null;
+			when x"3f" =>	-- R63: register window selector for R64-R95
+				if (CPU_D = x"00" or CPU_D = x"04" or CPU_D = x"06") then
+					reg_window_select <= CPU_D;
+				end if;
 			--
-			-- R48-R79 (x"30" - x"4f") are decoded by SpriteEngine
-			-- R80-R87 (x"50" - x"57") are decoded by SpriteEngine
-			--
-			-- R88 - R95 are reserved for palette access, see palette_bram and related signals
+			-- R64-R95 are decoded through R63 register window selector
 			--	
 			when others =>
 				null;
@@ -1952,27 +1991,14 @@ begin
 						vd_out <= collision_accum_sprite_raster;
 					when x"2e" | x"2f" =>	-- R46-R47 (was R92-R93) - read via SpriteEngine
 						vd_out <= spr_dout;
-					-- registers 0x30-0x4f are for sprites (read via SpriteEngine)
-					-- registers 0x50-0x57 are sprite foreground colours (read via SpriteEngine)
-					-- registers 0x58-0x5f are palette access
-					when x"58" =>   -- R88
-						vd_out <= pbr_doA;
-					when x"59" =>   -- R89
-						vd_out <= pbr_doA;
-					when x"5a" =>   -- R90
-						vd_out <= pbr_doA;
-					when x"5b" =>   -- R91
-						vd_out <= pbr_doA;
-					when x"5c" =>   -- R92
-						vd_out <= pbr_doA;
-					when x"5d" =>   -- R93
-						vd_out <= pbr_doA;
-					when x"5e" =>   -- R94
-						vd_out <= pbr_doA;
-					when x"5f" =>   -- R95
-						vd_out <= pbr_doA;
+					when x"3f" =>	-- R63 register window selector
+						vd_out <= reg_window_select;
 					when others =>
-						vd_out <= spr_dout;
+						if (regsel >= x"40" and regsel <= x"5f" and reg_window_select = x"00") then
+							vd_out <= pbr_doA;
+						else
+							vd_out <= spr_dout;
+						end if;
 					end case;
 				end if;
 			end if;
@@ -2040,4 +2066,3 @@ begin
 	end process;
 	
 end Behavioral;
-

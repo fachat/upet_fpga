@@ -148,7 +148,7 @@ The following are the internal Viccy registers:
 Sprite registers (subject to change):
 
 - r42: SPRT_BASE: sprite block base (high)
-  - top 8 bytes in page given here are sprite pointers
+  - in 8-sprite builds, the top 8 bytes in the page given here are sprite pointers; in 16-sprite builds, the top 16 bytes are used
   - in addition, bits 7/6 are bits 15/14 of sprite data base address
   - initializes to $97, so mapped pointers are at $87f8-$87ff
 
@@ -164,7 +164,8 @@ Sprite registers (subject to change):
   - valid values:
     - 0: r64-r79 = normal palette entries 0-15; r80-r95 = alternate palette entries 0-15
     - 4: r64-r95 = sprite control registers (old r48-r79)
-    - 6: r64-r71 = sprite foreground colours (old r80-r87)
+    - 5: if the shell/top-level build enables 16 sprites, r64-r95 = sprite control registers for sprites 8-15
+    - 6: r64-r71 = sprite foreground colours for sprites 0-7; in 16-sprite builds r72-r79 = sprite foreground colours for sprites 8-15
   - writes with any other value are ignored
 
 - r64-67: VCCY_SPRT_BASE_0: Sprite 0 (when r63=4)
@@ -194,6 +195,15 @@ Sprite registers (subject to change):
 - r88-: SPRT_BASE_6: sprite 6 (when r63=4)
 - r92-: SPRT_BASE_7: sprite 7 (when r63=4)
 
+- r64-67: VCCY_SPRT_BASE_8: Sprite 8 (when r63=5 in a 16-sprite build)
+- r68-: SPRT_BASE_9: sprite 9 (when r63=5 in a 16-sprite build)
+- r72-: SPRT_BASE_10: sprite 10 (when r63=5 in a 16-sprite build)
+- r76-: SPRT_BASE_11: sprite 11 (when r63=5 in a 16-sprite build)
+- r80-: SPRT_BASE_12: sprite 12 (when r63=5 in a 16-sprite build)
+- r84-: SPRT_BASE_13: sprite 13 (when r63=5 in a 16-sprite build)
+- r88-: SPRT_BASE_14: sprite 14 (when r63=5 in a 16-sprite build)
+- r92-: SPRT_BASE_15: sprite 15 (when r63=5 in a 16-sprite build)
+
 - r64: SPRT_COL_0: color sprite 0 (VIC-II, when r63=6)
 - r65: SPRT_COL_1: color sprite 1 (VIC-II, when r63=6)
 - r66: SPRT_COL_2: color sprite 2 (VIC-II, when r63=6)
@@ -202,12 +212,22 @@ Sprite registers (subject to change):
 - r69: SPRT_COL_5: color sprite 5 (VIC-II, when r63=6)
 - r70: SPRT_COL_6: color sprite 6 (VIC-II, when r63=6)
 - r71: SPRT_COL_7: color sprite 7 (VIC-II, when r63=6)
+- r72: SPRT_COL_8: color sprite 8 (VIC-II, when r63=6 in a 16-sprite build)
+- r73: SPRT_COL_9: color sprite 9 (VIC-II, when r63=6 in a 16-sprite build)
+- r74: SPRT_COL_10: color sprite 10 (VIC-II, when r63=6 in a 16-sprite build)
+- r75: SPRT_COL_11: color sprite 11 (VIC-II, when r63=6 in a 16-sprite build)
+- r76: SPRT_COL_12: color sprite 12 (VIC-II, when r63=6 in a 16-sprite build)
+- r77: SPRT_COL_13: color sprite 13 (VIC-II, when r63=6 in a 16-sprite build)
+- r78: SPRT_COL_14: color sprite 14 (VIC-II, when r63=6 in a 16-sprite build)
+- r79: SPRT_COL_15: color sprite 15 (VIC-II, when r63=6 in a 16-sprite build)
 
 Palette registers:
 
 - when r63=0:
   - r64-r79: normal palette entries 0-15
   - r80-r95: alternate palette entries 0-15
+
+The sprite count is selected by a generic passed from the shell/top-level VHDL into the Video block. In 8-sprite builds, only register windows 0, 4, and 6 are valid. In 16-sprite builds, window 5 is additionally enabled, sprite colour window 6 expands to r79, and the sprite pointer table grows from the top 8 bytes of the selected page to the top 16 bytes.
 
 ### Memory-mapped registers
 
@@ -538,7 +558,7 @@ In 25 (character) row mode, the screen shows 200 raster lines on top of 400 VGA 
 Similar to the VIC-II, the Viccy reads pointers to sprite data before fetching the actual sprite data.
 The VIC-II has a fixed screen size, so the address where the sprite pointers are read from can be easily defined as the last bytes in the screen memory.
 The Viccy's geometry is much more flexible, so the pointer address needs to be defined separately. This is done with register r42.
-R42 defines the page in the video bank that contains the 8 sprite data pointers in its top 8 bytes.
+R42 defines the page in the video bank that contains the sprite data pointers in its top bytes: 8 bytes for 8-sprite builds and 16 bytes for 16-sprite builds.
 
 Each sprite data pointer defines address bits 6-13, so it points to a 64 byte block (of which 63 are used for sprite data). 
 The uppermost two address bits 14 and 15 for the sprite data are also taken from r42, from bits 6 and 7.

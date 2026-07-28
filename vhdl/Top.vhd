@@ -32,6 +32,9 @@ use ieee.numeric_std.all;
 --use UNISIM.VComponents.all;
 
 entity Top is
+	Generic (
+		NUM_SPRITES: integer := 8
+	);
     Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -360,6 +363,9 @@ architecture Behavioral of Top is
 	end component;
 	
 	component Video is
+	  Generic (
+	  	NUM_SPRITES: integer := 8
+	  );
 	  Port ( 
 	   A : out  STD_LOGIC_VECTOR (15 downto 0);
 	   CPU_D : in std_logic_vector (7 downto 0);
@@ -735,6 +741,9 @@ begin
 	-- video
 	--
 	viccy: Video
+	generic map (
+		NUM_SPRITES => NUM_SPRITES
+	)
 	port map (
 		va_out,
 		cd_in, 

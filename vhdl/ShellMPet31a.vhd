@@ -32,6 +32,9 @@ use ieee.numeric_std.all;
 --use UNISIM.VComponents.all;
 
 entity ShellUPet is
+	Generic (
+		NUM_SPRITES: integer := 8
+	);
     Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -138,6 +141,9 @@ architecture Behavioral of ShellUPet is
 	signal fa_int: std_logic_vector(19 downto 15);
 	
 	component Top is
+		Generic (
+			NUM_SPRITES: integer := 8
+		);
     	Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -238,6 +244,9 @@ begin
 	FA <= fa_int(18 downto 15);
 	
 top_c: Top
+	generic map (
+		NUM_SPRITES => NUM_SPRITES
+	)
 	port map (
 	-- clock
 	q50m,

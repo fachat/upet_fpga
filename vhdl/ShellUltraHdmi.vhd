@@ -32,6 +32,9 @@ use ieee.numeric_std.all;
 --use UNISIM.VComponents.all;
 
 entity ShellUltraHdmi is
+	Generic (
+		NUM_SPRITES: integer := 8
+	);
     Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -134,6 +137,9 @@ architecture Behavioral of ShellUltraHdmi is
 	signal tmds_d2: std_logic;
 	
 	component Top is
+		Generic (
+			NUM_SPRITES: integer := 8
+		);
     	Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -294,6 +300,9 @@ architecture Behavioral of ShellUltraHdmi is
 begin
 
     top_c: Top
+	generic map (
+		NUM_SPRITES => NUM_SPRITES
+	)
 	port map (
 	-- clock
 	q50m,

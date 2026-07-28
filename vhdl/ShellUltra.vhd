@@ -32,6 +32,9 @@ use ieee.numeric_std.all;
 --use UNISIM.VComponents.all;
 
 entity ShellUltra is
+	Generic (
+		NUM_SPRITES: integer := 8
+	);
     Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -119,6 +122,9 @@ architecture Behavioral of ShellUltra is
 	signal nsel4: std_logic;
 	
 	component Top is
+		Generic (
+			NUM_SPRITES: integer := 8
+		);
     	Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -203,6 +209,9 @@ architecture Behavioral of ShellUltra is
 begin
 
     top_c: Top
+	generic map (
+		NUM_SPRITES => NUM_SPRITES
+	)
 	port map (
 	-- clock
 	q50m,

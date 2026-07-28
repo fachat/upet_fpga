@@ -32,6 +32,9 @@ use ieee.numeric_std.all;
 --use UNISIM.VComponents.all;
 
 entity Video is
+	Generic (
+		NUM_SPRITES: integer := 8
+	);
     Port ( A : out  STD_LOGIC_VECTOR (15 downto 0);
 	   CPU_D: in std_logic_vector(7 downto 0);
 		VRAM_D: in std_logic_vector(7 downto 0);
@@ -75,6 +78,17 @@ end Video;
 architecture Behavioral of Video is
 
 	type AOA4 is array(natural range<>) of std_logic_vector(3 downto 0);
+
+	function normalized_sprite_count(sprite_count: integer) return integer is
+	begin
+		if (sprite_count = 16) then
+			return 16;
+		else
+			return 8;
+		end if;
+	end function;
+
+	constant SPRITE_COUNT: integer := normalized_sprite_count(NUM_SPRITES);
 	
 	--- modes
 	signal mode_attrib: std_logic;			-- r25.6, enable attribute use
@@ -322,7 +336,7 @@ architecture Behavioral of Video is
 	signal interlace_int: std_logic;
 
 	-- sprite engine interface signals
-	signal sprite_ison: std_logic_vector(7 downto 0);
+	signal sprite_ison: std_logic_vector(15 downto 0);
 
 	-- palette
 	--signal palette: AOA8(0 to 31);
@@ -339,7 +353,7 @@ architecture Behavioral of Video is
 	signal sprite_outcol: std_logic_vector(4 downto 0);
 	signal sprite_onborder: std_logic;
 	signal sprite_onraster: std_logic;
-	signal sprite_no: integer range 0 to 7;
+	signal sprite_no: integer range 0 to 15;
 
 	-- SpriteEngine video-memory fetch interface
 	signal spr_vmem_req:   std_logic;
@@ -352,12 +366,12 @@ architecture Behavioral of Video is
 	signal collision_sprite_raster_none: std_logic;
 	signal collision_sprite_border_none: std_logic;
 	
-	signal collision_trigger_sprite_border: std_logic_vector(7 downto 0);
-	signal collision_accum_sprite_border: std_logic_vector(7 downto 0);
-	signal collision_trigger_sprite_raster: std_logic_vector(7 downto 0);
-	signal collision_accum_sprite_raster: std_logic_vector(7 downto 0);
-	signal collision_trigger_sprite_sprite: std_logic_vector(7 downto 0);
-	signal collision_accum_sprite_sprite: std_logic_vector(7 downto 0);
+	signal collision_trigger_sprite_border: std_logic_vector(15 downto 0);
+	signal collision_accum_sprite_border: std_logic_vector(15 downto 0);
+	signal collision_trigger_sprite_raster: std_logic_vector(15 downto 0);
+	signal collision_accum_sprite_raster: std_logic_vector(15 downto 0);
+	signal collision_trigger_sprite_sprite: std_logic_vector(15 downto 0);
+	signal collision_accum_sprite_sprite: std_logic_vector(15 downto 0);
 	
 	-- palette as block ram
 	signal pbr_clkA :  std_logic;
@@ -476,6 +490,9 @@ architecture Behavioral of Video is
 	end component;
 	
 	component SpriteEngine is
+	Generic (
+		NUM_SPRITES: integer := 8
+	);
 	Port (
 		-- clocks
 		phi2:         in  std_logic;
@@ -515,8 +532,8 @@ architecture Behavioral of Video is
 		sprite_outcol:   out std_logic_vector(4 downto 0);
 		sprite_onborder: out std_logic;
 		sprite_onraster: out std_logic;
-		sprite_no:       out integer range 0 to 7;
-		sprite_ison:     out std_logic_vector(7 downto 0);
+		sprite_no:       out integer range 0 to 15;
+		sprite_ison:     out std_logic_vector(15 downto 0);
 		reset:        in  std_logic
 	);
 	end component;
@@ -815,8 +832,11 @@ begin
 
 	-----------------------------------------------------------------------------
 	-- sprite handling (delegated to SpriteEngine)
-
+	
 	sprite_engine: SpriteEngine
+	generic map (
+		NUM_SPRITES => SPRITE_COUNT
+	)
 	port map (
 		phi2          => phi2,
 		qclk          => qclk,
@@ -858,20 +878,22 @@ begin
 	spritesprite_p: process(qclk, collision_trigger_sprite_sprite, collision_accum_sprite_sprite)
 	begin
 
-		collision_sprite_sprite_none <= '0';
-		if (collision_accum_sprite_sprite = "00000000") then
-			collision_sprite_sprite_none <= '1';
-		end if;
+		collision_sprite_sprite_none <= '1';
+		for i in 0 to SPRITE_COUNT - 1 loop
+			if (collision_accum_sprite_sprite(i) = '1') then
+				collision_sprite_sprite_none <= '0';
+			end if;
+		end loop;
 		
 		if (falling_edge(qclk)) then -- and dotclk(0) = '0') then
 
 			irq_sprite_sprite_trigger <= '0';
 			
-			outer_l: for i in 0 to 7 loop
+			outer_l: for i in 0 to SPRITE_COUNT - 1 loop
 			
 				collision_trigger_sprite_sprite(i) <= '0';
 				
-				inner_l: for j in 0 to 7 loop
+				inner_l: for j in 0 to SPRITE_COUNT - 1 loop
 				
 					if (i /= j) then
 					
@@ -1101,20 +1123,24 @@ begin
 	begin
 	
 		if (falling_edge(qclk)) then
-			collision_sprite_raster_none <= '0';
-			if (collision_accum_sprite_raster = "00000000") then
-				collision_sprite_raster_none <= '1';
-			end if;
-			collision_sprite_border_none <= '0';
-			if (collision_accum_sprite_border = "00000000") then
-				collision_sprite_border_none <= '1';
-			end if;
+			collision_sprite_raster_none <= '1';
+			for i in 0 to SPRITE_COUNT - 1 loop
+				if (collision_accum_sprite_raster(i) = '1') then
+					collision_sprite_raster_none <= '0';
+				end if;
+			end loop;
+			collision_sprite_border_none <= '1';
+			for i in 0 to SPRITE_COUNT - 1 loop
+				if (collision_accum_sprite_border(i) = '1') then
+					collision_sprite_border_none <= '0';
+				end if;
+			end loop;
 		end if;
 		
 		irq_sprite_raster_trigger <= '0';
 		irq_sprite_border_trigger <= '0';
 
-		coll_l: for i in 0 to 7 loop
+		coll_l: for i in 0 to SPRITE_COUNT - 1 loop
 			if (collision_sprite_border_none = '1' and collision_trigger_sprite_border(i) = '1') then
 				irq_sprite_border_trigger <= '1';
 			end if;
@@ -1511,9 +1537,17 @@ begin
 				regsel_sprite <= x"00";
 			when x"04" =>
 				regsel_sprite <= regsel - x"10";	-- R64-R95 -> R48-R79
+			when x"05" =>
+				if (SPRITE_COUNT = 16) then
+					regsel_sprite <= regsel + x"40";	-- R64-R95 -> internal R128-R159 for sprites 8-15
+				else
+					regsel_sprite <= x"00";
+				end if;
 			when x"06" =>
 				if (regsel <= x"47") then
 					regsel_sprite <= regsel + x"10";	-- R64-R71 -> R80-R87
+				elsif (SPRITE_COUNT = 16 and regsel <= x"4f") then
+					regsel_sprite <= regsel + x"58";	-- R72-R79 -> internal R160-R167 for sprite colours 8-15
 				else
 					regsel_sprite <= x"00";
 				end if;
@@ -1798,7 +1832,8 @@ begin
 			when x"2e" | x"2f" =>	-- R46-R47 (was R92-R93) - handled by SpriteEngine
 				null;
 			when x"3f" =>	-- R63: register window selector for R64-R95
-				if (CPU_D = x"00" or CPU_D = x"04" or CPU_D = x"06") then
+				if (CPU_D = x"00" or CPU_D = x"04" or CPU_D = x"06"
+						or (SPRITE_COUNT = 16 and CPU_D = x"05")) then
 					reg_window_select <= CPU_D;
 				end if;
 			--
@@ -1984,11 +2019,11 @@ begin
 					when x"2a" =>	-- R42 (was R88) - read via SpriteEngine
 						vd_out <= spr_dout;
 					when x"2b" =>	-- R43 (was R89)
-						vd_out <= collision_accum_sprite_border;
+						vd_out <= collision_accum_sprite_border(7 downto 0);
 					when x"2c" =>	-- R44 (was R90)
-						vd_out <= collision_accum_sprite_sprite;
+						vd_out <= collision_accum_sprite_sprite(7 downto 0);
 					when x"2d" =>	-- R45 (was R91)
-						vd_out <= collision_accum_sprite_raster;
+						vd_out <= collision_accum_sprite_raster(7 downto 0);
 					when x"2e" | x"2f" =>	-- R46-R47 (was R92-R93) - read via SpriteEngine
 						vd_out <= spr_dout;
 					when x"3f" =>	-- R63 register window selector

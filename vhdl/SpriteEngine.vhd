@@ -59,6 +59,7 @@ entity SpriteEngine is
 		crtc_sel:     in  std_logic;
 		crtc_is_data: in  std_logic;
 		regsel:       in  std_logic_vector(7 downto 0);
+		reg_window:   in  std_logic_vector(7 downto 0);
 		crtc_rwb:     in  std_logic;
 		CPU_D:        in  std_logic_vector(7 downto 0);
 		dout:         out std_logic_vector(7 downto 0);
@@ -213,25 +214,23 @@ begin
 	-- Sprite register select / read-data output (combinatorial)
 	--
 	-- Handles:
-	--   R42  (x"2a") sprite_base
-	--   R46  (x"2e") sprite_mcol1
-	--   R47  (x"2f") sprite_mcol2
-	--   R48-R79 (x"30"-x"4f") per-sprite registers for sprites 0-7
-	--   internal x"80"-x"9f" per-sprite registers for sprites 8-15
-	--   R80-R87 (x"50"-x"57") per-sprite foreground colours for sprites 0-7
-	--   internal x"a0"-x"a7" per-sprite foreground colours for sprites 8-15
-	sdo_p: process(regsel, crtc_sel, crtc_is_data, sprite_dout_int,
+	--   R42  (x"2a") sprite_base                         - direct access
+	--   R46  (x"2e") sprite_mcol1                        - direct access
+	--   R47  (x"2f") sprite_mcol2                        - direct access
+	--   Window 4, R64-R95 (x"40"-x"5f")  per-sprite registers, sprites 0-7
+	--   Window 5, R64-R95 (x"40"-x"5f")  per-sprite registers, sprites 8-15
+	--   Window 6, R64-R79 (x"40"-x"4f")  per-sprite foreground colours
+	--     regsel(4 downto 0) = 5-bit index within the register window
+	sdo_p: process(regsel, reg_window, crtc_sel, crtc_is_data, sprite_dout_int,
 	               sprite_base, sprite_mcol1, sprite_mcol2, sprite_fgcol)
-		variable regnum: integer range 0 to 255;
 		variable sprite_idx: integer range 0 to 15;
 	begin
 		sprite_sel <= (others => '0');
 		dout       <= (others => '0');
-		regnum := to_integer(unsigned(regsel));
 		sprite_idx := 0;
 
 		if (crtc_sel = '1' and crtc_is_data = '1') then
-			-- global sprite register reads
+			-- direct sprite register reads (R42, R46, R47)
 			case regsel is
 			when x"2a" =>
 				dout <= sprite_base;
@@ -240,32 +239,46 @@ begin
 			when x"2f" =>
 				dout(3 downto 0) <= sprite_mcol2;
 			when others =>
-				if (regnum >= 16#50# and regnum <= 16#57#) then
-					sprite_idx := regnum - 16#50#;
-					dout(3 downto 0) <= sprite_fgcol(sprite_idx);
-				elsif (SPRITE_COUNT = 16 and regnum >= 16#a0# and regnum <= 16#a7#) then
-					sprite_idx := regnum - 16#a0# + 8;
-					dout(3 downto 0) <= sprite_fgcol(sprite_idx);
-				elsif (regnum >= 16#30# and regnum <= 16#4f#) then
-					sprite_idx := (regnum - 16#30#) / 4;
-					sprite_sel(sprite_idx) <= '1';
-					dout <= sprite_dout_int(sprite_idx);
-				elsif (SPRITE_COUNT = 16 and regnum >= 16#80# and regnum <= 16#9f#) then
-					sprite_idx := 8 + ((regnum - 16#80#) / 4);
-					sprite_sel(sprite_idx) <= '1';
-					dout <= sprite_dout_int(sprite_idx);
-				end if;
+				null;
 			end case;
+
+			-- window-based register access (R64-R95 = x"40"-x"5f")
+			if (regsel >= x"40" and regsel <= x"5f") then
+				case reg_window is
+				when x"04" =>
+					-- per-sprite registers for sprites 0-7
+					-- bits 4:2 of regsel index the sprite, bits 1:0 the register within
+					sprite_idx := to_integer(unsigned(regsel(4 downto 2)));
+					sprite_sel(sprite_idx) <= '1';
+					dout <= sprite_dout_int(sprite_idx);
+				when x"05" =>
+					-- per-sprite registers for sprites 8-15 (16-sprite mode only)
+					if (SPRITE_COUNT = 16) then
+						sprite_idx := 8 + to_integer(unsigned(regsel(4 downto 2)));
+						sprite_sel(sprite_idx) <= '1';
+						dout <= sprite_dout_int(sprite_idx);
+					end if;
+				when x"06" =>
+					-- sprite foreground colours
+					-- regsel x"40"-x"4f" only (regsel(4)='0'); x"50"-x"5f" invalid here
+					if (regsel(4) = '0') then
+						sprite_idx := to_integer(unsigned(regsel(3 downto 0)));
+						if (sprite_idx < 8 or SPRITE_COUNT = 16) then
+							dout(3 downto 0) <= sprite_fgcol(sprite_idx);
+						end if;
+					end if;
+				when others =>
+					null;
+				end case;
+			end if;
 		end if;
 	end process;
 
 	-- -------------------------------------------------------------------------
 	-- Global sprite register file (write path)
 	regfile_p: process(phi2, reset)
-		variable regnum: integer range 0 to 255;
 		variable sprite_idx: integer range 0 to 15;
 	begin
-		regnum := to_integer(unsigned(regsel));
 		sprite_idx := 0;
 		if (falling_edge(phi2)) then
 		 if (reset = '1') then
@@ -276,6 +289,7 @@ begin
 				sprite_fgcol(i) <= "0000";
 			end loop;
 		 elsif (crtc_sel = '1' and crtc_is_data = '1' and crtc_rwb = '0') then
+			-- direct sprite register writes (R42, R46, R47)
 			case regsel is
 			when x"2a" =>  -- R42: sprite base address
 				sprite_base <= CPU_D;
@@ -284,14 +298,18 @@ begin
 			when x"2f" =>  -- R47: sprite multi-colour 2
 				sprite_mcol2 <= CPU_D(3 downto 0);
 			when others =>
-				if (regnum >= 16#50# and regnum <= 16#57#) then
-					sprite_idx := regnum - 16#50#;
-					sprite_fgcol(sprite_idx) <= CPU_D(3 downto 0);
-				elsif (SPRITE_COUNT = 16 and regnum >= 16#a0# and regnum <= 16#a7#) then
-					sprite_idx := regnum - 16#a0# + 8;
-					sprite_fgcol(sprite_idx) <= CPU_D(3 downto 0);
-				end if;
+				null;
 			end case;
+			-- window 6: sprite foreground colour writes
+			-- regsel x"40"-x"4f" only (regsel(4)='0' within x"40"-x"5f")
+			if (regsel >= x"40" and regsel <= x"5f" and reg_window = x"06") then
+				if (regsel(4) = '0') then
+					sprite_idx := to_integer(unsigned(regsel(3 downto 0)));
+					if (sprite_idx < 8 or SPRITE_COUNT = 16) then
+						sprite_fgcol(sprite_idx) <= CPU_D(3 downto 0);
+					end if;
+				end if;
+			end if;
 		 end if;
 		end if;
 	end process;

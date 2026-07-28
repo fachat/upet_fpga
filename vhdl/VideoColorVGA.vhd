@@ -343,7 +343,6 @@ architecture Behavioral of Video is
 	signal pal_sel: std_logic;		-- which half is visible in the register file
 	signal pal_alt: std_logic;		-- use alternate palette
 	signal reg_window_select: std_logic_vector(7 downto 0);
-	signal regsel_sprite: std_logic_vector(7 downto 0);
 	signal window_palette_access: std_logic;
 	signal window_palette_alt: std_logic;
 	signal window_palette_index: std_logic_vector(3 downto 0);
@@ -502,6 +501,7 @@ architecture Behavioral of Video is
 		crtc_sel:     in  std_logic;
 		crtc_is_data: in  std_logic;
 		regsel:       in  std_logic_vector(7 downto 0);
+		reg_window:   in  std_logic_vector(7 downto 0);
 		crtc_rwb:     in  std_logic;
 		CPU_D:        in  std_logic_vector(7 downto 0);
 		dout:         out std_logic_vector(7 downto 0);
@@ -843,7 +843,8 @@ begin
 		dotclk        => dotclk,
 		crtc_sel      => crtc_sel,
 		crtc_is_data  => crtc_is_data,
-		regsel        => regsel_sprite,
+		regsel        => regsel,
+		reg_window    => reg_window_select,
 		crtc_rwb      => crtc_rwb,
 		CPU_D         => CPU_D,
 		dout          => spr_dout,
@@ -1521,42 +1522,16 @@ begin
 
 	reg_window_decode_p: process(regsel, reg_window_select)
 	begin
-		regsel_sprite <= regsel;
 		window_palette_access <= '0';
 		window_palette_alt <= '0';
 		window_palette_index <= (others => '0');
 
-		if (regsel >= x"40" and regsel <= x"5f") then
-			case reg_window_select is
-			when x"00" =>
-				window_palette_access <= '1';
-				window_palette_index <= regsel(3 downto 0);
-				if (regsel >= x"50") then
-					window_palette_alt <= '1';
-				end if;
-				regsel_sprite <= x"00";
-			when x"04" =>
-				regsel_sprite <= regsel - x"10";	-- R64-R95 -> R48-R79
-			when x"05" =>
-				if (SPRITE_COUNT = 16) then
-					regsel_sprite <= regsel + x"40";	-- R64-R95 -> internal R128-R159 for sprites 8-15
-				else
-					regsel_sprite <= x"00";
-				end if;
-			when x"06" =>
-				if (regsel <= x"47") then
-					regsel_sprite <= regsel + x"10";	-- R64-R71 -> R80-R87
-				elsif (SPRITE_COUNT = 16 and regsel <= x"4f") then
-					regsel_sprite <= regsel + x"58";	-- R72-R79 -> internal R160-R167 for sprite colours 8-15
-				else
-					regsel_sprite <= x"00";
-				end if;
-			when others =>
-				regsel_sprite <= x"00";
-			end case;
-		elsif (regsel = x"3f" or (regsel >= x"30" and regsel <= x"57")) then
-			-- R63 is now selector, and legacy direct access to R48-R87 is disabled
-			regsel_sprite <= x"00";
+		if (regsel >= x"40" and regsel <= x"5f" and reg_window_select = x"00") then
+			window_palette_access <= '1';
+			window_palette_index <= regsel(3 downto 0);
+			if (regsel >= x"50") then
+				window_palette_alt <= '1';
+			end if;
 		end if;
 	end process;
 

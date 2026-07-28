@@ -415,7 +415,7 @@ begin
 	--                                 sprites 0-7  -> $f8-$ff
 	--                                 sprites 8-15 -> $f0-$f7
 	--   During a sprite-data fetch:    {sprite_base[7:6], sprite_data_ptr[7:0], sprite_fetch_offset[5:0]}
-	sprite_ptr_addr_low <= "111" & (not sprite_fetch_idx_v(3)) & sprite_fetch_idx_v(2 downto 0);
+	sprite_ptr_addr_low <= "1111" & (not sprite_fetch_idx_v(3)) & sprite_fetch_idx_v(2 downto 0);
 
 	vmem_addr <= sprite_base & sprite_ptr_addr_low
 	                  when sprite_phase = "00"

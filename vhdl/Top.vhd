@@ -914,7 +914,7 @@ begin
 			--pageA_map <= "00001010";
 			hide_bogus <= '0';
 			hdmi_on <= '0';
-			reg_bank_sel <= x"ff";
+			reg_bank_sel <= x"e8";
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0') then
 			if (ca_in(3 downto 0) = x"0") then
 				-- register bank select: only $e8, $00, $fe, $ff are valid values

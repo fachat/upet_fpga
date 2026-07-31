@@ -32,6 +32,14 @@ use ieee.numeric_std.all;
 --use UNISIM.VComponents.all;
 
 entity ShellUltra is
+	Generic (
+		NUM_SPRITES:  integer := 8;
+		BOARD_NAME:   string  := "UPet";
+		HWID_L:       std_logic_vector(7 downto 0) := x"80";
+		HWID_H:       std_logic_vector(7 downto 0) := x"81";
+		HW_REV_MAJOR: std_logic_vector(7 downto 0) := x"01";
+		HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02"
+	);
     Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -119,6 +127,14 @@ architecture Behavioral of ShellUltra is
 	signal nsel4: std_logic;
 	
 	component Top is
+		Generic (
+			NUM_SPRITES:  integer := 8;
+			BOARD_NAME:   string  := "UPet";
+			HWID_L:       std_logic_vector(7 downto 0) := x"80";
+			HWID_H:       std_logic_vector(7 downto 0) := x"81";
+			HW_REV_MAJOR: std_logic_vector(7 downto 0) := x"01";
+			HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02"
+		);
     	Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -203,6 +219,14 @@ architecture Behavioral of ShellUltra is
 begin
 
     top_c: Top
+	generic map (
+		NUM_SPRITES  => NUM_SPRITES,
+		BOARD_NAME   => BOARD_NAME,
+		HWID_L       => HWID_L,
+		HWID_H       => HWID_H,
+		HW_REV_MAJOR => HW_REV_MAJOR,
+		HW_REV_MINOR => HW_REV_MINOR
+	)
 	port map (
 	-- clock
 	q50m,

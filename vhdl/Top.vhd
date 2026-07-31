@@ -32,6 +32,14 @@ use ieee.numeric_std.all;
 --use UNISIM.VComponents.all;
 
 entity Top is
+	Generic (
+		NUM_SPRITES:  integer := 8;
+		BOARD_NAME:   string  := "UPet";
+		HWID_L:       std_logic_vector(7 downto 0) := x"80";
+		HWID_H:       std_logic_vector(7 downto 0) := x"81";
+		HW_REV_MAJOR: std_logic_vector(7 downto 0) := x"01";
+		HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02"
+	);
     Port ( 
 	-- clock
 	   q50m : in std_logic;
@@ -136,6 +144,7 @@ architecture Behavioral of Top is
 	
 	-- control
 	signal s0_d: std_logic_vector(7 downto 0);
+	signal reg_bank_sel: std_logic_vector(7 downto 0);	-- register bank select ($e800)
 	
 	-- Initial program load
 	signal ipl: std_logic;		-- Initial program load from SPI flash
@@ -200,7 +209,6 @@ architecture Behavioral of Top is
 	signal is8296 : std_logic;
 	signal lowbank : std_logic_vector(3 downto 0);
 	signal hibank : std_logic_vector(3 downto 0);
-	signal hibank_user : std_logic_vector(3 downto 0);
 	signal vidblock : std_logic_vector(2 downto 0);
 	signal is_user_reg: std_logic;
 	signal vsize : std_logic_vector(1 downto 0);
@@ -360,6 +368,9 @@ architecture Behavioral of Top is
 	end component;
 	
 	component Video is
+	  Generic (
+	  	NUM_SPRITES: integer := 8
+	  );
 	  Port ( 
 	   A : out  STD_LOGIC_VECTOR (15 downto 0);
 	   CPU_D : in std_logic_vector (7 downto 0);
@@ -454,6 +465,24 @@ architecture Behavioral of Top is
 			return('0');
 		end if;
 	end function To_Std_Logic;
+
+	-- Board-name byte lookup table (up to 15 chars, NUL-padded)
+	type T_BOARD_BYTES is array(0 to 14) of std_logic_vector(7 downto 0);
+
+	function str_to_bytes(s: string; len: integer) return T_BOARD_BYTES is
+		variable result: T_BOARD_BYTES;
+	begin
+		for i in 0 to len-1 loop
+			if i+1 <= s'length then
+				result(i) := std_logic_vector(to_unsigned(character'pos(s(i+1)), 8));
+			else
+				result(i) := (others => '0');
+			end if;
+		end loop;
+		return result;
+	end function str_to_bytes;
+
+	constant BOARD_BYTES: T_BOARD_BYTES := str_to_bytes(BOARD_NAME, 15);
 
 begin
 
@@ -655,7 +684,9 @@ begin
 
 	-- internal selects
 	-- $e800-$e80b. Note that $e80c-$e80f is now the I2C controller
-	sel0 		<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"0" and (ca_in(3) = '0' or ca_in(2) = '0') else '0';
+	sel0 		<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"0"
+					and ((ca_in(3) = '0' or ca_in(2) = '0') or reg_bank_sel /= x"ff")
+				else '0';
 	dac_sel 	<= '1' when m_iosel = '1' and ca_in(7 downto 4) = x"3" else '0';
 	vid_sel	<= '1' when m_iosel = '1' and 
 							((vis_regmap = '0' and ca_in(7 downto 4) = x"8")
@@ -735,6 +766,9 @@ begin
 	-- video
 	--
 	viccy: Video
+	generic map (
+		NUM_SPRITES => NUM_SPRITES
+	)
 	port map (
 		va_out,
 		cd_in, 
@@ -822,8 +856,8 @@ begin
 	--spi_slowclk <= dotclk(2);
 	spi_slowclk <= clk1m;
 	
-	-- CPU access to SPI registers
-	spi_cs <= To_Std_Logic(sel0 = '1' and ca_in(3) = '1' and ca_in(2) = '0');
+	-- CPU access to SPI registers (only when register bank select = $ff)
+	spi_cs <= To_Std_Logic(sel0 = '1' and ca_in(3) = '1' and ca_in(2) = '0' and reg_bank_sel = x"ff");
 	
 	-- SPI serial data in - shared except IN3 for SD card
 	spi_in <= spi_in3 when spi_sel = "011" else
@@ -853,7 +887,7 @@ begin
 	------------------------------------------------------
 	-- control registers
 	
-	Ctrl_P: process(sel0, phi2_int, rwb, reset, ca_in, D)
+	Ctrl_P: process(sel0, phi2_int, rwb, reset, ca_in, D, reg_bank_sel)
 	begin
 		if (reset = '1') then
 			vis_80_in <= '0';
@@ -868,7 +902,6 @@ begin
 			is8296 <= '0';
 			lowbank <= (others => '0');
 			hibank <= "0001";
-			hibank_user <= "0001";
 			vidblock <= "010";
 			is_user_reg <= '0';
 			boot <= '1';
@@ -881,119 +914,142 @@ begin
 			--pageA_map <= "00001010";
 			hide_bogus <= '0';
 			hdmi_on <= '0';
-		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0' and ca_in(3) = '0') then
-			-- Write to $E80x
-			case (ca_in(2 downto 0)) is
-			when "000" =>
-				-- video controls
-				hdmi_on <= D(0);
-				vis_80_in <= D(1);
-				screenb0 <= not(D(2));
-				isnocolmap <= D(3);
-				is_user_reg <= D(4);
-				vsize <= D(6 downto 5);
-				vis_enable <= not(D(7));
-			when "001" =>
-				-- memory map controls
-				lockb0 <= D(0);
-				boot <= D(1);
-				is8296 <= D(3);
-				wp_rom9 <= D(4);
-				wp_romA <= D(5);
-				wp_romB <= D(6);
-				wp_romPET <= D(7);
-			when "010" =>
-				-- bank controls
-				lowbank <= D(3 downto 0);
-			when "011" =>
-				-- speed controls
-				mode(1 downto 0) <= D(1 downto 0); -- speed bits
-				hide_bogus <= D(7);
-			when "100" =>
-				-- bus controls
-				bus_window_9 <= D(0);
-				bus_window_c <= D(1);
-				bus_win_9_is_io <= D(2);
-				bus_win_c_is_io <= D(3);
-			when "101" =>
-				-- video bank controls
-				vidblock <= D(2 downto 0);
-			when "110" =>
-				-- page 9 map
-				page9_map <= D;
-			when "111" =>
-				-- upper 32k bank map
-				if (is_user_reg = '1') then
-					hibank_user <= D(3 downto 0);
-				else
-					hibank <= D(3 downto 0);
+			reg_bank_sel <= x"e8";
+		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0') then
+			if (ca_in(3 downto 0) = x"0") then
+				-- register bank select: only $e8, $00, $fe, $ff are valid values
+				if (D = x"e8" or D = x"00" or D = x"fe" or D = x"ff") then
+					reg_bank_sel <= D;
 				end if;
-			when others =>
-				null;
-			end case;
+			elsif (ca_in(3) = '0' and reg_bank_sel = x"ff") then
+				-- Write to $E801-$E807, only when register bank is $ff
+				case (ca_in(2 downto 0)) is
+				when "001" =>
+					-- memory map controls
+					lockb0 <= D(0);
+					boot <= D(1);
+					is8296 <= D(3);
+					wp_rom9 <= D(4);
+					wp_romA <= D(5);
+					wp_romB <= D(6);
+					wp_romPET <= D(7);
+				when "010" =>
+					-- bank controls
+					lowbank <= D(3 downto 0);
+				when "011" =>
+					-- speed controls
+					mode(1 downto 0) <= D(1 downto 0); -- speed bits
+					hide_bogus <= D(7);
+				when "100" =>
+					-- bus controls
+					bus_window_9 <= D(0);
+					bus_window_c <= D(1);
+					bus_win_9_is_io <= D(2);
+					bus_win_c_is_io <= D(3);
+				when "101" =>
+					-- video bank controls
+					vidblock <= D(2 downto 0);
+				when "110" =>
+					-- page 9 map
+					page9_map <= D;
+				when "111" =>
+					-- video controls
+					hdmi_on <= D(0);
+					vis_80_in <= D(1);
+					screenb0 <= not(D(2));
+					isnocolmap <= D(3);
+					vsize <= D(6 downto 5);
+					vis_enable <= not(D(7));
+				when others =>
+					null;
+				end case;
+			end if;
 		end if;
 	end process;
 
-	Ctrl_Rd: process(sel0, phi2_int, rwb, reset, ca_in, D,
+	Ctrl_Rd: process(sel0, phi2_int, rwb, reset, ca_in, D, reg_bank_sel,
 		vis_80_in, screenb0, isnocolmap, vis_enable, lockb0, boot, is8296, 
 		wp_rom9, wp_roma, wp_romb, wp_rompet, lowbank, hibank, mode,
 		bus_window_9, bus_window_c, bus_win_9_is_io, bus_win_c_is_io,
 		vidblock, page9_map--, pageA_map
 	)
+		variable name_idx: integer range 0 to 14;
 	begin
-	
+
 		s0_d <= (others => '0');
 
-		if (sel0='1' and rwb='1' and ca_in(3) = '0') then
-			-- Read from to $E80x			
-			case (ca_in(2 downto 0)) is
-			when "000" =>
-				-- video controls
-				s0_d(0) <= hdmi_on;
-				s0_d(1) <= vis_80_in;
-				s0_d(2) <= not(screenb0);
-				s0_d(3) <= isnocolmap;
-				s0_d(4) <= is_user_reg;
-				s0_d(6 downto 5) <= vsize;
-				s0_d(7) <= not(vis_enable);
-			when "001" =>
-				-- memory map controls
-				s0_d(0) <= lockb0;
-				s0_d(1) <= boot;
-				s0_d(3) <= is8296;
-				s0_d(4) <= wp_rom9;
-				s0_d(5) <= wp_romA;
-				s0_d(6) <= wp_romB;
-				s0_d(7) <= wp_romPET;
-			when "010" =>
-				-- bank controls
-				s0_d(3 downto 0) <= lowbank;
-			when "011" =>
-				-- speed controls
-				s0_d(1 downto 0) <= mode(1 downto 0); -- speed bits
-				s0_d(7) <= hide_bogus;
-			when "100" =>
-				-- bus controls
-				s0_d(0) <= bus_window_9;
-				s0_d(1) <= bus_window_c;
-				s0_d(2) <= bus_win_9_is_io;
-				s0_d(3) <= bus_win_c_is_io;
-			when "101" =>
-				-- video bank controls
-				s0_d(2 downto 0) <= vidblock;
-			when "110" =>
-				-- page 9 map
-				s0_d <= page9_map;
-			when "111" =>
-				-- hi 32k bank map
-				if (is_user_reg = '1') then
-					s0_d(3 downto 0) <= hibank_user;
-				else
-					s0_d(3 downto 0) <= hibank;
+		if (sel0='1' and rwb='1') then
+			if (reg_bank_sel = x"ff") then
+				-- Bank $ff: legacy register access at $E800-$E807
+				if (ca_in(3) = '0') then
+					case (ca_in(2 downto 0)) is
+					when "000" =>
+						-- register bank select
+						s0_d <= reg_bank_sel;
+					when "001" =>
+						-- memory map controls
+						s0_d(0) <= lockb0;
+						s0_d(1) <= boot;
+						s0_d(3) <= is8296;
+						s0_d(4) <= wp_rom9;
+						s0_d(5) <= wp_romA;
+						s0_d(6) <= wp_romB;
+						s0_d(7) <= wp_romPET;
+					when "010" =>
+						-- bank controls
+						s0_d(3 downto 0) <= lowbank;
+					when "011" =>
+						-- speed controls
+						s0_d(1 downto 0) <= mode(1 downto 0); -- speed bits
+						s0_d(7) <= hide_bogus;
+					when "100" =>
+						-- bus controls
+						s0_d(0) <= bus_window_9;
+						s0_d(1) <= bus_window_c;
+						s0_d(2) <= bus_win_9_is_io;
+						s0_d(3) <= bus_win_c_is_io;
+					when "101" =>
+						-- video bank controls
+						s0_d(2 downto 0) <= vidblock;
+					when "110" =>
+						-- page 9 map
+						s0_d <= page9_map;
+					when "111" =>
+						-- video controls
+						s0_d(0) <= hdmi_on;
+						s0_d(1) <= vis_80_in;
+						s0_d(2) <= not(screenb0);
+						s0_d(3) <= isnocolmap;
+						s0_d(6 downto 5) <= vsize;
+						s0_d(7) <= not(vis_enable);
+					when others =>
+						s0_d <= (others => '0');
+					end case;
 				end if;
-			when others =>
-				s0_d <= (others => '0');
-			end case;
+			elsif (reg_bank_sel = x"e8") then
+				-- Bank $e8: return $e8 for the whole $e800-$e80f range
+				s0_d <= x"e8";
+			elsif (reg_bank_sel = x"fe") then
+				-- Bank $fe: $e800 = $fe; $e801-$e80f = BOARD_NAME (NUL-padded)
+				if (ca_in(3 downto 0) = x"0") then
+					s0_d <= x"fe";
+				else
+					name_idx := to_integer(unsigned(ca_in(3 downto 0))) - 1;
+					s0_d <= BOARD_BYTES(name_idx);
+				end if;
+			elsif (reg_bank_sel = x"00") then
+				-- Bank $00: $e800 = $00; $e801-$e80f = hardware info
+				case (ca_in(3 downto 0)) is
+				when x"0" => s0_d <= x"00";         -- register bank select
+				when x"1" => s0_d <= x"e2";         -- format byte
+				when x"2" => s0_d <= HWID_L;        -- hardware identifier low
+				when x"3" => s0_d <= HWID_H;        -- hardware identifier high
+				when x"4" => s0_d <= HW_REV_MAJOR;  -- hardware revision major
+				when x"5" => s0_d <= HW_REV_MINOR;  -- hardware revision minor
+				when x"f" => s0_d <= x"fe";         -- printable ID string identifier
+				when others => s0_d <= (others => '0');
+				end case;
+			end if;
 		end if;
 	end process;
 

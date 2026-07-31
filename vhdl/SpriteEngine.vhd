@@ -9,7 +9,7 @@
 -- Target Devices:
 -- Tool versions:
 -- Description:
---   Sprite engine: manages all 8 sprites, the fetch state machine, the priority
+--   Sprite engine: manages 8 or 16 sprites, the fetch state machine, the priority
 --   multiplexer and the sprite-specific register file. This component is
 --   instantiated once from VideoColorVGA.vhd and replaces the eight individual
 --   Sprite instantiations together with the surrounding sprite-fetch logic that
@@ -20,7 +20,8 @@
 --   Clocks        : phi2, qclk, dotclk
 --   Register I/O  : crtc_sel / crtc_is_data / regsel / crtc_rwb / CPU_D / dout
 --                   Handles registers R42 (sprite_base), R46-R47 (mcol),
---                   R48-R79 (per-sprite), R80-R87 (per-sprite fg colour).
+--                   R48-R79 / internal R128-R159 (per-sprite),
+--                   R80-R87 / internal R160-R167 (per-sprite fg colour).
 --   Video memory  : vmem_req / vmem_fetch / vmem_addr / vmem_data
 --                   vmem_req  - request: next memory access should be for sprites
 --                   vmem_fetch - a sprite fetch is active right now (contribution
@@ -45,6 +46,9 @@ use IEEE.STD_LOGIC_unsigned.ALL;
 use ieee.numeric_std.all;
 
 entity SpriteEngine is
+	Generic (
+		NUM_SPRITES: integer := 8
+	);
 	Port (
 		-- clocks
 		phi2:         in  std_logic;
@@ -55,6 +59,7 @@ entity SpriteEngine is
 		crtc_sel:     in  std_logic;
 		crtc_is_data: in  std_logic;
 		regsel:       in  std_logic_vector(7 downto 0);
+		reg_window:   in  std_logic_vector(7 downto 0);
 		crtc_rwb:     in  std_logic;
 		CPU_D:        in  std_logic_vector(7 downto 0);
 		dout:         out std_logic_vector(7 downto 0);
@@ -89,8 +94,8 @@ entity SpriteEngine is
 		sprite_outcol:   out std_logic_vector(4 downto 0);
 		sprite_onborder: out std_logic;
 		sprite_onraster: out std_logic;
-		sprite_no:       out integer range 0 to 7;
-		sprite_ison:     out std_logic_vector(7 downto 0); -- per-sprite active-pixel flag
+		sprite_no:       out integer range 0 to 15;
+		sprite_ison:     out std_logic_vector(15 downto 0); -- per-sprite active-pixel flag
 
 		reset:        in  std_logic
 	);
@@ -102,6 +107,18 @@ architecture Behavioral of SpriteEngine is
 	type AOA5 is array(natural range<>) of std_logic_vector(4 downto 0);
 	type AOA6 is array(natural range<>) of std_logic_vector(5 downto 0);
 	type AOA8 is array(natural range<>) of std_logic_vector(7 downto 0);
+
+	function normalized_sprite_count(sprite_count: integer) return integer is
+	begin
+		if (sprite_count = 16) then
+			return 16;
+		else
+			return 8;
+		end if;
+	end function;
+
+	constant SPRITE_COUNT: integer := normalized_sprite_count(NUM_SPRITES);
+	constant FETCH_STATE_LAST: integer := SPRITE_COUNT * 4 - 1;
 
 	-- individual Sprite sub-component (Sprite.vhd)
 	component Sprite is
@@ -149,17 +166,17 @@ architecture Behavioral of SpriteEngine is
 	end component;
 
 	-- per-sprite signals
-	signal sprite_sel:          std_logic_vector(7 downto 0);
-	signal sprite_dout_int:     AOA8(0 to 7);
-	signal sprite_fetch_offset: AOA6(0 to 7);
-	signal sprite_enabled:      std_logic_vector(7 downto 0);
-	signal sprite_ison_int:     std_logic_vector(7 downto 0);
-	signal sprite_overraster:   std_logic_vector(7 downto 0);
-	signal sprite_overborder:   std_logic_vector(7 downto 0);
-	signal sprite_outbits:      AOA5(0 to 7);
+	signal sprite_sel:          std_logic_vector(15 downto 0);
+	signal sprite_dout_int:     AOA8(0 to 15);
+	signal sprite_fetch_offset: AOA6(0 to 15);
+	signal sprite_enabled:      std_logic_vector(15 downto 0);
+	signal sprite_ison_int:     std_logic_vector(15 downto 0);
+	signal sprite_overraster:   std_logic_vector(15 downto 0);
+	signal sprite_overborder:   std_logic_vector(15 downto 0);
+	signal sprite_outbits:      AOA5(0 to 15);
 
 	-- global sprite registers
-	signal sprite_fgcol:  AOA4(0 to 7);
+	signal sprite_fgcol:  AOA4(0 to 15);
 	signal sprite_mcol1:  std_logic_vector(3 downto 0);
 	signal sprite_mcol2:  std_logic_vector(3 downto 0);
 	signal sprite_base:   std_logic_vector(7 downto 0);
@@ -167,17 +184,18 @@ architecture Behavioral of SpriteEngine is
 	-- fetch state machine
 	signal sprite_phase:        std_logic_vector(1 downto 0);
 	signal sprite_req_state:    integer range 0 to 63;
-	signal sprite_req_idx:      integer range 0 to 7;
+	signal sprite_req_idx:      integer range 0 to 15;
 	signal sprite_req_win:      std_logic;
 	signal sprite_fetch_state:  integer range 0 to 63;
-	signal sprite_fetch_idx:    integer range 0 to 7;
-	signal sprite_fetch_idx_v:  std_logic_vector(2 downto 0);
+	signal sprite_fetch_idx:    integer range 0 to 15;
+	signal sprite_fetch_idx_v:  std_logic_vector(3 downto 0);
 	signal sprite_fetch_win:    std_logic;
 	signal sprite_fetch_done:   std_logic;
 	signal sprite_req_active:   std_logic;
 	signal sprite_fetch_active: std_logic;
 	signal sprite_data_ptr:     std_logic_vector(7 downto 0);
-	signal sprite_fetch_ce:     std_logic_vector(7 downto 0);
+	signal sprite_fetch_ce:     std_logic_vector(15 downto 0);
+	signal sprite_ptr_addr_low: std_logic_vector(7 downto 0);
 
 	signal fetch_sprite_en:     std_logic;
 	signal req_sprite_en:       std_logic;
@@ -196,19 +214,23 @@ begin
 	-- Sprite register select / read-data output (combinatorial)
 	--
 	-- Handles:
-	--   R42  (x"2a") sprite_base
-	--   R46  (x"2e") sprite_mcol1
-	--   R47  (x"2f") sprite_mcol2
-	--   R48-R79 (x"30"-x"4f") per-sprite registers via individual Sprite sub-components
-	--   R80-R87 (x"50"-x"57") per-sprite foreground colours
-	sdo_p: process(regsel, crtc_sel, crtc_is_data, sprite_dout_int,
+	--   R42  (x"2a") sprite_base                         - direct access
+	--   R46  (x"2e") sprite_mcol1                        - direct access
+	--   R47  (x"2f") sprite_mcol2                        - direct access
+	--   Window 4, R64-R95 (x"40"-x"5f")  per-sprite registers, sprites 0-7
+	--   Window 5, R64-R95 (x"40"-x"5f")  per-sprite registers, sprites 8-15
+	--   Window 6, R64-R79 (x"40"-x"4f")  per-sprite foreground colours
+	--     regsel(4 downto 0) = 5-bit index within the register window
+	sdo_p: process(regsel, reg_window, crtc_sel, crtc_is_data, sprite_dout_int,
 	               sprite_base, sprite_mcol1, sprite_mcol2, sprite_fgcol)
+		variable sprite_idx: integer range 0 to 15;
 	begin
 		sprite_sel <= (others => '0');
 		dout       <= (others => '0');
+		sprite_idx := 0;
 
 		if (crtc_sel = '1' and crtc_is_data = '1') then
-			-- global sprite register reads
+			-- direct sprite register reads (R42, R46, R47)
 			case regsel is
 			when x"2a" =>
 				dout <= sprite_base;
@@ -216,69 +238,58 @@ begin
 				dout(3 downto 0) <= sprite_mcol1;
 			when x"2f" =>
 				dout(3 downto 0) <= sprite_mcol2;
-			when x"50" =>
-				dout(3 downto 0) <= sprite_fgcol(0);
-			when x"51" =>
-				dout(3 downto 0) <= sprite_fgcol(1);
-			when x"52" =>
-				dout(3 downto 0) <= sprite_fgcol(2);
-			when x"53" =>
-				dout(3 downto 0) <= sprite_fgcol(3);
-			when x"54" =>
-				dout(3 downto 0) <= sprite_fgcol(4);
-			when x"55" =>
-				dout(3 downto 0) <= sprite_fgcol(5);
-			when x"56" =>
-				dout(3 downto 0) <= sprite_fgcol(6);
-			when x"57" =>
-				dout(3 downto 0) <= sprite_fgcol(7);
 			when others =>
-				-- per-sprite register reads (R48-R79, decoded via bits 6:2)
-				case regsel(6 downto 2) is
-				when "01100" =>   -- sprite 0  R48-R51
-					sprite_sel(0) <= '1';
-					dout <= sprite_dout_int(0);
-				when "01101" =>   -- sprite 1  R52-R55
-					sprite_sel(1) <= '1';
-					dout <= sprite_dout_int(1);
-				when "01110" =>   -- sprite 2
-					sprite_sel(2) <= '1';
-					dout <= sprite_dout_int(2);
-				when "01111" =>   -- sprite 3
-					sprite_sel(3) <= '1';
-					dout <= sprite_dout_int(3);
-				when "10000" =>   -- sprite 4
-					sprite_sel(4) <= '1';
-					dout <= sprite_dout_int(4);
-				when "10001" =>   -- sprite 5
-					sprite_sel(5) <= '1';
-					dout <= sprite_dout_int(5);
-				when "10010" =>   -- sprite 6
-					sprite_sel(6) <= '1';
-					dout <= sprite_dout_int(6);
-				when "10011" =>   -- sprite 7
-					sprite_sel(7) <= '1';
-					dout <= sprite_dout_int(7);
+				null;
+			end case;
+
+			-- window-based register access (R64-R95 = x"40"-x"5f")
+			if (regsel >= x"40" and regsel <= x"5f") then
+				case reg_window is
+				when x"04" =>
+					-- per-sprite registers for sprites 0-7
+					-- bits 4:2 of regsel index the sprite, bits 1:0 the register within
+					sprite_idx := to_integer(unsigned(regsel(4 downto 2)));
+					sprite_sel(sprite_idx) <= '1';
+					dout <= sprite_dout_int(sprite_idx);
+				when x"05" =>
+					-- per-sprite registers for sprites 8-15 (16-sprite mode only)
+					if (SPRITE_COUNT = 16) then
+						sprite_idx := 8 + to_integer(unsigned(regsel(4 downto 2)));
+						sprite_sel(sprite_idx) <= '1';
+						dout <= sprite_dout_int(sprite_idx);
+					end if;
+				when x"06" =>
+					-- sprite foreground colours
+					-- regsel x"40"-x"4f" only (regsel(4)='0'); x"50"-x"5f" invalid here
+					if (regsel(4) = '0') then
+						sprite_idx := to_integer(unsigned(regsel(3 downto 0)));
+						if (sprite_idx < 8 or SPRITE_COUNT = 16) then
+							dout(3 downto 0) <= sprite_fgcol(sprite_idx);
+						end if;
+					end if;
 				when others =>
 					null;
 				end case;
-			end case;
+			end if;
 		end if;
 	end process;
 
 	-- -------------------------------------------------------------------------
 	-- Global sprite register file (write path)
 	regfile_p: process(phi2, reset)
+		variable sprite_idx: integer range 0 to 15;
 	begin
+		sprite_idx := 0;
 		if (falling_edge(phi2)) then
 		 if (reset = '1') then
 			sprite_base  <= "10010111";
 			sprite_mcol1 <= "0000";
 			sprite_mcol2 <= "0000";
-			for i in 0 to 7 loop
+			for i in 0 to 15 loop
 				sprite_fgcol(i) <= "0000";
 			end loop;
 		 elsif (crtc_sel = '1' and crtc_is_data = '1' and crtc_rwb = '0') then
+			-- direct sprite register writes (R42, R46, R47)
 			case regsel is
 			when x"2a" =>  -- R42: sprite base address
 				sprite_base <= CPU_D;
@@ -286,25 +297,19 @@ begin
 				sprite_mcol1 <= CPU_D(3 downto 0);
 			when x"2f" =>  -- R47: sprite multi-colour 2
 				sprite_mcol2 <= CPU_D(3 downto 0);
-			when x"50" =>  -- R80: sprite 0 foreground colour
-				sprite_fgcol(0) <= CPU_D(3 downto 0);
-			when x"51" =>  -- R81
-				sprite_fgcol(1) <= CPU_D(3 downto 0);
-			when x"52" =>  -- R82
-				sprite_fgcol(2) <= CPU_D(3 downto 0);
-			when x"53" =>  -- R83
-				sprite_fgcol(3) <= CPU_D(3 downto 0);
-			when x"54" =>  -- R84
-				sprite_fgcol(4) <= CPU_D(3 downto 0);
-			when x"55" =>  -- R85
-				sprite_fgcol(5) <= CPU_D(3 downto 0);
-			when x"56" =>  -- R86
-				sprite_fgcol(6) <= CPU_D(3 downto 0);
-			when x"57" =>  -- R87
-				sprite_fgcol(7) <= CPU_D(3 downto 0);
 			when others =>
 				null;
 			end case;
+			-- window 6: sprite foreground colour writes
+			-- regsel x"40"-x"4f" only (regsel(4)='0' within x"40"-x"5f")
+			if (regsel >= x"40" and regsel <= x"5f" and reg_window = x"06") then
+				if (regsel(4) = '0') then
+					sprite_idx := to_integer(unsigned(regsel(3 downto 0)));
+					if (sprite_idx < 8 or SPRITE_COUNT = 16) then
+						sprite_fgcol(sprite_idx) <= CPU_D(3 downto 0);
+					end if;
+				end if;
+			end if;
 		 end if;
 		end if;
 	end process;
@@ -312,56 +317,24 @@ begin
 	-- -------------------------------------------------------------------------
 	-- Priority multiplexer: pick the lowest-numbered active sprite
 	sprite_outcol_p: process(qclk)
+		variable active_found: boolean;
+		variable active_index: integer range 0 to 15;
 	begin
 		if (falling_edge(qclk)) then
-			if (sprite_ison_int(0) = '1') then
+			active_found := false;
+			active_index := 0;
+			for i in 0 to SPRITE_COUNT - 1 loop
+				if (active_found = false and sprite_ison_int(i) = '1') then
+					active_found := true;
+					active_index := i;
+				end if;
+			end loop;
+			if (active_found = true) then
 				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(0);
-				sprite_onborder <= sprite_overborder(0);
-				sprite_onraster <= sprite_overraster(0);
-				sprite_no       <= 0;
-			elsif (sprite_ison_int(1) = '1') then
-				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(1);
-				sprite_onborder <= sprite_overborder(1);
-				sprite_onraster <= sprite_overraster(1);
-				sprite_no       <= 1;
-			elsif (sprite_ison_int(2) = '1') then
-				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(2);
-				sprite_onborder <= sprite_overborder(2);
-				sprite_onraster <= sprite_overraster(2);
-				sprite_no       <= 2;
-			elsif (sprite_ison_int(3) = '1') then
-				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(3);
-				sprite_onborder <= sprite_overborder(3);
-				sprite_onraster <= sprite_overraster(3);
-				sprite_no       <= 3;
-			elsif (sprite_ison_int(4) = '1') then
-				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(4);
-				sprite_onborder <= sprite_overborder(4);
-				sprite_onraster <= sprite_overraster(4);
-				sprite_no       <= 4;
-			elsif (sprite_ison_int(5) = '1') then
-				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(5);
-				sprite_onborder <= sprite_overborder(5);
-				sprite_onraster <= sprite_overraster(5);
-				sprite_no       <= 5;
-			elsif (sprite_ison_int(6) = '1') then
-				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(6);
-				sprite_onborder <= sprite_overborder(6);
-				sprite_onraster <= sprite_overraster(6);
-				sprite_no       <= 6;
-			elsif (sprite_ison_int(7) = '1') then
-				sprite_on       <= '1';
-				sprite_outcol   <= sprite_outbits(7);
-				sprite_onborder <= sprite_overborder(7);
-				sprite_onraster <= sprite_overraster(7);
-				sprite_no       <= 7;
+				sprite_outcol   <= sprite_outbits(active_index);
+				sprite_onborder <= sprite_overborder(active_index);
+				sprite_onraster <= sprite_overraster(active_index);
+				sprite_no       <= active_index;
 			else
 				sprite_on       <= '0';
 				sprite_outcol   <= "00000";
@@ -376,7 +349,7 @@ begin
 
 	-- -------------------------------------------------------------------------
 	-- Fetch state machine
-	-- Counts through 8 sprites x 4 memory accesses = 32 states after h_enable
+	-- Counts through SPRITE_COUNT sprites x 4 memory accesses after h_enable
 	-- goes low.  The first access of each sprite is the sprite-pointer fetch
 	-- (sprite_ptr_window); the remaining three are sprite-data fetches.
 	fetch_idx_p: process(qclk, dotclk, h_enable, sprite_req_state, sprite_fetch_state, sprite_fetch_idx)
@@ -393,7 +366,7 @@ begin
 			if (sprite_fetch_done = '0') then
 				if (sprite_req_win = '0') then
 					sprite_req_win <= '1';
-				elsif (sprite_req_state = 31) then
+				elsif (sprite_req_state = FETCH_STATE_LAST) then
 					sprite_req_win    <= '0';
 					sprite_fetch_done <= '1';
 				else
@@ -412,7 +385,7 @@ begin
 		sprite_fetch_idx   <= sprite_fetch_state / 4;
 		sprite_fetch_idx_v <= std_logic_vector(to_unsigned(sprite_fetch_idx, sprite_fetch_idx_v'length));
 
-		sprite_phase <= std_logic_vector(to_unsigned(sprite_fetch_state, 2));
+		sprite_phase <= std_logic_vector(to_unsigned(sprite_fetch_state mod 4, sprite_phase'length));
 
 	end process;
 
@@ -438,9 +411,13 @@ begin
 
 	-- -------------------------------------------------------------------------
 	-- Video-memory address
-	--   During a sprite-pointer fetch: {sprite_base[7:0], 5'b11111, sprite_idx[2:0]}
+	--   During a sprite-pointer fetch: pointer table in top 16 bytes of page
+	--                                 sprites 0-7  -> $f8-$ff
+	--                                 sprites 8-15 -> $f0-$f7
 	--   During a sprite-data fetch:    {sprite_base[7:6], sprite_data_ptr[7:0], sprite_fetch_offset[5:0]}
-	vmem_addr <= sprite_base & "11111" & sprite_fetch_idx_v
+	sprite_ptr_addr_low <= "1111" & (not sprite_fetch_idx_v(3)) & sprite_fetch_idx_v(2 downto 0);
+
+	vmem_addr <= sprite_base & sprite_ptr_addr_low
 	                  when sprite_phase = "00"
 	             else sprite_base(7 downto 6) & sprite_data_ptr & sprite_fetch_offset(sprite_fetch_idx);
 
@@ -461,324 +438,53 @@ begin
 		end if;
 
 		-- route fetch_ce to the currently-fetching sprite
-		sprite_fetch_ce <= "00000000";
-		case (sprite_fetch_idx) is
-		when 0 =>  sprite_fetch_ce(0) <= sprite_data_fetch and fetch_ce_int;
-		when 1 =>  sprite_fetch_ce(1) <= sprite_data_fetch and fetch_ce_int;
-		when 2 =>  sprite_fetch_ce(2) <= sprite_data_fetch and fetch_ce_int;
-		when 3 =>  sprite_fetch_ce(3) <= sprite_data_fetch and fetch_ce_int;
-		when 4 =>  sprite_fetch_ce(4) <= sprite_data_fetch and fetch_ce_int;
-		when 5 =>  sprite_fetch_ce(5) <= sprite_data_fetch and fetch_ce_int;
-		when 6 =>  sprite_fetch_ce(6) <= sprite_data_fetch and fetch_ce_int;
-		when 7 =>  sprite_fetch_ce(7) <= sprite_data_fetch and fetch_ce_int;
-		end case;
+		sprite_fetch_ce <= (others => '0');
+		if (sprite_fetch_idx < SPRITE_COUNT) then
+			sprite_fetch_ce(sprite_fetch_idx) <= sprite_data_fetch and fetch_ce_int;
+		end if;
 	end process;
 
 	-- -------------------------------------------------------------------------
-	-- 8 individual Sprite sub-components
-
-	sprite0: Sprite
-	port map (
-		phi2,
-		sprite_sel(0),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(0),
-		sprite_fgcol(0),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(0),
-		sprite_fetch_ce(0),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(0),
-		sprite_ison_int(0),
-		sprite_overraster(0),
-		sprite_overborder(0),
-		sprite_outbits(0),
-		reset
-	);
-
-	sprite1: Sprite
-	port map (
-		phi2,
-		sprite_sel(1),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(1),
-		sprite_fgcol(1),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(1),
-		sprite_fetch_ce(1),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(1),
-		sprite_ison_int(1),
-		sprite_overraster(1),
-		sprite_overborder(1),
-		sprite_outbits(1),
-		reset
-	);
-
-	sprite2: Sprite
-	port map (
-		phi2,
-		sprite_sel(2),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(2),
-		sprite_fgcol(2),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(2),
-		sprite_fetch_ce(2),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(2),
-		sprite_ison_int(2),
-		sprite_overraster(2),
-		sprite_overborder(2),
-		sprite_outbits(2),
-		reset
-	);
-
-	sprite3: Sprite
-	port map (
-		phi2,
-		sprite_sel(3),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(3),
-		sprite_fgcol(3),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(3),
-		sprite_fetch_ce(3),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(3),
-		sprite_ison_int(3),
-		sprite_overraster(3),
-		sprite_overborder(3),
-		sprite_outbits(3),
-		reset
-	);
-
-	sprite4: Sprite
-	port map (
-		phi2,
-		sprite_sel(4),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(4),
-		sprite_fgcol(4),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(4),
-		sprite_fetch_ce(4),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(4),
-		sprite_ison_int(4),
-		sprite_overraster(4),
-		sprite_overborder(4),
-		sprite_outbits(4),
-		reset
-	);
-
-	sprite5: Sprite
-	port map (
-		phi2,
-		sprite_sel(5),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(5),
-		sprite_fgcol(5),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(5),
-		sprite_fetch_ce(5),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(5),
-		sprite_ison_int(5),
-		sprite_overraster(5),
-		sprite_overborder(5),
-		sprite_outbits(5),
-		reset
-	);
-
-	sprite6: Sprite
-	port map (
-		phi2,
-		sprite_sel(6),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(6),
-		sprite_fgcol(6),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(6),
-		sprite_fetch_ce(6),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(6),
-		sprite_ison_int(6),
-		sprite_overraster(6),
-		sprite_overborder(6),
-		sprite_outbits(6),
-		reset
-	);
-
-	sprite7: Sprite
-	port map (
-		phi2,
-		sprite_sel(7),
-		crtc_rwb,
-		regsel(1 downto 0),
-		CPU_D,
-		sprite_dout_int(7),
-		sprite_fgcol(7),
-		col_bg0,
-		sprite_mcol1,
-		sprite_mcol2,
-		sprite_fetch_offset(7),
-		sprite_fetch_ce(7),
-		qclk,
-		dotclk(0),
-		sprite_phase,
-		vmem_data,
-		h_enable,
-		h_zero,
-		v_zero,
-		x_addr,
-		y_addr,
-		is_double,
-		is_interlace,
-		is_80,
-		is_tv,
-		is_shift40,
-		is_shift80,
-		vsync_pos0,
-		sprite_enabled(7),
-		sprite_ison_int(7),
-		sprite_overraster(7),
-		sprite_overborder(7),
-		sprite_outbits(7),
-		reset
-	);
+	-- individual Sprite sub-components
+	sprite_gen: for i in 0 to 15 generate
+	begin
+		sprite_i: Sprite
+		port map (
+			phi2,
+			sprite_sel(i),
+			crtc_rwb,
+			regsel(1 downto 0),
+			CPU_D,
+			sprite_dout_int(i),
+			sprite_fgcol(i),
+			col_bg0,
+			sprite_mcol1,
+			sprite_mcol2,
+			sprite_fetch_offset(i),
+			sprite_fetch_ce(i),
+			qclk,
+			dotclk(0),
+			sprite_phase,
+			vmem_data,
+			h_enable,
+			h_zero,
+			v_zero,
+			x_addr,
+			y_addr,
+			is_double,
+			is_interlace,
+			is_80,
+			is_tv,
+			is_shift40,
+			is_shift80,
+			vsync_pos0,
+			sprite_enabled(i),
+			sprite_ison_int(i),
+			sprite_overraster(i),
+			sprite_overborder(i),
+			sprite_outbits(i),
+			reset
+		);
+	end generate;
 
 end Behavioral;

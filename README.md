@@ -66,74 +66,25 @@ In addition, if enabled, the PET 8296 control port is available:
 
 This is an overview on the register set:
 
-- $e800 (59392)  [Video control](#e800-59392-video-control)
+- $e800 (59392)  [Video control (outdated)](#e800-59392-video-control)
 - $e801 (59393)  [Memory map control](#e801-59393-memory-map-control)
 - $e802 (59394)  [Low32k bank](#e802-59394-low32k-bank)
 - $e803 (59395)  [Speed control](#e803-59395-speed-control)
 - $e804 (59396)  [bus window](#e804-59396-bus-window)
 - $e805 (59397)  [video window map](#e805-59397-video-window)
 - $e806 (59398)  [page 9 map](#e806-59398-page9-map)
-- $e807 (59399)  [Hi32k bank](#e807-59399-low32k-bank)
+- $e807 (59399)  [Video control](#e807-59399-video-control)
 
-### $e800 (59392) Video Control
+### $e800 (59392) Register Bank Select
 
-- Bit 0: unused - must be 0
-- Bit 1: 0= 40 column display, 1= 80 column display
-- Bit 2: 0= screen character memory in bank 0, 1= character memory only in video bank (see memory map)
-- Bit 3: 0= map char/colour RAM in $8xxx, 1= map only character memory
-- Bit 4: unused - must be 0
-- Bit 6-5: video window size
-   - 00 = 1k
-   - 01 = 2k
-   - 10 = 4k
-   - 11 = 8k (2nd 4k write only)
-- Bit 7: 0= video enabled; 1= video disabled
+Select the register bank used at addresses $e800-$e80f. 
+Functionality aims to implement the [CBM PET Extensions](https://github.com/DLehenbauer/cbm-pet-extensions/tree/main) started 
+by Daniel Lehenbauer.
 
-Note that if you use 80 columns, AND double pixel rows (+interlace), you get the 80x50 character resolution.
-This mode is, however, not easily manageable by normal code in bank 0. In the $8xxx area the video
-and colour memory can be accessed. The first half accesses the character video memory, the second half
-is reserved for the colour memory (if b3=0). Now, 80x50 character require almost 4k of character video memory,
-almost twice as much as is available in the reserved space from $8000 to $8800. So, the screen can,
-in this mode, only be managed using long addresses into bank 8 (the video bank), or code running
-in the video bank.
+Currently only these banks are supported:
 
-Note that the 40/80 column switch is only there for Micro-PET 2.x compatibility, that is using a CPLD with very 
-restricted video output capabilities. In the newer versions 40/80 columns should be set in the [Viccy](VIDEO.md) registers.
+- $ff - legacy Micro-/Ulti-PET page, with registers as described here.
 
-#### Screen mirror in bank 0 (bit 2)
-
-The CRTC reads its video data from the video bank in VRAM.
-This is not mapped to bank 0 in the CPU address space, as it is "slow" memory, because
-the available memory bandwidth is shared with the video access.
-
-To allow the PET code to directly write to $8xxx for character video memory, Bit 2 maps
-the $8xxx window in CPU bank 0 to the VRAM video bank.
-
-Note that with the register $e805, the position of the video window in the video bank
-can be changed (while it stays at $8xxx in the CPU memory bank 0). This allows 
-for easy switching between multiple screens beyond the 4k limit of the PET video memory
-window at $8xxx.
-
-#### Colour RAM mapping (bit 3)
-
-In normal mode (bit 3 = 0), the memory window at $8xxx is split into 2k of character memory
-and 2k of colour memory. 
-This conflicts with the 8296 video RAM mapping, as that machine has a full 4k of 
-read/write character memory at $8xxx.
-Set bit 3 to 1, to disable the colour memory map in $8800-$8fff.
-
-Note, that the 8296 has another 4k of write only (!) video memory at $9xxx.
-In this area, reads come from an option ROM (when used), while writes go to the
-video memory. 
-
-#### Video window size (bit 5/6)
-
-These two bits define the size of the video mapping window. Options are
-
-- 1k: for 40 column video without colour, the rest (3k) of the window are write-protected
-- 2k: for 80 column video without colour, the rest (2k) of the window are write-protected
-- 4k: for 40/80 column video with colour
-- 8k: for 40/80 column video with colour, and enabling write-through to video RAM in $9xxx for 8296 compatibility
 
 ### $e801 (59393) Memory Map Control
 
@@ -222,12 +173,54 @@ window at $9xxx.
 
 (TODO: define which has precedence)
 
-### $e807 (59399) Hi32k Bank Control
+### $e807 (59399) Video Control
 
-- Bit 0-3: number of 32k bank in 512k Fast RAM (banks 0-7), for the upper 32k of bank 0
-- Bit 4-7: unused, must be 0
+- Bit 0: HDMI mode 1= HDMI output on shared VGA/HDMI output lines, 0= VGA output (default)
+- Bit 1: set to 1 to force 80 column mode; 0= set 80 col mode from VICCY registers
+- Bit 2: 0= screen character memory in bank 0, 1= character memory only in video bank (see memory map)
+- Bit 3: 0= map char/colour RAM in $8xxx, 1= map only character memory
+- Bit 4: unused, must be 0
+- Bit 6-5: video window size
+   - 00 = 1k
+   - 01 = 2k
+   - 10 = 4k
+   - 11 = 8k (2nd 4k write only)
+- Bit 7: 0= video enabled; 1= video disabled
 
-This allows re-mapping the upper 32k of bank 0 between multiple locations in fast RAM.
+#### Screen mirror in bank 0 (bit 2)
+
+The CRTC reads its video data from the video bank in VRAM.
+This is not mapped to bank 0 in the CPU address space, as it is "slow" memory, because
+the available memory bandwidth is shared with the video access.
+
+To allow the PET code to directly write to $8xxx for character video memory, Bit 2 maps
+the $8xxx window in CPU bank 0 to the VRAM video bank.
+
+Note that with the register $e805, the position of the video window in the video bank
+can be changed (while it stays at $8xxx in the CPU memory bank 0). This allows 
+for easy switching between multiple screens beyond the 4k limit of the PET video memory
+window at $8xxx.
+
+#### Colour RAM mapping (bit 3)
+
+In normal mode (bit 3 = 0), the memory window at $8xxx is split into 2k of character memory
+and 2k of colour memory. 
+This conflicts with the 8296 video RAM mapping, as that machine has a full 4k of 
+read/write character memory at $8xxx.
+Set bit 3 to 1, to disable the colour memory map in $8800-$8fff.
+
+Note, that the 8296 has another 4k of write only (!) video memory at $9xxx.
+In this area, reads come from an option ROM (when used), while writes go to the
+video memory. 
+
+#### Video window size (bit 5/6)
+
+These two bits define the size of the video mapping window. Options are
+
+- 1k: for 40 column video without colour, the rest (3k) of the window are write-protected
+- 2k: for 80 column video without colour, the rest (2k) of the window are write-protected
+- 4k: for 40/80 column video with colour
+- 8k: for 40/80 column video with colour, and enabling write-through to video RAM in $9xxx for 8296 compatibility
 
 ### 8296 control port
 

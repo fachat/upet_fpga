@@ -55,13 +55,13 @@ entity Top is
 	   graphic: in std_logic;	-- from I/O, select charset
 	   
 	-- CPU interface
-	   A : in  STD_LOGIC_VECTOR (15 downto 0);
-           D : inout  STD_LOGIC_VECTOR (7 downto 0);
-           vda : in  STD_LOGIC;
-           vpa : in  STD_LOGIC;
-	   rwb : in std_logic;
+	   A : inout  STD_LOGIC_VECTOR (15 downto 0);
+      D : inout  STD_LOGIC_VECTOR (7 downto 0);
+      vda : in  STD_LOGIC;
+      vpa : in  STD_LOGIC;
+	   rwb : inout std_logic;
 	   rdy : in std_logic;
-           phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
+      phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
 	   vpb : in std_logic;
 	   e : in std_logic;
 	   mlb: in std_logic;
@@ -135,8 +135,8 @@ end Top;
 
 architecture Behavioral of Top is
 
-	type T_VADDR_SRC is (VRA_NONE, VRA_IPL, VRA_CPU, VRA_VIDEO, VRA_DAC);
-	type T_FADDR_SRC is (FRA_NONE, FRA_CPU);
+	type T_VADDR_SRC is (VRA_NONE, VRA_CPU, VRA_VIDEO, VRA_DAC);
+	type T_FADDR_SRC is (FRA_NONE, FRA_IPL, FRA_CPU);
 	type T_BUS_STATE is (BUS_NONE, BUS_CPU, BUS_SETUP, BUS_WAIT);
 	type T_IPL_STATE is (IPL_SETTLE, IPL_CMD, IPL_LOAD, IPL_DONE);
 	
@@ -167,6 +167,7 @@ architecture Behavioral of Top is
 	signal VA_select_d: T_VADDR_SRC;
 	signal va_is_cpu_d: std_logic;
 	signal FA_select: T_FADDR_SRC;
+	signal FA_select_d: T_FADDR_SRC;
 	
 	signal memclk: std_logic;
 	signal cp00: std_logic;		-- clk enable on qclk falling when memclk is in the middle of low
@@ -232,8 +233,10 @@ architecture Behavioral of Top is
 	signal hdmi_on: std_logic;
 	
 	-- cpu
+	signal ca_out: std_logic_vector(15 downto 0);
 	signal ca_in: std_logic_vector(15 downto 0);
 	signal cd_in: std_logic_vector(7 downto 0);
+	signal rwb_in: std_logic;
 	signal reset: std_logic;
 	signal irq_out: std_logic;
 	signal wait_ram: std_logic;
@@ -485,8 +488,6 @@ architecture Behavioral of Top is
 	constant BOARD_BYTES: T_BOARD_BYTES := str_to_bytes(BOARD_NAME, 15);
 
 begin
-
-	cpu_nbe <= '0';
 		
 	clocky: Clock
 	port map (
@@ -630,6 +631,7 @@ begin
 	------------------------------------------------------
 	-- CPU memory mapper
 	
+	rwb_in <= rwb;
 	cd_in <= D;
 	ca_in <= A;
 	vd_in <= VD;
@@ -643,7 +645,7 @@ begin
 	   vpa,
 	   vda,
 	   vpb,
-	   rwb,
+	   rwb_in,
 	   q50m,
       cfgld_in,
 		is_valid_cycle,
@@ -784,7 +786,7 @@ begin
 		vgraphic,
 		vid_sel,
 		ca_in(6 downto 0),
-		rwb,
+		rwb_in,
 		vis_regmap,
 		q50m,		-- Q clock (50MHz)
 		dotclk,	-- pixel clock, 25MHz
@@ -807,7 +809,7 @@ begin
 	port map (
 		phi2_int,
 		dac_sel,
-		rwb,
+		rwb_in,
 		ca_in(3 downto 0),
 		cd_in,
 		dac_dout,
@@ -840,7 +842,7 @@ begin
 	   cd_in,
 	   spi_dout,
 	   ca_in(1 downto 0),
-	   rwb,
+	   rwb_in,
 	   spi_cs,
 	   spi_in,
 	   spi_outx,
@@ -887,7 +889,7 @@ begin
 	------------------------------------------------------
 	-- control registers
 	
-	Ctrl_P: process(sel0, phi2_int, rwb, reset, ca_in, D, reg_bank_sel)
+	Ctrl_P: process(sel0, phi2_int, rwb_in, reset, ca_in, D, reg_bank_sel)
 	begin
 		if (reset = '1') then
 			vis_80_in <= '0';
@@ -904,7 +906,7 @@ begin
 			hibank <= "0001";
 			vidblock <= "010";
 			is_user_reg <= '0';
-			boot <= '1';
+			boot <= '0';
 			lockb0 <= '0';
 			bus_window_c <= '0';
 			bus_window_9 <= '0';
@@ -915,7 +917,7 @@ begin
 			hide_bogus <= '0';
 			hdmi_on <= '0';
 			reg_bank_sel <= x"e8";
-		elsif (falling_edge(phi2_int) and sel0='1' and rwb='0') then
+		elsif (falling_edge(phi2_int) and sel0='1' and rwb_in='0') then
 			if (ca_in(3 downto 0) = x"0") then
 				-- register bank select: only $e8, $00, $fe, $ff are valid values
 				if (D = x"e8" or D = x"00" or D = x"fe" or D = x"ff") then
@@ -967,7 +969,7 @@ begin
 		end if;
 	end process;
 
-	Ctrl_Rd: process(sel0, phi2_int, rwb, reset, ca_in, D, reg_bank_sel,
+	Ctrl_Rd: process(sel0, phi2_int, rwb_in, reset, ca_in, D, reg_bank_sel,
 		vis_80_in, screenb0, isnocolmap, vis_enable, lockb0, boot, is8296, 
 		wp_rom9, wp_roma, wp_romb, wp_rompet, lowbank, hibank, mode,
 		bus_window_9, bus_window_c, bus_win_9_is_io, bus_win_c_is_io,
@@ -978,7 +980,7 @@ begin
 
 		s0_d <= (others => '0');
 
-		if (sel0='1' and rwb='1') then
+		if (sel0='1' and rwb_in='1') then
 			if (reg_bank_sel = x"ff") then
 				-- Bank $ff: legacy register access at $E800-$E807
 				if (ca_in(3) = '0') then
@@ -1056,7 +1058,7 @@ begin
 	hdmi_mode <= hdmi_on;
 
 	v_out_p: process(q50m, memclk, nvramsel_int, nframsel_int, ipl, reset,
-			vid_fetch, rwb, m_vramsel_out, dac_dma_req, is_cpu, is_cpu_trigger)
+			vid_fetch, m_vramsel_out, dac_dma_req, is_cpu, is_cpu_trigger)
 	begin
 		
 		nvramsel <= nvramsel_int;
@@ -1071,9 +1073,7 @@ begin
 		elsif (falling_edge(q50m)) then 
 			if (cp10 = '1') then
 				-- at end of previous cycle we determine whichh type we have
-				if (vreq_ipl = '1') then
-					VA_select <= VRA_IPL;
-				elsif (vreq_video = '1') then
+				if (vreq_video = '1') then
 					VA_select <= VRA_VIDEO;
 				elsif (vreq_dac = '1') then
 					VA_select <= VRA_DAC;
@@ -1085,7 +1085,9 @@ begin
 					VA_select <= VRA_NONE; 
 				end if;
 				
-				if (vreq_cpu = '1') then
+				if (vreq_ipl = '1') then
+					FA_select <= FRA_IPL;
+				elsif (vreq_cpu = '1') then
 					FA_select <= FRA_CPU;
 				else
 					FA_select <= FRA_NONE;
@@ -1099,10 +1101,6 @@ begin
 			elsif (cp01 = '1') then
 				-- at the middle of the cycle we enable vram access if needed
 				case (VA_select) is
-				when VRA_IPL =>
-					nvramsel_int <= '0';
-					wait_ram <= m_vramsel_out;
-					ramrwb_int <= '0';
 				when VRA_NONE =>
 					nvramsel_int <= '1';
 					wait_ram <= m_vramsel_out;
@@ -1110,7 +1108,7 @@ begin
 				when VRA_CPU =>
 					nvramsel_int <= not(m_vramsel_out);
 					wait_ram <= '0';
-					ramrwb_int <= rwb or not( m_vramsel_out );
+					ramrwb_int <= rwb_in or not( m_vramsel_out );
 				when others =>
 					nvramsel_int <= '0';
 					wait_ram <= m_vramsel_out;
@@ -1118,6 +1116,8 @@ begin
 				end case;
 				
 				case (FA_select) is
+				when FRA_IPL =>
+					nframsel_int <= '0';
 				when FRA_CPU =>
 					nframsel_int <= not(m_framsel_out);
 				when others =>
@@ -1130,13 +1130,14 @@ begin
 				
 		if (rising_edge(q50m)) then		
 			VA_select_d <= VA_select;
+			FA_select_d <= FA_select;
 		end if;
 		
 	end process;
 
 	
 	v_out_p2: process(q50m, memclk, VA_select, reset,
-			rwb, ipl_cnt, ca_in, ma_out, dac_dma_addr, va_out, VA_select_d)
+			ipl_cnt, ca_in, ma_out, dac_dma_addr, va_out, VA_select_d)
 	begin
 
 		-- keep VA, ramrwb etc stable one half qclk cycle after
@@ -1154,11 +1155,24 @@ begin
 			end if;
 		end if;
 
-		-- delay A, R/-W a bit to implement hold times
+			A <= (others => 'Z');
+			rwb <= 'Z';
+			case (FA_select_d) is
+			when FRA_IPL =>
+				cpu_nbe <= '1';
+				A(7 downto 0) <= ipl_cnt(11 downto 4);
+				A(15 downto 8) <= ipl_addr(15 downto 8);
+				FA(18 downto 15) <= ipl_addr(18 downto 15);
+				FA(19) <= '0';
+				rwb <= '0';
+			when others =>
+				cpu_nbe <= '0';
+				A <= (others => 'Z');
+				FA(19 downto 15) <= 	ma_out(19 downto 15);
+				rwb <= 'Z';
+			end case;
+
 			case (VA_select_d) is
-			when VRA_IPL =>
-				VA(7 downto 0) <= ipl_cnt(11 downto 4);
-				VA(18 downto 8) <= ipl_addr(18 downto 8);
 			when VRA_CPU =>
 				VA(7 downto 0) <= ca_in (7 downto 0);
 				VA(18 downto 8) <= ma_out (18 downto 8);
@@ -1174,21 +1188,12 @@ begin
 	end process;
 
 	ramrwb <= ramrwb_int; 
-
-
 	
-	FA(19 downto 16) <= 	ma_out(19 downto 16);
-	FA(15) <=		ma_out(15);
 			
---	-- data transfer between CPU data bus and video/memory data bus
---	VD <= 	spi_dout	when ipl = '1' 		else	-- IPL
---		D 		when va_is_cpu_d = '1' and ramrwb_int = '0' else	-- CPU write
---		(others => 'Z');
+	-- data transfer between CPU data bus and video/memory data bus
 	vd_out_p: process(spi_dout, D, VA_select_d, ramrwb_int)
 	begin
 		case (VA_select_d) is
-		when VRA_IPL =>	
-			VD <= spi_dout;
 		when VRA_CPU =>
 			if (ramrwb_int = '0') then
 				VD <= D;
@@ -1196,28 +1201,33 @@ begin
 				VD <= (others => 'Z');
 			end if;
 		when others =>
-				VD <= (others => 'Z');
+			VD <= (others => 'Z');
 		end case;
-	end process;
 	
-	D <= 	
-		(others => 'Z') when
-			rwb = '0' 
-			or phi2_int = '0'
-		else
-			VD when VA_select_d = VRA_CPU
-				and m_vramsel_out ='1' 
-		else
-			spi_dout when spi_cs = '1'
-		else
-			vd_out when vid_sel = '1'
-		else
-			dac_dout when dac_sel = '1'
-		else
-			s0_d when sel0 = '1'
-		else
-			(others => 'Z');
+		case (FA_select_d) is
+		when FRA_IPL =>	
+			D <= spi_dout;
+		when FRA_CPU =>
+			if (rwb_in = '0' or phi2_int = '0') then
+				D <= (others => 'Z');
+			elsif(VA_select_d = VRA_CPU and m_vramsel_out = '1') then
+				D <= vd_in;
+			elsif (spi_cs = '1') then
+				D <= spi_dout;
+			elsif (vid_sel = '1') then
+				D <= vd_out;
+			elsif (dac_sel = '1') then
+				D <= dac_dout;
+			elsif (sel0 = '1') then
+				D <= s0_d;
+			else
+				D <= (others => 'Z');
+			end if;
+		when others =>
+			D <= (others => 'Z');
+		end case;
 		
+	end process;
 	
 	------------------------------------------------------
 	-- IPL logic

@@ -55,13 +55,13 @@ entity ShellUltraHdmi is
 	   graphic: in std_logic;	-- from I/O, select charset
 	   
 	-- CPU interface
-	   A : in  STD_LOGIC_VECTOR (15 downto 0);
-           D : inout  STD_LOGIC_VECTOR (7 downto 0);
-           vda : in  STD_LOGIC;
-           vpa : in  STD_LOGIC;
-	   rwb : in std_logic;
+	   A : inout  STD_LOGIC_VECTOR (15 downto 0);
+      D : inout  STD_LOGIC_VECTOR (7 downto 0);
+      vda : in  STD_LOGIC;
+      vpa : in  STD_LOGIC;
+	   rwb : inout std_logic;
 	   rdy : in std_logic;
-           phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
+      phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
 	   vpb : in std_logic;
 	   e : in std_logic;
 	   mlb: in std_logic;
@@ -165,13 +165,13 @@ architecture Behavioral of ShellUltraHdmi is
 	   graphic: in std_logic;	-- from I/O, select charset
 	   
 	-- CPU interface
-	   A : in  STD_LOGIC_VECTOR (15 downto 0);
+	   A : inout  STD_LOGIC_VECTOR (15 downto 0);
       D : inout  STD_LOGIC_VECTOR (7 downto 0);
       vda : in  STD_LOGIC;
       vpa : in  STD_LOGIC;
-	   rwb : in std_logic;
+	   rwb : inout std_logic;
 	   rdy : in std_logic;
-           phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
+      phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
 	   vpb : in std_logic;
 	   e : in std_logic;
 	   mlb: in std_logic;

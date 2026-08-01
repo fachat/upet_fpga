@@ -55,13 +55,13 @@ entity ShellUPet is
 	   graphic: in std_logic;	-- from I/O, select charset
 	   
 	-- CPU interface
-	   A : in  STD_LOGIC_VECTOR (15 downto 0);
-           D : inout  STD_LOGIC_VECTOR (7 downto 0);
-           vda : in  STD_LOGIC;
-           vpa : in  STD_LOGIC;
-	   rwb : in std_logic;
+	   A : inout  STD_LOGIC_VECTOR (15 downto 0);
+      D : inout  STD_LOGIC_VECTOR (7 downto 0);
+      vda : in  STD_LOGIC;
+      vpa : in  STD_LOGIC;
+	   rwb : inout std_logic;
 	   rdy : in std_logic;
-           phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
+      phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
 	   vpb : in std_logic;
 	   e : in std_logic;
 	   mlb: in std_logic;
@@ -169,11 +169,11 @@ architecture Behavioral of ShellUPet is
 	   graphic: in std_logic;	-- from I/O, select charset
 	   
 	-- CPU interface
-	   A : in  STD_LOGIC_VECTOR (15 downto 0);
-           D : inout  STD_LOGIC_VECTOR (7 downto 0);
-           vda : in  STD_LOGIC;
-           vpa : in  STD_LOGIC;
-	   rwb : in std_logic;
+		A : inout  STD_LOGIC_VECTOR (15 downto 0);
+		D : inout  STD_LOGIC_VECTOR (7 downto 0);
+		vda : in  STD_LOGIC;
+		vpa : in  STD_LOGIC;
+	   rwb : inout std_logic;
 	   rdy : in std_logic;
            phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
 	   vpb : in std_logic;
@@ -195,11 +195,6 @@ architecture Behavioral of ShellUPet is
 	   ioinh: in std_logic;
 	   nbe_out : out std_logic;
 	  
-	-- UPet specific
-	   nsel1: out std_logic;
-	   nsel2: out std_logic;
-	   nsel4: out std_logic;
-		
 	-- V/RAM interface
 	   VA : out std_logic_vector (18 downto 0);	-- 512k
 	   FA : out std_logic_vector (19 downto 15);	-- 512k, mappable in 32k blocks
@@ -244,6 +239,7 @@ begin
 	extio <= '0';
 	ioinh <= '0';
 	
+	-- SPI select decode
 	spi_nflash <= '0' when spi_sel = "001" else '1';
 	spi_nsel2 <= '0' when spi_sel = "010" else '1';
 	spi_nsel3 <= '0' when spi_sel = "011" else '1';
@@ -252,6 +248,12 @@ begin
 	nfpgaboot <= '0' when spi_sel = "110" else '1';
 
 	FA <= fa_int(18 downto 15);
+	
+	-- I/O decode
+	-- note: only decode 8 bytes for PIAs, as ROM code may probe UARTs in upper half of address window
+	nsel1 <= '0' when niosel = '0' and A(7 downto 3) = "00010" else '1';
+	nsel2 <= '0' when niosel = '0' and A(7 downto 3) = "00100" else '1';
+	nsel4 <= '0' when niosel = '0' and A(7 downto 4) = "0100" else '1';
 	
 top_c: Top
 	generic map (
@@ -278,12 +280,12 @@ top_c: Top
 	   
 	-- CPU interface
 	A,
-        D,
-        vda,
-        vpa,
+	D,
+	vda,
+	vpa,
 	rwb,
 	rdy,
-        phi2,
+	phi2,
 	vpb,
 	e,
 	mlb,
@@ -302,12 +304,7 @@ top_c: Top
 	extio,
 	ioinh,
 	nbe_out,
-	  
-	-- UPet specific
-	nsel1,
-	nsel2,
-	nsel4,
-		
+	  		
 	-- V/RAM interface
 	VA,
 	fa_int,

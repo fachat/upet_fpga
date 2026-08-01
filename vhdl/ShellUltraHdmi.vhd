@@ -81,11 +81,6 @@ entity ShellUltraHdmi is
 	   ioinh: in std_logic;
 	   nbe_out : out std_logic;
 	  
-	-- UPet specific
-	-- nsel1: out std_logic;
-	-- nsel2: out std_logic;
-	-- nsel4: out std_logic;
-		
 	-- V/RAM interface
 	   VA : out std_logic_vector (18 downto 0);	-- 512k
 	   FA : out std_logic_vector (19 downto 15);	-- 512k, mappable in 32k blocks
@@ -127,10 +122,6 @@ end ShellUltraHdmi;
 
 architecture Behavioral of ShellUltraHdmi is
 
-	signal nsel1: std_logic;
-	signal nsel2: std_logic;
-	signal nsel4: std_logic;
-	
 	signal vga_hsync: std_logic;
 	signal vga_vsync: std_logic;
 	signal v_out: std_logic_vector(5 downto 0);
@@ -191,11 +182,6 @@ architecture Behavioral of ShellUltraHdmi is
 	   ioinh: in std_logic;
 	   nbe_out : out std_logic;
 	  
-	-- UPet specific
-	   nsel1: out std_logic;
-	   nsel2: out std_logic;
-	   nsel4: out std_logic;
-		
 	-- V/RAM interface
 	   VA : out std_logic_vector (18 downto 0);	-- 512k
 	   FA : out std_logic_vector (19 downto 15);	-- 512k, mappable in 32k blocks
@@ -359,11 +345,6 @@ begin
 	ioinh,
 	nbe_out,
 	  
-	-- UPet specific
-	nsel1,
-	nsel2,
-	nsel4,
-		
 	-- V/RAM interface
 	VA,
 	FA,

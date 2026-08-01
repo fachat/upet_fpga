@@ -55,11 +55,11 @@ entity ShellUPet is
 	   graphic: in std_logic;	-- from I/O, select charset
 	   
 	-- CPU interface
-	   A : in  STD_LOGIC_VECTOR (15 downto 0);
+	   A : inout  STD_LOGIC_VECTOR (15 downto 0);
            D : inout  STD_LOGIC_VECTOR (7 downto 0);
            vda : in  STD_LOGIC;
            vpa : in  STD_LOGIC;
-	   rwb : in std_logic;
+	   rwb : inout std_logic;
 	   rdy : in std_logic;
            phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
 	   vpb : in std_logic;
@@ -156,11 +156,11 @@ architecture Behavioral of ShellUPet is
 	   graphic: in std_logic;	-- from I/O, select charset
 	   
 	-- CPU interface
-	   A : in  STD_LOGIC_VECTOR (15 downto 0);
+	   A : inout  STD_LOGIC_VECTOR (15 downto 0);
            D : inout  STD_LOGIC_VECTOR (7 downto 0);
            vda : in  STD_LOGIC;
            vpa : in  STD_LOGIC;
-	   rwb : in std_logic;
+	   rwb : inout std_logic;
 	   rdy : in std_logic;
            phi2 : out  STD_LOGIC;	-- with pull-up to go to 5V
 	   vpb : in std_logic;
@@ -182,11 +182,6 @@ architecture Behavioral of ShellUPet is
 	   ioinh: in std_logic;
 	   nbe_out : out std_logic;
 	  
-	-- UPet specific
-	   nsel1: out std_logic;
-	   nsel2: out std_logic;
-	   nsel4: out std_logic;
-		
 	-- V/RAM interface
 	   VA : out std_logic_vector (18 downto 0);	-- 512k
 	   FA : out std_logic_vector (19 downto 15);	-- 512k, mappable in 32k blocks
@@ -230,6 +225,12 @@ begin
 	be_in <= '0';
 	extio <= '0';
 	ioinh <= '0';
+
+	-- I/O decode
+	-- note: only decode 8 bytes for PIAs, as ROM code may probe UARTs in upper half of address window
+	nsel1 <= '0' when niosel = '0' and A(7 downto 3) = "00010" else '1';
+	nsel2 <= '0' when niosel = '0' and A(7 downto 3) = "00100" else '1';
+	nsel4 <= '0' when niosel = '0' and A(7 downto 4) = "0100" else '1';
 	
 top_c: Top
 	generic map (
@@ -281,11 +282,6 @@ top_c: Top
 	ioinh,
 	nbe_out,
 	  
-	-- UPet specific
-	nsel1,
-	nsel2,
-	nsel4,
-		
 	-- V/RAM interface
 	VA,
 	FA,

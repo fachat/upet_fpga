@@ -81,11 +81,6 @@ entity Top is
 	   ioinh: in std_logic;
 	   nbe_out : out std_logic;
 	  
-	-- UPet specific
-		nsel1: out std_logic;
-		nsel2: out std_logic;
-		nsel4: out std_logic;
-		
 	-- V/RAM interface
 	   VA : out std_logic_vector (18 downto 0);	-- 512k
 	   FA : out std_logic_vector (19 downto 15);	-- 512k, mappable in 32k blocks
@@ -711,26 +706,26 @@ begin
 					or wait_bus;
 --	nmemsel <= v_dbg_out; FIXME
 	
-			if (niosel_int = '0'
-				and ca_in(7 downto 4) = "0001") then
-				nsel1 <= '0';
-			else
-				nsel1 <= '1';
-			end if;
-
-			if (niosel_int = '0'
-				and ca_in(7 downto 4) = "0010") then
-				nsel2 <= '0';
-			else
-				nsel2 <= '1';
-			end if;
-			
-			if (niosel_int = '0'
-				and ca_in(7 downto 4) = "0100") then
-				nsel4 <= '0';
-			else
-				nsel4 <= '1';
-			end if;
+--			if (niosel_int = '0'
+--				and ca_in(7 downto 4) = "0001") then
+--				nsel1 <= '0';
+--			else
+--				nsel1 <= '1';
+--			end if;
+--
+--			if (niosel_int = '0'
+--				and ca_in(7 downto 4) = "0010") then
+--				nsel2 <= '0';
+--			else
+--				nsel2 <= '1';
+--			end if;
+--			
+--			if (niosel_int = '0'
+--				and ca_in(7 downto 4) = "0100") then
+--				nsel4 <= '0';
+--			else
+--				nsel4 <= '1';
+--			end if;
 			
 		end if;
 	end process;

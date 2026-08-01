@@ -81,11 +81,6 @@ entity ShellUltra is
 	   ioinh: in std_logic;
 	   nbe_out : out std_logic;
 	  
-	-- UPet specific
-	-- nsel1: out std_logic;
-	-- nsel2: out std_logic;
-	-- nsel4: out std_logic;
-		
 	-- V/RAM interface
 	   VA : out std_logic_vector (18 downto 0);	-- 512k
 	   FA : out std_logic_vector (19 downto 15);	-- 512k, mappable in 32k blocks
@@ -122,10 +117,6 @@ end ShellUltra;
 
 architecture Behavioral of ShellUltra is
 
-	signal nsel1: std_logic;
-	signal nsel2: std_logic;
-	signal nsel4: std_logic;
-	
 	component Top is
 		Generic (
 			NUM_SPRITES:  integer := 8;
@@ -175,12 +166,7 @@ architecture Behavioral of ShellUltra is
 	   extio: in std_logic;
 	   ioinh: in std_logic;
 	   nbe_out : out std_logic;
-	  
-	-- UPet specific
-	   nsel1: out std_logic;
-	   nsel2: out std_logic;
-	   nsel4: out std_logic;
-		
+	  		
 	-- V/RAM interface
 	   VA : out std_logic_vector (18 downto 0);	-- 512k
 	   FA : out std_logic_vector (19 downto 15);	-- 512k, mappable in 32k blocks
@@ -268,11 +254,6 @@ begin
 	ioinh,
 	nbe_out,
 	  
-	-- UPet specific
-	nsel1,
-	nsel2,
-	nsel4,
-		
 	-- V/RAM interface
 	VA,
 	FA,

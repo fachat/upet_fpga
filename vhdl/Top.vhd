@@ -536,12 +536,11 @@ begin
 		if (reset = '1') then
 			is_cpu <= '0';
 		--elsif (rising_edge(q50m) and cp01 = '1') then
-		elsif (falling_edge(q50m) and cp01 = '1') then
+		--elsif (falling_edge(q50m) and cp01 = '1') then
+		elsif (falling_edge(q50m) and cp10 = '1') then
 			if (mode = "11") then
 				is_cpu <= '1';
  			elsif (is_cpu_trigger = '1') then
-				is_cpu <= '1';
-			elsif (is_valid_cycle = '0' and hide_bogus = '1') then
 				is_cpu <= '1';
 			elsif (do_cpu = '1') then
 				is_cpu <= '0';
@@ -563,7 +562,11 @@ begin
 			if (	(is_bus = '0' 
 					and is_cpu = '1' and wait_ram = '0')
 				or (is_bus = '1' 
-					and wait_setup = '0' and wait_bus = '0')
+					and wait_setup = '0' 
+					and wait_bus = '0')
+				or ((is_bus = '0' or wait_setup = '1')
+					and is_valid_cycle = '0' 
+					and hide_bogus = '1')
 				) then
 				do_cpu <= '1';
 			else

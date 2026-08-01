@@ -163,9 +163,10 @@ architecture Behavioral of Top is
 	-- clock
 	signal dotclk: std_logic_vector(3 downto 0);
 	signal vid_fetch: std_logic;
+	
+	-- bus arbiter
 	signal VA_select: T_VADDR_SRC;
 	signal VA_select_d: T_VADDR_SRC;
-	signal va_is_cpu_d: std_logic;
 	signal FA_select: T_FADDR_SRC;
 	signal FA_select_d: T_FADDR_SRC;
 	
@@ -542,6 +543,9 @@ begin
 				is_cpu <= '1';
  			elsif (is_cpu_trigger = '1') then
 				is_cpu <= '1';
+			elsif (is_valid_cycle = '0'
+					and hide_bogus = '1') then
+				is_cpu <= '1';
 			elsif (do_cpu = '1') then
 				is_cpu <= '0';
 			end if;
@@ -564,9 +568,6 @@ begin
 				or (is_bus = '1' 
 					and wait_setup = '0' 
 					and wait_bus = '0')
-				or ((is_bus = '0' or wait_setup = '1')
-					and is_valid_cycle = '0' 
-					and hide_bogus = '1')
 				) then
 				do_cpu <= '1';
 			else

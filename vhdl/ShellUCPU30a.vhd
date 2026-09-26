@@ -427,7 +427,7 @@ begin
 				b_s <= v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0) & v_out(1) & v_out(0);
         end if;
 	
-		if (hdmi_mode = '1') then
+--		if (hdmi_mode = '1') then
 			hdmi_ck_p <= tmds_ck;
 			hdmi_ck_n <= not(tmds_ck);
 
@@ -437,17 +437,17 @@ begin
 			hdmi_d1_n <= not(tmds_d1);
 			hdmi_d2_p <= tmds_d2;
 			hdmi_d2_n <= not(tmds_d2);
-		else
-			hdmi_ck_p <= vga_vsync;
-			hdmi_ck_n <= vga_hsync;
-
-			hdmi_d0_p <= v_out(1);
-			hdmi_d0_n <= v_out(0);
-			hdmi_d1_p <= v_out(3);
-			hdmi_d1_n <= v_out(2);
-			hdmi_d2_p <= v_out(5);
-			hdmi_d2_n <= v_out(4);
-		end if;
+--		else
+--			hdmi_ck_p <= vga_vsync;
+--			hdmi_ck_n <= vga_hsync;
+--
+--			hdmi_d0_p <= v_out(1);
+--			hdmi_d0_n <= v_out(0);
+--			hdmi_d1_p <= v_out(3);
+--			hdmi_d1_n <= v_out(2);
+--			hdmi_d2_p <= v_out(5);
+--			hdmi_d2_n <= v_out(4);
+--		end if;
 	end process;
 
 end Behavioral;

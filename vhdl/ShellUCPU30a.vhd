@@ -124,7 +124,8 @@ entity ShellUltraHdmi is
 	   spi_nsel4 : out std_logic;
 	   spi_nsel5 : out std_logic;
    	   spi_flash : out std_logic;
-
+	   spi_fpga_boot: out std_logic;
+	   
 	-- Audio / DAC output
 	   spi_naudio : out std_logic;
 	   spi_aclk : out std_logic;
@@ -151,6 +152,8 @@ architecture Behavioral of ShellUltraHdmi is
 	signal spi_sela: std_logic;
 	signal spi_selb: std_logic;
 	signal spi_selc: std_logic;
+	
+	signal nreset: std_logic;
 	
 	component Top is
 		Generic (
@@ -311,7 +314,16 @@ begin
     spi_nsel3 <= '0' when spi_sela = '1' and spi_selb = '1' and spi_selc = '0' else '1';
     spi_nsel4 <= '0' when spi_sela = '0' and spi_selb = '0' and spi_selc = '1' else '1';
     spi_nsel5 <= '0' when spi_sela = '1' and spi_selb = '0' and spi_selc = '1' else '1';
-    
+    spi_fpga_boot <= '0' when spi_sela = '1' and spi_selb = '1' and spi_selc = '0' else '1';
+	
+	-- clock the reset signal
+	res_p: process(q50m, nres)
+	begin
+		if (rising_edge(q50m)) then
+			nreset <= nres;
+		end if;
+	end process;
+	
     top_c: Top
 	generic map (
 		NUM_SPRITES  => NUM_SPRITES,
@@ -324,7 +336,7 @@ begin
 	port map (
 	-- clock
 	q50m,
-	nres,
+	nreset,
 	nirq,
 	
 	-- CS/A out bus timing
@@ -401,7 +413,7 @@ begin
     hdmi : HdmiConverter
     port map (
         clk54      => q50m,
-        reset_n    => nres,
+        reset_n    => nreset,
         de         => de_s,
         hsync      => not(vga_hsync),
         vsync      => not(vga_vsync),

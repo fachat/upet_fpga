@@ -31,9 +31,6 @@
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="4"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="6"/>
     </file>
-    <file xil_pn:name="pinoutUCPU30a.ucf" xil_pn:type="FILE_UCF">
-      <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
-    </file>
     <file xil_pn:name="vhdl/ShellUltra.vhd" xil_pn:type="FILE_VHDL">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="6"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
@@ -78,6 +75,9 @@
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="16"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="13"/>
     </file>
+    <file xil_pn:name="pinouts/pinoutUCPU30a.ucf" xil_pn:type="FILE_UCF">
+      <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
+    </file>
   </files>
 
   <properties>
@@ -109,7 +109,7 @@
   </properties>
 
   <bindings>
-    <binding xil_pn:location="/ShellUltraHdmi" xil_pn:name="pinoutUCPU30a.ucf"/>
+    <binding xil_pn:location="/ShellUltraHdmi" xil_pn:name="pinouts/pinoutUCPU30a.ucf"/>
   </bindings>
 
   <libraries/>

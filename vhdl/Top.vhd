@@ -39,7 +39,7 @@ entity Top is
 		HWID_H:       std_logic_vector(7 downto 0) := x"81";
 		HW_REV_MAJOR: std_logic_vector(7 downto 0) := x"01";
 		HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02";
-		HAS_CPU_NBE:  std_logic:= '0'
+		HAS_CPU_NBE:  std_logic:= '1'
 	);
     Port ( 
 	-- clock
@@ -909,7 +909,7 @@ begin
 			hibank <= "0001";
 			vidblock <= "010";
 			is_user_reg <= '0';
-			boot <= '1'; --not(HAS_CPU_NBE);
+			boot <= not(HAS_CPU_NBE);
 			lockb0 <= '0';
 			bus_window_c <= '0';
 			bus_window_9 <= '0';
@@ -919,30 +919,16 @@ begin
 			--pageA_map <= "00001010";
 			hide_bogus <= '0';
 			hdmi_on <= '0';
---			if (HAS_CPU_NBE = '1') then
---				reg_bank_sel <= x"e8";
---			else
-				reg_bank_sel <= x"ff";
---			end if;
+			reg_bank_sel <= x"e8";
 		elsif (falling_edge(phi2_int) and sel0='1' and rwb_in='0') then
---			if (ca_in(3 downto 0) = x"0" and HAS_CPU_NBE = '1') then
---				-- register bank select: only $e8, $00, $fe, $ff are valid values
---				if (D = x"e8" or D = x"00" or D = x"fe" or D = x"ff") then
---					reg_bank_sel <= D;
---				end if;
---			elsif (ca_in(3) = '0' and reg_bank_sel = x"ff") then
-			if (ca_in(3) = '0') then
+			if (ca_in(3 downto 0) = x"0") then
+				-- register bank select: only $e8, $00, $fe, $ff are valid values
+				if (D = x"e8" or D = x"00" or D = x"fe" or D = x"ff") then
+					reg_bank_sel <= D;
+				end if;
+			elsif (ca_in(3) = '0' and reg_bank_sel = x"ff") then
 				-- Write to $E801-$E807, only when register bank is $ff
 				case (ca_in(2 downto 0)) is
-				when "000" =>
-					-- only if (HAS_CPU_NBE = '0') then
-					-- video controls
-					hdmi_on <= D(0);
-					vis_80_in <= D(1);
-					screenb0 <= not(D(2));
-					isnocolmap <= D(3);
-					vsize <= D(6 downto 5);
-					vis_enable <= not(D(7));
 				when "001" =>
 					-- memory map controls
 					lockb0 <= D(0);
@@ -1003,18 +989,8 @@ begin
 				if (ca_in(3) = '0') then
 					case (ca_in(2 downto 0)) is
 					when "000" =>
---						if (HAS_CPU_NBE = '1') then
---							-- register bank select
---							s0_d <= reg_bank_sel;
---						else
-							-- video controls
-							s0_d(0) <= hdmi_on;
-							s0_d(1) <= vis_80_in;
-							s0_d(2) <= not(screenb0);
-							s0_d(3) <= isnocolmap;
-							s0_d(6 downto 5) <= vsize;
-							s0_d(7) <= not(vis_enable);
---						end if;
+						-- register bank select
+						s0_d <= reg_bank_sel;
 					when "001" =>
 						-- memory map controls
 						s0_d(0) <= lockb0;

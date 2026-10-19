@@ -38,7 +38,8 @@ entity ShellUltra is
 		HWID_L:       std_logic_vector(7 downto 0) := x"80";
 		HWID_H:       std_logic_vector(7 downto 0) := x"81";
 		HW_REV_MAJOR: std_logic_vector(7 downto 0) := x"01";
-		HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02"
+		HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02";
+		HAS_CPU_NBE:  std_logic := '1'
 	);
     Port ( 
 	-- clock
@@ -124,7 +125,8 @@ architecture Behavioral of ShellUltra is
 			HWID_L:       std_logic_vector(7 downto 0) := x"80";
 			HWID_H:       std_logic_vector(7 downto 0) := x"81";
 			HW_REV_MAJOR: std_logic_vector(7 downto 0) := x"01";
-			HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02"
+			HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02";
+			HAS_CPU_NBE:  std_logic
 		);
     	Port ( 
 	-- clock
@@ -211,7 +213,8 @@ begin
 		HWID_L       => HWID_L,
 		HWID_H       => HWID_H,
 		HW_REV_MAJOR => HW_REV_MAJOR,
-		HW_REV_MINOR => HW_REV_MINOR
+		HW_REV_MINOR => HW_REV_MINOR,
+		HAS_CPU_NBE  => HAS_CPU_NBE
 	)
 	port map (
 	-- clock

@@ -38,7 +38,8 @@ entity Top is
 		HWID_L:       std_logic_vector(7 downto 0) := x"80";
 		HWID_H:       std_logic_vector(7 downto 0) := x"81";
 		HW_REV_MAJOR: std_logic_vector(7 downto 0) := x"01";
-		HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02"
+		HW_REV_MINOR: std_logic_vector(7 downto 0) := x"02";
+		HAS_CPU_NBE:  std_logic:= '1'
 	);
     Port ( 
 	-- clock
@@ -130,7 +131,10 @@ end Top;
 
 architecture Behavioral of Top is
 
-	type T_VADDR_SRC is (VRA_NONE, VRA_CPU, VRA_VIDEO, VRA_DAC);
+	-- note: both, VADDR and FADDR have IPL, as some old boards need to 
+	-- IPL into video memory and need firmware to swap it.
+	-- See generic HAS_CPU_NBE
+	type T_VADDR_SRC is (VRA_NONE, VRA_IPL, VRA_CPU, VRA_VIDEO, VRA_DAC);
 	type T_FADDR_SRC is (FRA_NONE, FRA_IPL, FRA_CPU);
 	type T_BUS_STATE is (BUS_NONE, BUS_CPU, BUS_SETUP, BUS_WAIT);
 	type T_IPL_STATE is (IPL_SETTLE, IPL_CMD, IPL_LOAD, IPL_DONE);
@@ -905,7 +909,7 @@ begin
 			hibank <= "0001";
 			vidblock <= "010";
 			is_user_reg <= '0';
-			boot <= '0';
+			boot <= not(HAS_CPU_NBE);
 			lockb0 <= '0';
 			bus_window_c <= '0';
 			bus_window_9 <= '0';
@@ -1071,8 +1075,10 @@ begin
 			FA_select <= FRA_NONE;
 		elsif (falling_edge(q50m)) then 
 			if (cp10 = '1') then
-				-- at end of previous cycle we determine whichh type we have
-				if (vreq_video = '1') then
+				-- at end of previous cycle we determine which type we have
+				if (vreq_ipl = '1') then
+					VA_select <= VRA_IPL;
+				elsif (vreq_video = '1') then
 					VA_select <= VRA_VIDEO;
 				elsif (vreq_dac = '1') then
 					VA_select <= VRA_DAC;
@@ -1080,11 +1086,10 @@ begin
 					-- potential CPU access (depending on vramsel)
 					VA_select <= VRA_CPU;
 				else
-					--VA_select <= VRA_CPU;
 					VA_select <= VRA_NONE; 
 				end if;
 				
-				if (vreq_ipl = '1') then
+				if (vreq_ipl = '1' and HAS_CPU_NBE = '1') then
 					FA_select <= FRA_IPL;
 				elsif (vreq_cpu = '1') then
 					FA_select <= FRA_CPU;
@@ -1104,6 +1109,10 @@ begin
 					nvramsel_int <= '1';
 					wait_ram <= m_vramsel_out;
 					ramrwb_int <= '1';
+				when VRA_IPL =>
+					nvramsel_int <= '0';
+					wait_ram <= '1';
+					ramrwb_int <= '0';
 				when VRA_CPU =>
 					nvramsel_int <= not(m_vramsel_out);
 					wait_ram <= '0';
@@ -1172,6 +1181,9 @@ begin
 			end case;
 
 			case (VA_select_d) is
+			when VRA_IPL =>
+				VA(7 downto 0) <= ipl_cnt(11 downto 4);
+				VA(18 downto 8) <= ipl_addr(18 downto 8);
 			when VRA_CPU =>
 				VA(7 downto 0) <= ca_in (7 downto 0);
 				VA(18 downto 8) <= ma_out (18 downto 8);
@@ -1199,6 +1211,8 @@ begin
 			else
 				VD <= (others => 'Z');
 			end if;
+		when VRA_IPL =>
+			VD <= spi_dout;
 		when others =>
 			VD <= (others => 'Z');
 		end case;

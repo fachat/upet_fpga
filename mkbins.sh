@@ -3,7 +3,9 @@
 
 . /opt/Xilinx/14.7/ISE_DS/settings64.sh
 
-for i in ultracpu21a ultipet12a ultipet13a ultipet13ahdmi micropet30b micropet31a; do
+for i in ultracpu14a ultracpu21a \
+	ultipet12a ultipet13a ultipet13ahdmi \
+	micropet30b micropet31a; do
 
 	if test $i/*.bit -nt $i.bin ; then 
 		echo "make it"
